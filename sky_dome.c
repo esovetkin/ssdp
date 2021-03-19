@@ -1,0 +1,342 @@
+/* sky_dome.c - (c) Bart E. Pieters
+ * the sky dome is modeled with a hexagonal mesh
+ * sky_dome.c implements the basic meshing and allocation routines for
+ * the hex-meshes
+ */
+#include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
+#include "vector.h"
+#include "sky_dome.h"
+#include "util.h"
+
+// helper routines for indexing hex meshes
+int i_sqrt(int x)	// integer sqrt
+{
+	if(x<=0)
+		return 0;
+	else
+		return (int)sqrt((float)(x));
+}
+int NNZ(int n)	// number of elements in a mesh given a number of levels (zenith discretizations)
+{
+	return 3*n*(n+1)+1;
+}
+int NZN(int n)	// inverse of above, i.e. give it a index and it returns the level (zenith) index
+{
+	return (1+(i_sqrt(12*(n-1)+9)-3)/6);
+}
+
+// compute angles for a given index, i, and mesh with Nz zenith disdcretizations
+sky_pos GridPos(int Nz, int i)
+{
+	sky_pos r;
+	int Na;
+	int nz;
+	if (i<=0)
+	{
+		r.a=0;
+		r.z=0;
+		return r;
+	}
+	if (i>NNZ(Nz))
+	{
+		r.a=0;
+		r.z=M_PI/2.0;
+		return r;
+	}
+	nz=NZN(i);
+	Na=nz*6;
+	r.z=((double)nz)*M_PI/2.0/((double)Nz);
+	r.a=fmod(2*((double)(i-NNZ(nz-1)))*M_PI/(double)Na, 2*M_PI);
+	return r;
+}
+
+// compute index for a point p in a mesh with Nz zenith discretizations
+// is a bit approximate though, you may end up in the patch next to the one you want.
+int GridIndex(int Nz, sky_pos p)
+{
+	int nz,Na,i;
+	double zstep, astep;
+	if (p.z<=0)
+		return 0;
+	if (p.z>M_PI/2)
+		return NNZ(Nz)-1;
+		
+	zstep=M_PI/2.0/((double)Nz);
+	nz=(int)round(p.z/zstep);
+	if (nz==0)
+		return 0;
+	if (nz>Nz)
+		nz=Nz;
+	Na=nz*6; 
+	i=NNZ(nz-1);	
+	astep=2*M_PI/((double)Na);
+	if (p.a>=0)
+		i+=(int)round(p.a/astep);
+	else
+		i+=(int)round((p.a+2*M_PI)/astep);
+	
+	if (i>NNZ(Nz)-1)
+		i=NNZ(Nz)-1;
+	if (i<0)
+		i=0;
+	return i;
+}
+
+
+// routines to connect patches
+int NextIsoL(int Nz, int index) // same level next
+{
+	int nz;
+	if (index==0)
+		return -1;
+		
+	nz=NZN(index);
+	if (nz==NZN(index+1))
+		return index+1;
+	return index-nz*6+1;// last of this level, must go to first of this level
+}
+
+int PrevIsoL(int Nz, int index) // same level previous
+{
+	int nz;
+	if (index==0)
+		return -1;
+		
+	nz=NZN(index);
+	if (nz==NZN(index-1))// previous at same level
+		return index-1;
+	return index+nz*6-1;// last of this level, must go to first of this level
+}
+
+void NextL(int Nz, int index, int *N) // next level
+{
+	int nz, i, aoff, n=0;
+	nz=NZN(index); // this level
+	i=NNZ(nz-1);   // start index of this level
+	aoff=index-i;  // offset at this level
+	
+	if (index==0) // hexpatch 0 only has next level neighbors
+	{
+		N[n++]=1;
+		N[n++]=2;
+		N[n++]=3;
+		N[n++]=4;
+		N[n++]=5;
+		N[n++]=6;
+		N[n]=-1;
+		return;
+	}
+	if (nz==Nz) // last level has no next
+	{
+		N[n]=-1;
+		return;
+	}
+	// from the center of the grid there are 3 axis where the hexpatches are perfectly aligned.
+	// this means that there are 6 azimuth angles that always repeat for every level
+	// this identifies whether we are on one of the 6 mayor azimuth angles
+	if (aoff%nz==0)
+	{
+		N[n++]=index+(NNZ(nz)-i)+aoff/nz;
+		N[n]=N[n-1]+1;
+		n++;
+		N[n]=N[n-2]-1;
+		n++;
+		if (NZN(N[n-1])==nz) // this one is two levels down...
+			N[n-1]=NNZ(nz+1)-1;
+	}
+	else
+	{
+		N[n++]=index+(NNZ(nz)-i)+aoff/nz;
+		N[n]=N[n-1]+1;
+		n++;
+	}
+	N[n]=-1;
+}
+
+void PrevL(int Nz, int index, int *N) // previous level
+{
+	int nz, i, aoff, n=0;
+	nz=NZN(index); // this level
+	i=NNZ(nz-1);   // start index of this level
+	aoff=index-i;  // offset at this level
+	
+	if (index==0) // hexpatch 0 only has no previous level
+	{
+		N[n++]=-1;
+		return;
+	}
+	// from the center of the grid there are 3 axis where the hexpatches are perfectly aligned.
+	// this means that there are 6 azimuth angles that always repeat for every level
+	// this identifies whether we are on one of the 6 mayor azimuth angles
+	if (aoff%nz==0)
+	{
+		if (nz==1)
+			N[n++]=0;
+		else
+			N[n++]=index-(nz-1)*6-aoff/nz;
+		N[n++]=-1;
+	}
+	else
+	{
+		N[n++]=index-(nz-1)*6-aoff/nz-1;
+		N[n]=N[n-1]+1;
+		n++;
+		if (NZN(N[n-1])==nz)
+			N[n-1]=NNZ(nz-1);
+	}
+	N[n]=-1;
+}
+
+
+// for debugging meshing some routines to export connections
+void Neighbors(int Nz, int index, int *N) // collect all neighbors
+{
+	int *n;
+	n=N;
+	(*n)=PrevIsoL(Nz, index);
+	if(*n>=0)
+		n++;
+	
+	(*n)=NextIsoL(Nz, index);
+	if (*n>=0)
+		n++;	
+		
+	PrevL(Nz, index, n);
+	while (*n>=0)
+		n++;	
+		
+	NextL(Nz, index, n);
+	while (*n>=0)
+		n++;	
+}
+
+
+void PlotConn(int Nz, int N[], int index)
+{
+	sky_pos p0,p;
+	vec v0, v;
+	int i;
+	p0=GridPos(Nz, index);
+	v0=unit(p0);
+	i=0;
+	while (N[i]>=0)
+	{
+		p=GridPos(Nz, N[i]);
+		v=unit(p);
+		v=sum(scalevec(v0, -1),v);
+		// gnuplot compatible vectors (splot '...' u 1:2:3:4:5:6 w vectors)
+		printf("%e %e %e %e %e %e\n", v0.x, v0.y, v0.z, v.x, v.y, v.z);
+		i++;
+	}
+}	
+// check proper connecting of mech points
+void Connectivity(int Nz)
+{
+	int i;
+	int N[7];
+	for (i=0;i<NNZ(Nz);i++)
+	{
+		Neighbors(Nz, i, N);
+		PlotConn(Nz,N,i);
+	}
+}
+
+
+// findpatch routine
+int FindPatch(sky_grid sky, sky_pos p)
+{
+	int r;
+	int i,j;
+	int dmin, d, rmin;
+	r=GridIndex(sky.Nz, p);
+	rmin=r;
+	// result of GridIndex(...) may be a bit approximate
+	// look through the neigbors for the best patch
+	dmin=(p.a-sky.P[r].p.a)*(p.a-sky.P[r].p.a)+(p.z-sky.P[r].p.z)*(p.z-sky.P[r].p.z);
+	i=0;
+	while ((j=sky.P[r].NL[i])>=0)
+	{
+		d=(p.a-sky.P[j].p.a)*(p.a-sky.P[j].p.a)+(p.z-sky.P[j].p.z)*(p.z-sky.P[j].p.z);
+		if (d<dmin)
+		{
+			dmin=d;
+			rmin=j;
+		}
+		i++;
+	}
+	i=0;
+	while ((j=sky.P[r].PL[i])>=0)
+	{
+		d=(p.a-sky.P[j].p.a)*(p.a-sky.P[j].p.a)+(p.z-sky.P[j].p.z)*(p.z-sky.P[j].p.z);
+		if (d<dmin)
+		{
+			dmin=d;
+			rmin=j;
+		}
+		i++;
+	}
+	if ((j=sky.P[r].PI)>=0)
+	{
+		d=(p.a-sky.P[j].p.a)*(p.a-sky.P[j].p.a)+(p.z-sky.P[j].p.z)*(p.z-sky.P[j].p.z);
+		if (d<dmin)
+		{
+			dmin=d;
+			rmin=j;
+		}
+	}
+	if ((j=sky.P[r].NI)>=0)
+	{
+		d=(p.a-sky.P[j].p.a)*(p.a-sky.P[j].p.a)+(p.z-sky.P[j].p.z)*(p.z-sky.P[j].p.z);
+		if (d<dmin)
+		{
+			dmin=d;
+			rmin=j;
+		}
+	}
+	return rmin;	
+}
+
+// as the number of elements rises quadratically we better set a
+// practical limit on the Nz values
+#define MAXNZ NZN(1000000)
+
+sky_grid InitSky(int Nz)
+{
+	sky_grid sky;
+	sky_pos sun={0,0};// default sun, straight above
+	int i;
+	if (Nz>MAXNZ)
+	{
+		Warning("Warning: number of zenith discretizations %d too large, using %d instead\n", Nz, MAXNZ);
+		Nz=MAXNZ;
+	}
+	sky.sp=sun; // The default sun, black and straight above you
+	sky.sI=0;
+	sky.smask=0;
+	sky.N=NNZ(Nz);	
+	sky.Nz=Nz;
+	sky.P=malloc((sky.N+1)*sizeof(hexpatch));
+	for (i=0;i<sky.N;i++)
+	{
+		sky.P[i].I=0;
+		sky.P[i].p=GridPos(Nz, i);
+		sky.P[i].mask=0;
+		NextL(Nz, i, sky.P[i].NL);
+		PrevL(Nz, i, sky.P[i].PL);
+		sky.P[i].NI=NextIsoL(Nz, i);
+		sky.P[i].PI=PrevIsoL(Nz, i);
+	}
+	Print(VERBOSE, "Generated a sky dome with %d zenith steps\n", sky.Nz);
+	Print(VERBOSE, "amounting to %d patches of %e sr\n", sky.N, 2*M_PI/((double)sky.N));
+	return sky;
+}
+
+void free_sky_grid(sky_grid *sky)
+{
+	free(sky->P);
+	sky->P=NULL;
+	sky->N=0;
+	sky->Nz=0;
+}
