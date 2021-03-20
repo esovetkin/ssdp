@@ -1,8 +1,21 @@
-/* sky_dome.c - (c) Bart E. Pieters
- * the sky dome is modeled with a hexagonal mesh
- * sky_dome.c implements the basic meshing and allocation routines for
- * the hex-meshes
- */
+/*
+    Simple Sky-Dome Projector Library
+    Copyright (C) 2021  B. E. Pieters, 
+    IEK-5 Photovoltaik, Forschunszentrum Juelich
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>

@@ -1,67 +1,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
-#include "vector.h"
-#include "sky_dome.h"
-#include "sky_model.h"
-#include "project.h"
-#include "ground.h"
+#include "libssdp.h"
 #include "util.h"
 
 
-#define MAXSTRLEN 1028
-// very basic topology reading routine
-// if we will use a commandline version within PV-GRIP
-// we better think of a binary file format to speed thins up and keep memory usage low
-topology LoadTopo(char *fn)
-{
-	topology res;
-	char c, *line;
-	int k, Na=50;
-	FILE *f;
-	int ddef=0;
-	if ((f=fopen(fn,"rb"))==NULL)
-		Fatal("Cannot open %s for reading\n", fn);
-		
-	line=malloc(MAXSTRLEN*sizeof(char));
-    fgets(line, MAXSTRLEN-1, f);
-	res.N=0;
-	res.points=malloc(Na*sizeof(vec));
-	while(feof(f)==0)
-	{
-		
-    	k=sscanf(line, " %c", &c);
-		if((k==1)&&(c!='#'))
-		{
-			k=sscanf(line, " %le %le %le", &(res.points[res.N].x), &(res.points[res.N].y), &(res.points[res.N].z));
-			if(k==3)
-			{
-				res.N++;
-				if (Na-1==res.N)
-				{
-					Na+=50;
-					res.points=realloc(res.points, Na*sizeof(vec));			
-				}
-			}
-		}
-		else if (res.N==0)
-		{
-			k=sscanf(line, "# d=%le", &(res.d));
-			if (k==1)
-				ddef=1;
-				
-		}
-    	fgets(line, MAXSTRLEN-1, f);
-	}
-	free(line);
-	fclose(f);
-	if (!ddef)
-	{
-		Warning("Warning: no point diameter d specified, setting to 1\n");
-		res.d=1;
-	}
-	return res;
-}
 void WriteDome3D(char *fn, sky_grid sky, int sun, int mask)
 {
 	FILE *f;
@@ -78,7 +21,7 @@ void WriteDome3D(char *fn, sky_grid sky, int sun, int mask)
 		fprintf(f,"# Horizon ignored\n");
 	if (sun)
 	{
-		si=FindPatch(sky,sky.sp);
+		si=ssdp_find_skypatch(sky,sky.sp);
 		fprintf(f,"# Direct light included\n");
 	}
 	else
@@ -110,7 +53,7 @@ void WriteDome4D(char *fn, sky_grid sky, int sun, int mask)
 		fprintf(f,"# Horizon ignored\n");
 	if (sun)
 	{
-		si=FindPatch(sky,sky.sp);
+		si=ssdp_find_skypatch(sky,sky.sp);
 		fprintf(f,"# Direct light included\n");
 	}
 	else

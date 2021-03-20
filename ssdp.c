@@ -46,13 +46,65 @@
 #include <stdio.h>
 #include <math.h>
 #include <time.h>
-#include "vector.h"
-#include "sky_dome.h"
-#include "sky_model.h"
-#include "project.h"
-#include "ground.h"
+#include "libssdp.h"
 #include "io.h"
 #include "util.h"
+
+#define rad2degr(rad) ((rad)*180/M_PI)
+#define degr2rad(degr) ((degr)*M_PI/180)
+#define MAXSTRLEN 1028
+topology LoadTopo(char *fn)
+{
+	char c, *line;
+	int k, Na=50;
+	FILE *f;
+	int ddef=0;
+	if ((f=fopen(fn,"rb"))==NULL)
+		Fatal("Cannot open %s for reading\n", fn);
+	topology T;	
+	line=malloc(MAXSTRLEN*sizeof(char));
+    fgets(line, MAXSTRLEN-1, f);
+	T.N=0;
+	T.x=malloc(Na*sizeof(double));
+	T.y=malloc(Na*sizeof(double));
+	T.z=malloc(Na*sizeof(double));
+	while(feof(f)==0)
+	{
+		
+    	k=sscanf(line, " %c", &c);
+		if((k==1)&&(c!='#'))
+		{
+			k=sscanf(line, " %le %le %le", T.x+T.N, T.y+T.N, T.z+T.N);
+			if(k==3)
+			{
+				T.N++;
+				if (Na-1==T.N)
+				{
+					Na+=50;
+					T.x=realloc(T.x, Na*sizeof(double));
+					T.y=realloc(T.y, Na*sizeof(double));
+					T.z=realloc(T.z, Na*sizeof(double));	
+				}
+			}
+		}
+		else if (T.N==0)
+		{
+			k=sscanf(line, "# d=%le", &T.d);
+			if (k==1)
+				ddef=1;
+				
+		}
+    	fgets(line, MAXSTRLEN-1, f);
+	}
+	free(line);
+	fclose(f);
+	if (!ddef)
+	{
+		Warning("Warning: no point diameter d specified, setting to 1\n");
+		T.d=1;
+	}
+	return T;
+}
 // tic-toc timer
 clock_t tic=-1;
 #define TIC() (tic=clock())
@@ -60,30 +112,34 @@ clock_t tic=-1;
 int main()
 {
 	double GHI=230.0, DHI=200.0, t;
-	int i;
+	int N;
 	sky_grid sky;
 	sky_pos sun={degr2rad(20), degr2rad(180)};
 	topology T;
+	
 	Verbosity=VERBOSE;
 	//Connectivity(10);
 	// return 0;
 	TIC();
-	sky=InitSky(50);
-	PerezSky(&sky, sun, GHI, DHI, 300);
-	Print(NORMAL, "GHI: %e\n", GlobalHorizontal(sky,1));
-	Print(NORMAL, "POA: %e\n", PlaneOfArray(sky, degr2rad(30), degr2rad(180),1));
-	// DumpSky(sky, 0, 1);
+	sky=ssdp_init_sky(50);
+	ssdp_make_perez_all_weather_sky(&sky, sun, GHI, DHI, 300);
+	
+	Print(NORMAL, "GHI:         %e\n", ssdp_total_sky_horizontal(sky,1));
+	Print(NORMAL, "POA (sky):   %e\n", ssdp_total_sky_poa(sky, degr2rad(30), degr2rad(180),1));
+	Print(NORMAL, "POA (total): %e\n", ssdp_total_poa(sky,0.25,degr2rad(30), degr2rad(180),1));
+	
+	
 	T=LoadTopo("testtopo.dat");
-	MakeHorizon(&sky, T, 1);
-	Print(NORMAL, "GHI: %e\n", GlobalHorizontal(sky,1));
-	Print(NORMAL, "POA: %e\n", PlaneOfArray(sky, degr2rad(30), degr2rad(180),1));
-	Print(NORMAL, "POA ground reflected: %e\n", POA_Albedo(sky, 0.25, degr2rad(30), degr2rad(180),1));
+	ssdp_mask_horizon(&sky,T,0.0,0.0,1);
+	Print(NORMAL, "GHI:         %e\n", ssdp_total_sky_horizontal(sky,1));
+	Print(NORMAL, "POA (sky):   %e\n", ssdp_total_sky_poa(sky, degr2rad(30), degr2rad(180),1));
+	Print(NORMAL, "POA (total): %e\n", ssdp_total_poa(sky,0.25,degr2rad(30), degr2rad(180),1));
 	
 	WriteDome3D("3D_sky.dat", sky, 0, 1);
 	WriteDome4D("4D_sky.dat", sky, 0, 1);
 	t=TOC();
 	Print(VERBOSE, "used %e s\n", t);
-	free_sky_grid(&sky);
-	free_topo(&T);
+	ssdp_free_sky(&sky);
+	ssdp_free_topology(&T);
 	return 0;
 }

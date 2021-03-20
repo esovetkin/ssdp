@@ -1,3 +1,21 @@
+/*
+    Simple Sky-Dome Projector Library
+    Copyright (C) 2021  B. E. Pieters, 
+    IEK-5 Photovoltaik, Forschunszentrum Juelich
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
@@ -6,10 +24,14 @@
 #include "ground.h"
 
 
-
 void free_topo (topology *T)
 {
-	free(T->points);
+	free(T->x);
+	free(T->y);
+	free(T->z);
+	T->x=NULL;
+	T->y=NULL;
+	T->z=NULL;	
 	T->N=0;	
 }
 // this routine recursively asks all elements below element index
@@ -84,7 +106,7 @@ void UpdateHorizon(sky_grid *sky, sky_pos p, double W)
 }
 
 
-void MakeHorizon(sky_grid *sky, topology T, double height) 
+void MakeHorizon(sky_grid *sky, topology T, double xoff, double yoff, double zoff) 
 {
 	int i;
 	sky_pos p;
@@ -92,9 +114,9 @@ void MakeHorizon(sky_grid *sky, topology T, double height)
 	for (i=0;i<T.N;i++)
 	{
 		// compute sky position and diameter in radians
-		d=sqrt(T.points[i].x*T.points[i].x+T.points[i].y*T.points[i].y);
-		p.z=M_PI/2-fabs(atan2((T.points[i].z-height),d));
-		p.a=atan2(T.points[i].y,T.points[i].x);
+		d=sqrt((T.x[i]-xoff)*(T.x[i]-xoff)+(T.y[i]-yoff)*(T.y[i]-yoff));
+		p.z=M_PI/2-fabs(atan2(T.z[i]-zoff,d));
+		p.a=atan2(T.y[i]-yoff,T.x[i]-xoff);
 		W=2*atan(T.d/(2*d));
 		if (p.z>M_PI/2)
 			p.z=M_PI/2;
