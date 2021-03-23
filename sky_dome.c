@@ -237,8 +237,7 @@ void PlotConn(int Nz, int N[], int index)
 	while (N[i]>=0)
 	{
 		p=GridPos(Nz, N[i]);
-		v=unit(p);
-		v=sum(scalevec(v0, -1),v);
+		v=diff(unit(p), v0);
 		// gnuplot compatible vectors (splot '...' u 1:2:3:4:5:6 w vectors)
 		printf("%e %e %e %e %e %e\n", v0.x, v0.y, v0.z, v.x, v.y, v.z);
 		i++;
@@ -320,16 +319,20 @@ sky_grid InitSky(int Nz)
 	sky_grid sky;
 	sky_pos sun={0,0};// default sun, straight above
 	int i;
+	Print(VVERBOSE, "********************************************************************************\n");
+	Print(VERBOSE, "--InitSky\t\t\t");
+	Print(VVERBOSE, "\n");
 	if (Nz>MAXNZ)
 	{
 		Warning("Warning: number of zenith discretizations %d too large, using %d instead\n", Nz, MAXNZ);
 		Nz=MAXNZ;
 	}
+	sky.N=NNZ(Nz);	
+	sky.Nz=Nz;
+	Print(VVERBOSE, "Initializing sky dome with %d patches of %e sr\n", sky.N, 2*M_PI/((double)sky.N));
 	sky.sp=sun; // The default sun, black and straight above you
 	sky.sI=0;
 	sky.smask=0;
-	sky.N=NNZ(Nz);	
-	sky.Nz=Nz;
 	sky.P=malloc((sky.N+1)*sizeof(hexpatch));
 	for (i=0;i<sky.N;i++)
 	{
@@ -341,8 +344,8 @@ sky_grid InitSky(int Nz)
 		sky.P[i].NI=NextIsoL(Nz, i);
 		sky.P[i].PI=PrevIsoL(Nz, i);
 	}
-	Print(VERBOSE, "Generated a sky dome with %d zenith steps\n", sky.Nz);
-	Print(VERBOSE, "amounting to %d patches of %e sr\n", sky.N, 2*M_PI/((double)sky.N));
+	Print(VERBOSE, "Done\n");
+	Print(VVERBOSE, "********************************************************************************\n\n");
 	return sky;
 }
 

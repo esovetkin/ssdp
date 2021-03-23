@@ -41,12 +41,31 @@ typedef struct sky_grid {
 	int Nz;
 } sky_grid;
 
+typedef struct triangles {
+	int i, j, k;
+	double ccx, ccy, ccr;
+} triangles;
+
+typedef struct nodetree {
+	int *leaves;
+	double bb[4];
+	struct nodetree *N1;
+	struct nodetree *N2;
+	struct nodetree *N3;
+	struct nodetree *N4;
+} nodetree;
+
 typedef struct topology {
 	double *x, *y, *z;  // 3D coordinates
 	int N;		 		// number of points
-	double d;	 		// diameter of the points (all points have the same diameter)
-						// you'll have to create more than one topology to have different sizes
+	triangles *T;
+	int Nt;		 		// number of triangles
+	nodetree *P;
 } topology;
+
+
+typedef enum {QUIET, VERBOSE, VVERBOSE} VERB;
+extern VERB ssdp_verbosity;
 
 int ssdp_find_skypatch(sky_grid sky, sky_pos p);
 sky_grid ssdp_init_sky(int Nz);
@@ -65,5 +84,9 @@ double ssdp_diffuse_sky_horizontal(sky_grid sky, int mask);
 double ssdp_direct_sky_horizontal(sky_grid sky, int mask);
 double ssdp_total_sky_horizontal(sky_grid sky, int mask);
 
-void ssdp_mask_horizon(sky_grid *sky, topology T, double Ox, double Oy, double Oz);
+void ssdp_mask_horizon(sky_grid *sky, topology T, double Ox, double Oy, double Oz, sky_pos *sn);
+void ssdp_unmask_horizon(sky_grid *sky);
+
+topology ssdp_make_topology(double *x, double *y, double *z, int N);
+topology ssdp_make_rand_topology(double dx, double dy, double dz, double fN, int N);
 void ssdp_free_topology(topology *T);

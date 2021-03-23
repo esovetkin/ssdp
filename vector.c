@@ -39,6 +39,14 @@ vec sum(vec a, vec b)
 	r.z=a.z+b.z;
 	return r;
 }
+vec diff(vec a, vec b)
+{
+	vec r;
+	r.x=a.x-b.x;
+	r.y=a.y-b.y;
+	r.z=a.z-b.z;
+	return r;
+}
 
 vec scalevec(vec a, double b)
 {

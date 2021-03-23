@@ -24,6 +24,7 @@
 #include "sky_dome.h"
 #include "sky_model.h"
 #include "project.h"
+#include "delaunay.h"
 #include "ground.h"
 #include "io.h"
 #include "util.h"
@@ -101,24 +102,26 @@ double ssdp_total_sky_horizontal(sky_grid sky, int mask)
 
 
 /* topology routines */
-void ssdp_mask_horizon(sky_grid *sky, topology T, double Ox, double Oy, double Oz)
+void ssdp_mask_horizon(sky_grid *sky, topology T, double Ox, double Oy, double Oz, sky_pos *sn)
 {
-	MakeHorizon(sky, T, Ox, Oy, Oz);
+	vec n;
+	MakeHorizon(sky, T, Ox, Oy, Oz, &n);
+	if (sn)
+		(*sn)=vecdir(n);
+}
+void ssdp_unmask_horizon(sky_grid *sky)
+{
+	ClearHorizon(sky);
+}
+topology ssdp_make_topology(double *x, double *y, double *z, int N)
+{
+	return MakeTopology(x,y,z, N);
+}
+topology ssdp_make_rand_topology(double dx, double dy, double dz, double fN, int N)
+{
+	return CreateRandomTopology(dx, dy, dz, fN, N);
 }
 void ssdp_free_topology(topology *T)
 {
 	free_topo (T);
 }
-
-
-/* make raster images of irradiance */
-double **ssdp_raster_horizontal();
-double **ssdp_raster_poa();
-
-/* trace a route through the landscape (VIPV) */
-double *ssdp_route_horizontal();
-double *ssdp_route_poa();
-
-/* trace changing sky conditions */
-double *ssdp_sky_evolution_horizontal();
-double *ssdp_sky_evolution_poa();

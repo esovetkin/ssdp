@@ -27,9 +27,11 @@ void UniformSky(sky_grid *sky, sky_pos sun, double GHI, double DHI)
 {
 	double dhi0=0, dir;
 	int i;
-	Print(VERBOSE, "Creating uniform sky-dome\n");
-	Print(VERBOSE, "GHI:           %e\nDHI:           %e\n\n", GHI, DHI);
-	Print(VERBOSE, "Solar Zenith:  %f\nSolar Azimuth: %f\n", rad2degr(sun.z), rad2degr(sun.a));
+	Print(VVERBOSE, "********************************************************************************\n");
+	Print(VERBOSE, "--UniformSky\t\t\t");
+	Print(VVERBOSE, "\nGHI:           %e\nDHI:           %e\n\n", GHI, DHI);
+	Print(VVERBOSE, "Solar Zenith:  %f\nSolar Azimuth: %f\n", rad2degr(sun.z), rad2degr(sun.a));
+	Print(VVERBOSE, "on a sky dome with %d patches\n", sky->N);
 	
 	// sum intensity cos(z) product to normalize intensities
 	for (i=0;i<sky->N;i++)
@@ -40,6 +42,8 @@ void UniformSky(sky_grid *sky, sky_pos sun, double GHI, double DHI)
 	dir=GHI-DHI;
 	sky->sp=sun;
 	sky->sI=dir/cos(sun.z);
+	Print(VERBOSE, "Done\n");
+	Print(VVERBOSE, "********************************************************************************\n\n");
 }
 
 double SolarAngle(double z1, double z2, double a1, double a2)
@@ -229,13 +233,15 @@ void PerezSky(sky_grid * sky, sky_pos sun, double GHI, double DHI, double dayofy
 	eps=sky_clearness(sun, DHI, GHI);
 	delta=sky_brightness(sun, DHI, dayofyear);
 	ParamPerez(eps, delta, sun, &a, &b, &c, &d, &e);
-	Print(VERBOSE,"Creating Perez all weather sky-dome\n");	
-	Print(VERBOSE,"GHI:           %e\nDHI:           %e\nDay:           %f\n", GHI, DHI, dayofyear);
-	Print(VERBOSE,"Solar Zenith:  %f\nSolar Azimuth: %f\n", rad2degr(sun.z), rad2degr(sun.a));
-	Print(VERBOSE,"******** Derived Parametrization\n");
-	Print(VERBOSE,"Clearness:     %e\nDelta:         %e\n", eps, delta);	
-	Print(VERBOSE,"a:             %e\nb:             %e\nc:             %e\nd:             %e\ne:             %e\n", a,b,c,d,e);
-	Print(VERBOSE,"********\n");
+	Print(VVERBOSE, "********************************************************************************\n");
+	Print(VERBOSE, "--PerezSky\t\t\t");
+	Print(VVERBOSE, "\nGHI:           %e\nDHI:           %e\nDay:           %f\n", GHI, DHI, dayofyear);
+	Print(VVERBOSE, "Solar Zenith:  %f\nSolar Azimuth: %f\n", rad2degr(sun.z), rad2degr(sun.a));
+	Print(VVERBOSE, "on a sky dome with %d patches\n", sky->N);
+	Print(VVERBOSE, "================================================================================\n");
+	Print(VVERBOSE, "Clearness:     %e\nDelta:         %e\n", eps, delta);	
+	Print(VVERBOSE, "a:             %e\nb:             %e\nc:             %e\nd:             %e\ne:             %e\n", a,b,c,d,e);
+	Print(VVERBOSE, "================================================================================\n");
 	
 	// sum intensity cos(z) product to normalize intensities
 	for (i=0;i<sky->N;i++)
@@ -250,4 +256,6 @@ void PerezSky(sky_grid * sky, sky_pos sun, double GHI, double DHI, double dayofy
 	dir=GHI-DHI; // direct contribution
 	sky->sp=sun;
 	sky->sI=dir/cos(sun.z);
+	Print(VERBOSE, "Done\n");
+	Print(VVERBOSE, "********************************************************************************\n\n");
 }

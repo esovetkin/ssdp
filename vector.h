@@ -23,11 +23,12 @@ typedef struct sky_pos {
 	double z,a;
 } sky_pos;
 
-typedef struct ssdp_vec {
+typedef struct vec {
 	double x,y,z;
 } vec;
 vec cross(vec a, vec b);
 vec sum(vec a, vec b);
+vec diff(vec a, vec b);
 vec scalevec(vec a, double b);
 double dot(vec a, vec b);
 double norm(vec v);

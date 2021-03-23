@@ -19,10 +19,13 @@
 typedef struct topology {
 	double *x, *y, *z;  // 3D coordinates
 	int N;		 		// number of points
-	double d;	 		// diameter of the points (all points have the same diameter)
-						// you'll have to create more than one topology to have different sizes
+	triangles *T;
+	int Nt;		 		// number of triangles
+	nodetree *P;
 } topology;
 
+topology MakeTopology(double *x, double *y, double *z, int N);
+topology CreateRandomTopology(double dx, double dy, double dz, double fN, int N);
 void free_topo (topology *T);
-void MakeHorizon(sky_grid *sky, topology T, double xoff, double yoff, double zoff);
+void MakeHorizon(sky_grid *sky, topology T, double xoff, double yoff, double zoff, vec *sn);
 void ClearHorizon(sky_grid *sky);
