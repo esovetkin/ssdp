@@ -110,9 +110,15 @@ double ssdp_total_sky_horizontal(sky_grid sky, int mask)
 
 
 /* topology routines */
-void ssdp_mask_horizon(sky_grid *sky, topology T, double Ox, double Oy, double Oz, sky_pos *sn)
+void ssdp_mask_horizon(sky_grid *sky, topology T, double Ox, double Oy, double Oz)
 {
-	MakeHorizon(sky, T, Ox, Oy, Oz, sn);
+	MakeHorizon(sky, T, Ox, Oy, Oz);
+}
+void ssdp_mask_horizon_z_to_ground(sky_grid *sky, topology T, double Ox, double Oy, double deltaz, sky_pos *sn)
+{
+	double Oz;
+	Oz=SampleTopo(Ox, Oy, T, sn)+deltaz;
+	MakeHorizon(sky, T, Ox, Oy, Oz);
 }
 void ssdp_unmask_horizon(sky_grid *sky)
 {

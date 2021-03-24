@@ -234,20 +234,18 @@ void UpdateHorizon(sky_grid *sky, sky_pos p, double W)
 	
 }
 
-
-void MakeHorizon(sky_grid *sky, topology T, double xoff, double yoff, double zoff, sky_pos *sn) 
+// warning: zoff is absolute and not w.r.t. local ground level
+void MakeHorizon(sky_grid *sky, topology T, double xoff, double yoff, double zoff) 
 {
 	int i;
 	sky_pos p;
-	double d, W, z;
-	double z0, a1, a2, a3, w1,w2,w3;
+	double d, W;
+	double z, a1, a2, a3, w1,w2,w3;
 	Print(VVERBOSE, "********************************************************************************\n");
 	Print(VERBOSE, "--MakeHorizon\t\t\t");
 	Print(VVERBOSE, "\ntopology: %d points\n", T.N);
 	Print(VVERBOSE, "sky dome: %d patches\n", sky->N);
 	Print(VVERBOSE, "Computing Horizon\n");
-	z0=SampleTopo(xoff, yoff, T, sn);
-	z0+=zoff;
 	
 	for (i=0;i<T.Nt;i++)
 	{
@@ -255,7 +253,7 @@ void MakeHorizon(sky_grid *sky, topology T, double xoff, double yoff, double zof
 		
 		d=sqrt((T.T[i].ccx-xoff)*(T.T[i].ccx-xoff)+(T.T[i].ccy-yoff)*(T.T[i].ccy-yoff));
 		z=(T.z[T.T[i].i]+T.z[T.T[i].j]+T.z[T.T[i].k])/3;
-		p.z=M_PI/2-atan2(z-z0,d);		
+		p.z=M_PI/2-atan2(z-zoff,d);		
 		a1=atan2(T.y[T.T[i].i]-yoff,T.x[T.T[i].i]-xoff);
 		a2=atan2(T.y[T.T[i].j]-yoff,T.x[T.T[i].j]-xoff);
 		a3=atan2(T.y[T.T[i].k]-yoff,T.x[T.T[i].k]-xoff);

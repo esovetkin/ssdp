@@ -29,4 +29,4 @@ shull.o:ll.h shull.h
 ll.o:ll.h
 	$(CC) -c -DLL_CIRCULAR -D_GNU_SOURCE $(CFLAGS) -o ll.o ll.c
 clean:
-	rm *.o ssdp
+	rm *.o ssdp libssdp.so

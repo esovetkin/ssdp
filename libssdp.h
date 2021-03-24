@@ -103,10 +103,10 @@ double ssdp_direct_sky_horizontal(sky_grid sky, int mask);
 double ssdp_total_sky_horizontal(sky_grid sky, int mask);
 
 /* compute the horizon */
-void ssdp_mask_horizon(sky_grid *sky, topology T, double Ox, double Oy, double Oz, sky_pos *sn);
+void ssdp_mask_horizon(sky_grid *sky, topology T, double Ox, double Oy, double Oz); // absolute x,y,z coordinates
+void ssdp_mask_horizon_z_to_ground(sky_grid *sky, topology T, double Ox, double Oy, double deltaz, sky_pos *sn); 
+// z w.r.t. ground, also sets sn, the local surface normal. Can be used to adapt module orientation (ssdp_poa_to_surface_normal)
 void ssdp_unmask_horizon(sky_grid *sky); // clear a horizon from a sky dome
-// should we have a routine to copy a horizon from one sky to another?
-// I think not, we can just recompute a sky if we neew different weather/solar position
 
 
 // create a topology from a point cloud
