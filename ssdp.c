@@ -63,7 +63,7 @@ int main()
 	sky_pos sun={degr2rad(20), degr2rad(180)};
 	topology T;
 	
-	//ssdp_verbosity=VERBOSE;
+	// ssdp_verbosity=VVERBOSE;
 	//Connectivity(10);
 	// return 0;
 	TIC();
@@ -74,10 +74,10 @@ int main()
 	printf( "POA (sky):   %e\n", ssdp_total_sky_poa(sky, degr2rad(30), degr2rad(180),1));
 	printf( "POA (total): %e\n", ssdp_total_poa(sky,0.25,degr2rad(30), degr2rad(180),1));
 	
-	// T=ssdp_make_rand_topology(100,100,10,0.01, 10000);
-	// WriteTopo("testtopo.dat", T);
-	T=LoadTopo("testtopo.dat");
-	WriteTriangles("topotriangle.dat", T);
+	T=ssdp_make_rand_topology(100,100,10,0.01, 12000);
+	WriteTopo("testtopo.dat", T);
+	//T=LoadTopo("testtopo.dat");
+	//WriteTriangles("topotriangle.dat", T);
 	ssdp_mask_horizon(&sky,T,0.0,0.0,0.1, NULL);
 	printf( "GHI:         %e\n", ssdp_total_sky_horizontal(sky,1));
 	printf( "POA (sky):   %e\n", ssdp_total_sky_poa(sky, degr2rad(30), degr2rad(180),1));
@@ -88,8 +88,13 @@ int main()
 	t=TOC();
 	printf( "used %e s\n", t);
 	ssdp_unmask_horizon(&sky);	
+	
 	TIC();
-	RasterPOA("POAraster.dat", sky, T, 0.25, 0.3, degr2rad(180), degr2rad(0), -40, -40, 40, 40, 10, 10);
+	RasterPOA("POAraster.dat", sky, T, 0.25, 0.3, degr2rad(180), degr2rad(0), -40, -40, 40, 40, 100, 100);
+	t=TOC();
+	printf( "used %e s\n", t);
+	TIC();
+	RasterTopology("TOPOraster.dat", T, -40, -40, 40, 40, 100, 100);
 	t=TOC();
 	printf( "used %e s\n", t);
 	ssdp_free_sky(&sky);

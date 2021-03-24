@@ -1,5 +1,5 @@
 typedef struct nodetree {
-	int *leaves;
+	int *leafs;
 	double bb[4];
 	struct nodetree *N1;
 	struct nodetree *N2;
@@ -8,7 +8,7 @@ typedef struct nodetree {
 } nodetree;
 typedef struct triangles {
 	int i, j, k;
-	double ccx, ccy, ccr;
+	double ccx, ccy;
 } triangles;
 typedef enum {SHULL_OK, SHULL_ERR} SHULL_STATE;
 extern SHULL_STATE SSTATE;

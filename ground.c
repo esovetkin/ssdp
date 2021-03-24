@@ -32,6 +32,9 @@ topology MakeTopology(double *x, double *y, double *z, int N)
 {
 	topology T;
 	int i;
+	Print(VVERBOSE, "********************************************************************************\n");
+	Print(VERBOSE, "--MakeTopology\t\t\t");
+	Print(VVERBOSE, "\ncreating topology: %d points\n", N);
 	T.x=malloc(N*sizeof(double));
 	T.y=malloc(N*sizeof(double));
 	T.z=malloc(N*sizeof(double));
@@ -44,6 +47,9 @@ topology MakeTopology(double *x, double *y, double *z, int N)
 	T.N=N;
 	T.T=Triangulate(T.x, T.y, T.N, &T.Nt);
 	T.P=InitTree(T.T, T.Nt, T.x, T.y, N);
+	Print(VVERBOSE, "\ntriangulation: %d triangles\n", T.Nt);
+	Print(VERBOSE, "Done\n");
+	Print(VVERBOSE, "********************************************************************************\n");
 	return T;
 }
 
@@ -60,10 +66,11 @@ void free_topo (topology *T)
 	T->N=0;	
 	FreeTree(T->P);
 	free(T->P);
+	T->P=NULL;
 }
 
 // should export norm somehow as we may want to rotate the pv panel accordingly
-double SampleTopo(double x, double y, topology T, vec *sn)
+double SampleTopo(double x, double y, topology T, sky_pos *sn)
 { // dangerous, no check for extrapolation
 	int n;
 	vec nn, a, b, c, v1, v2;
@@ -92,9 +99,8 @@ double SampleTopo(double x, double y, topology T, vec *sn)
 	//A x + B y +C z = D
 	D=nn.x*a.x+nn.y*a.y+nn.z*a.z;
 	z=(D-nn.x*x-nn.y*y)/nn.z;
-	nn=scalevec(nn, 1/l);
 	if (sn)
-		(*sn)=nn;
+		(*sn)=vecdir(nn);
 	return z;	
 }
 topology CreateRandomTopology(double dx, double dy, double dz, double fN, int N)
@@ -103,6 +109,12 @@ topology CreateRandomTopology(double dx, double dy, double dz, double fN, int N)
 	double *x, *y, *z;
 	topology T;
 	int i, n;
+	VERB verbstate;
+	verbstate=ssdp_verbosity;
+	ssdp_verbosity=QUIET;
+	Print(VVERBOSE, "********************************************************************************\n");
+	Print(VERBOSE, "--Create Random Topology\t\t\t");
+	Print(VVERBOSE, "\ncreating topology: %d points\n", N);
 	fN=fabs(fN);
 	if (fN>1)
 		fN=1/fN;
@@ -144,6 +156,10 @@ topology CreateRandomTopology(double dx, double dy, double dz, double fN, int N)
 	free(x);
 	free(y);
 	free(z);
+	ssdp_verbosity=verbstate;
+	Print(VVERBOSE, "\ntriangulation: %d triangles\n", T.Nt);
+	Print(VERBOSE, "Done\n");
+	Print(VVERBOSE, "********************************************************************************\n");
 	return T;
 }
 
@@ -219,12 +235,12 @@ void UpdateHorizon(sky_grid *sky, sky_pos p, double W)
 }
 
 
-void MakeHorizon(sky_grid *sky, topology T, double xoff, double yoff, double zoff, vec *sn) 
+void MakeHorizon(sky_grid *sky, topology T, double xoff, double yoff, double zoff, sky_pos *sn) 
 {
 	int i;
 	sky_pos p;
 	double d, W, z;
-	double z0;
+	double z0, a1, a2, a3, w1,w2,w3;
 	Print(VVERBOSE, "********************************************************************************\n");
 	Print(VERBOSE, "--MakeHorizon\t\t\t");
 	Print(VVERBOSE, "\ntopology: %d points\n", T.N);
@@ -240,9 +256,28 @@ void MakeHorizon(sky_grid *sky, topology T, double xoff, double yoff, double zof
 		d=sqrt((T.T[i].ccx-xoff)*(T.T[i].ccx-xoff)+(T.T[i].ccy-yoff)*(T.T[i].ccy-yoff));
 		z=(T.z[T.T[i].i]+T.z[T.T[i].j]+T.z[T.T[i].k])/3;
 		p.z=M_PI/2-atan2(z-z0,d);		
-		p.a=atan2(T.T[i].ccy-yoff,T.T[i].ccx-xoff);
+		a1=atan2(T.y[T.T[i].i]-yoff,T.x[T.T[i].i]-xoff);
+		a2=atan2(T.y[T.T[i].j]-yoff,T.x[T.T[i].j]-xoff);
+		a3=atan2(T.y[T.T[i].k]-yoff,T.x[T.T[i].k]-xoff);
+		w1=fabs(adiff(a1, a2));
+		w2=fabs(adiff(a2, a3));
+		w3=fabs(adiff(a1, a3));		
 		
-		W=2*atan(T.T[i].ccr/d);
+		if ((w1>w2)&&(w1>w3))
+		{
+			W=w1;
+			p.a=amean(a1, a2);
+		}
+		else if ((w2>w1)&&(w2>w3))
+		{
+			W=w2;
+			p.a=amean(a2, a3);
+		}
+		else if ((w3>w1)&&(w3>w2))
+		{
+			W=w3;
+			p.a=amean(a1, a3);
+		}
 		if (p.z<M_PI/2)
 			UpdateHorizon(sky, p, W);
 	}

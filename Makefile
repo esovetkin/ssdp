@@ -6,8 +6,8 @@ SRC=io.c ssdp.c
 OBJ=io.o ssdp.o
 HDR=io.h
 CC=gcc
-# CFLAGS=-Og -flto -g -Wall -pedantic -fPIC
-CFLAGS=-O3 -flto -fPIC
+CFLAGS=-Og -flto -g -Wall -pedantic -fPIC
+# CFLAGS=-O3 -flto -fPIC
 LFLAGS=-lm -L.
 libssdp_la_LDFLAGS = -lm -Wl,--version-script=libssdp.map
 

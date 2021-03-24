@@ -58,6 +58,8 @@ double DirectPlaneOfArray(sky_grid sky, double tilt, double a, int mask)
 	Print(VERBOSE, "--DirectPlaneOfArray\t\t");
 	Print(VVERBOSE, "\nTilt:    %f\n", rad2degr(tilt));
 	Print(VVERBOSE, "Azimuth: %f\n", rad2degr(a));
+	axis.a=a+M_PI/2;// axis points perpendicular to a
+	axis.z=M_PI/2;
 	if ((!sky.smask)||(!mask))
 	{
 		r=rrf(sky.sp, axis, -tilt); 
@@ -122,3 +124,19 @@ double POA_Albedo(sky_grid sky, double albedo, double tilt, double a, int mask)
 	Print(VVERBOSE, "********************************************************************************\n\n");
 	return POA;
 }
+
+
+void POA_to_SurfaceNormal(double *tilt, double *a, sky_pos sn)
+{
+	sky_pos axis, r;
+	axis.a=sn.a;
+	axis.z=M_PI/2;
+	r.a=(*a);
+	r.z=(*tilt);
+	r=rrf(r, axis, sn.z);
+	(*a)=r.a;
+	(*tilt)=r.z;
+}
+	
+	
+	

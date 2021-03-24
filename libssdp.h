@@ -16,20 +16,25 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+
+/* spherical coordinate system (only direction, no radius, hardly ever need that) */
 typedef struct sky_pos {
 	double z,a;
 } sky_pos;
 
+/* hexagonal patch of sky */
 typedef struct hexpatch {
-	double I;
-	sky_pos p;
-	char mask; // mark elements behind the horizon
-	int NL[7]; // next level neighbors
-	int PL[3]; // previous level neighbors
-	int NI;    // iso level next
-	int PI;    // iso level previous
+	double I;	// light intensity
+	sky_pos p;	// sky coordinate
+	char mask;	// mark elements behind the horizon
+	int NL[7];	// next level neighbors (at larger zenith angle)
+	int PL[3];	// previous level neighbors (at smaller senith angle)
+	int NI;		// iso level next (same zenith angle, larger azimuth)
+	int PI;		// iso level previous (same zenith angle, smaller azimuth)
 } hexpatch;
 
+
+/* sky mesh */
 typedef struct sky_grid {
 	hexpatch *P;
 	// get sun out of the hexpatch dome so we can separate contributions
@@ -41,13 +46,15 @@ typedef struct sky_grid {
 	int Nz;
 } sky_grid;
 
+/* some structures for the topology */
+/* triangulation data */
 typedef struct triangles {
 	int i, j, k;
-	double ccx, ccy, ccr;
+	double ccx, ccy;
 } triangles;
-
+/* quaternary search tree */
 typedef struct nodetree {
-	int *leaves;
+	int *leafs;
 	double bb[4];
 	struct nodetree *N1;
 	struct nodetree *N2;
@@ -55,6 +62,7 @@ typedef struct nodetree {
 	struct nodetree *N4;
 } nodetree;
 
+/* topology structure including triangulation data */
 typedef struct topology {
 	double *x, *y, *z;  // 3D coordinates
 	int N;		 		// number of points
@@ -64,29 +72,50 @@ typedef struct topology {
 } topology;
 
 
+/* verbosity of the library */
 typedef enum {QUIET, VERBOSE, VVERBOSE} VERB;
 extern VERB ssdp_verbosity;
 
+/* locate the sky patch enclosing a certain point */
 int ssdp_find_skypatch(sky_grid sky, sky_pos p);
+/* initialize a sky mesh */
 sky_grid ssdp_init_sky(int Nz);
+/* free a sky mesh */
 void ssdp_free_sky(sky_grid *sky);
 
+/* create a sky with a uniform diffuse light distribution */
 void ssdp_make_uniform_sky(sky_grid *sky, sky_pos sun, double GHI, double DHI);
+/* create a sky with the Perez all weather model */
 void ssdp_make_perez_all_weather_sky(sky_grid * sky, sky_pos sun, double GHI, double DHI, double dayofyear);
 
-double ssdp_diffuse_sky_poa(sky_grid sky, double tilt, double a, int mask);
-double ssdp_direct_sky_poa(sky_grid sky, double tilt, double a, int mask);
-double ssdp_total_sky_poa(sky_grid sky, double tilt, double a, int mask);
-double ssdp_groundalbedo_poa(sky_grid sky, double albedo, double tilt, double a, int mask);
-double ssdp_total_poa(sky_grid sky, double albedo, double tilt, double a, int mask);
-
+/* projection routings for plane of array irradiance */
+double ssdp_diffuse_sky_poa(sky_grid sky, double tilt, double a, int mask);					// diffuse contribution
+double ssdp_direct_sky_poa(sky_grid sky, double tilt, double a, int mask);					// direct contribution
+double ssdp_total_sky_poa(sky_grid sky, double tilt, double a, int mask);					// all sky contributions together
+double ssdp_groundalbedo_poa(sky_grid sky, double albedo, double tilt, double a, int mask);	// ground albedo contribution (with crude assumptions)
+double ssdp_total_poa(sky_grid sky, double albedo, double tilt, double a, int mask);		// sky+ground
+void ssdp_poa_to_surface_normal(double tilt, double a, sky_pos sn, double *tilt_out, double *a_out);
+																							// if the poa follows the surface normal, this routine rotates the 
+																							// module accordingly
+/* projection routines for GHI */
 double ssdp_diffuse_sky_horizontal(sky_grid sky, int mask);
 double ssdp_direct_sky_horizontal(sky_grid sky, int mask);
 double ssdp_total_sky_horizontal(sky_grid sky, int mask);
 
+/* compute the horizon */
 void ssdp_mask_horizon(sky_grid *sky, topology T, double Ox, double Oy, double Oz, sky_pos *sn);
-void ssdp_unmask_horizon(sky_grid *sky);
+void ssdp_unmask_horizon(sky_grid *sky); // clear a horizon from a sky dome
+// should we have a routine to copy a horizon from one sky to another?
+// I think not, we can just recompute a sky if we neew different weather/solar position
 
+
+// create a topology from a point cloud
 topology ssdp_make_topology(double *x, double *y, double *z, int N);
+// create random topologies for testing
 topology ssdp_make_rand_topology(double dx, double dy, double dz, double fN, int N);
 void ssdp_free_topology(topology *T);
+// compute elevation (z) at any point x and y in the topology
+// beware: will extrapolate from closest triangle to points outside the hull without warning
+// Also computes the surface normal if you pass it a non NULL pointer to a sky_pos
+// you can use this to rotate the POA using ssdp_poa_to_surface_normal(...)
+double ssdp_sample_topology(double x, double y, topology T, sky_pos *sn);

@@ -46,12 +46,11 @@ triangles * CollectTriangles(ll_node *n, int N, int *Nt)
 			free(T);
 			return NULL;			
 		}
-		T[i].i=t->p[0]->index;
+		T[i].i=t->p[0]->index; // original indexes of the points
 		T[i].j=t->p[1]->index;
 		T[i].k=t->p[2]->index;
-		T[i].ccx=t->cc.x;
-		T[i].ccy=t->cc.y;
-		T[i].ccr=sqrt(t->ccr2);
+		T[i].ccx=(t->p[0]->x+t->p[1]->x+t->p[2]->x)/3;// average coordinate of the triangle
+		T[i].ccy=(t->p[0]->y+t->p[1]->y+t->p[2]->y)/3;
 		i++;
 		n = n->next;
 	} while (n != o && n != NULL);
@@ -59,6 +58,7 @@ triangles * CollectTriangles(ll_node *n, int N, int *Nt)
 	T=realloc(T,i*sizeof(triangles));
 	return T;
 }
+
 
 triangles * Triangulate(double *x, double *y, int N, int *Nt)
 {
@@ -84,10 +84,14 @@ triangles * Triangulate(double *x, double *y, int N, int *Nt)
 	return T;
 }
 
+// measure quadratic distance
 double dist2(double cx, double cy, double x, double y)
 {
 	return ((cx-x)*(cx-x)+(cy-y)*(cy-y));
 }
+
+// check whether a horizontal line from (x,y)->(inf,y)
+// passes through a line segment (x0,y0)->(x1,y1)
 int LineYCrossLine(double x0, double y0, double x1, double y1, double x, double y)
 {
 	double t, xx;
@@ -165,6 +169,19 @@ int tsearch(triangles *T, double *X, double *Y, int N, double x, double y)
 	return im;	
 }
 
+/* here follows some very crude and simple quaternary search tree to locate triangles
+ * The concept is simple:
+ * - build a tree of bounding boxes
+ * - each bounding box may be divided in 4, equal sized, sub-bounding boxes
+ * - each branch may have leafs. Leafs are those triangles that do fit in the 
+ *   current bounding box but in none of the sub bounding boxes
+ * With this we can search for a triangle given a coordinate as we just traverse 
+ * down the tree and check every leaf on the way
+ * The downside is that there are many leafs at the bottom of the tree as any triangle
+ * that is cut by the any of the sub-bounding boxes will become a leaf. In practice I see
+ * that I need to check a few percent of the triangles for any search (I saw 4%). I suppose
+ * that should be fairly size independent, or? */
+
 #define TINY 1e-12
 #define LEAFBLOCK 16
 void NodeBB(triangles T,  double *X, double *Y, double bb[])
@@ -207,7 +224,7 @@ nodetree *InitNode(double bb[])
 	T->bb[1]=bb[1];
 	T->bb[2]=bb[2];
 	T->bb[3]=bb[3];
-	T->leaves=NULL;
+	T->leafs=NULL;
 	T->N1=NULL;
 	T->N2=NULL;
 	T->N3=NULL;
@@ -215,6 +232,9 @@ nodetree *InitNode(double bb[])
 	return T;
 }	
 
+/* when initializing go up the tree creating new branches
+ * untill we can hang our triangle to the highest branch
+ * that still fits the triangle */
 void AddNewNode(nodetree *P, int index, double bb[])
 {
 	double bbnew[4];
@@ -256,29 +276,28 @@ void AddNewNode(nodetree *P, int index, double bb[])
 		AddNewNode(P->N4, index, bb);
 		return;
 	}
-	/* still here? --> Add a leaf to parent and stop recursing
-	printf("%e %e %e %e\n", P->bb[0],P->bb[1], bb[0],bb[1]);
-	printf("%e %e %e %e\n", P->bb[2],P->bb[1], bb[2],bb[1]);
-	printf("%e %e %e %e\n", P->bb[2],P->bb[3], bb[2],bb[3]);
-	printf("%e %e %e %e\n", P->bb[0],P->bb[3], bb[0],bb[3]);
-	printf("%e %e %e %e\n\n", P->bb[0],P->bb[1], bb[0],bb[1]);*/
-	if (P->leaves)
+	/* still here? --> Add a leaf to parent and stop recursing */
+	if (P->leafs)
 	{
-		if (P->leaves[0]%LEAFBLOCK==0)
-			P->leaves=realloc(P->leaves, (P->leaves[0]+LEAFBLOCK+1)*sizeof(int));
-		P->leaves[0]++;
-		P->leaves[P->leaves[0]]=index;
+		if (P->leafs[0]%LEAFBLOCK==0)
+			P->leafs=realloc(P->leafs, (P->leafs[0]+LEAFBLOCK+1)*sizeof(int));
+		P->leafs[0]++;
+		P->leafs[P->leafs[0]]=index;
 	}
 	else
 	{
-		P->leaves=malloc((LEAFBLOCK+1)*sizeof(int));
-		P->leaves[1]=index;
-		P->leaves[0]=1;
+		P->leafs=malloc((LEAFBLOCK+1)*sizeof(int));
+		P->leafs[1]=index;
+		P->leafs[0]=1;
 	}
 	
 	return;
 }
 
+/* when initializing go up the tree. As long as branches are there
+ * that still fit the triangle we go up. If we find we are at the top
+ * of the current tree and find we need to grow further we switche to 
+ * the AddNewNode routine. */
 void AddNode(nodetree *P, int index, double bb[])
 {
 	double bbnew[4];
@@ -342,21 +361,22 @@ void AddNode(nodetree *P, int index, double bb[])
 		return;
 	}
 	/* still here? --> Add a leaf to parent and stop recursing*/
-	if (P->leaves)
+	if (P->leafs)
 	{
-		if (P->leaves[0]%LEAFBLOCK==0)
-			P->leaves=realloc(P->leaves, (P->leaves[0]+LEAFBLOCK+1)*sizeof(int));
-		P->leaves[0]++;
-		P->leaves[P->leaves[0]]=index;
+		if (P->leafs[0]%LEAFBLOCK==0)
+			P->leafs=realloc(P->leafs, (P->leafs[0]+LEAFBLOCK+1)*sizeof(int));
+		P->leafs[0]++;
+		P->leafs[P->leafs[0]]=index;
 	}
 	else
 	{
-		P->leaves=malloc((LEAFBLOCK+1)*sizeof(int));
-		P->leaves[1]=index;
-		P->leaves[0]=1;
+		P->leafs=malloc((LEAFBLOCK+1)*sizeof(int));
+		P->leafs[1]=index;
+		P->leafs[0]=1;
 	}
 	return;
 }
+/* grow a tree */
 nodetree *InitTree(triangles *T, int Nt, double *X, double *Y, int Np)
 {
 	nodetree *P;
@@ -392,10 +412,14 @@ nodetree *InitTree(triangles *T, int Nt, double *X, double *Y, int Np)
 	return P;
 }
 
+/* kill a tree */
 void FreeTree(nodetree *P)
 {
-	if (P->leaves)
-		free(P->leaves);
+	if (P->leafs)
+	{
+		free(P->leafs);
+		P->leafs=NULL;
+	}
 	if (P->N1)
 	{
 		 FreeTree(P->N1);
@@ -421,6 +445,7 @@ void FreeTree(nodetree *P)
 		 P->N4=NULL;
 	}
 }
+/* check point within a bounding box */
 int PContained(double bb[], double x, double y)
 {
 	if ((bb[0]-x<-TINY)&&(bb[2]-x>TINY)&&(bb[1]-y<-TINY)&&(bb[3]-y>TINY))
@@ -428,9 +453,11 @@ int PContained(double bb[], double x, double y)
 	return 0;
 }
 
+/* check point within a triangle */
 int IsInTriangle2(triangles t, double *X, double *Y, double x, double y)
 {
 	int res=0;
+	// check bounding box
 	if ((X[t.i]<x)&&(X[t.j]<x)&&(X[t.k]<x))
 		return 0;
 	if ((X[t.i]>x)&&(X[t.j]>x)&&(X[t.k]>x))
@@ -441,6 +468,7 @@ int IsInTriangle2(triangles t, double *X, double *Y, double x, double y)
 		return 0;
 	
 	
+	// still here, do a thorough check
 	if (LineYCrossLine(X[t.i], Y[t.i], X[t.j], Y[t.j], x, y))
 		res=!res;
 	if (LineYCrossLine(X[t.j], Y[t.j], X[t.k], Y[t.k], x, y))
@@ -450,10 +478,12 @@ int IsInTriangle2(triangles t, double *X, double *Y, double x, double y)
 		
 	return res;
 }
+
+/* climb up a tree till we find new leafs */
 nodetree *SearchLeaf(nodetree *P, double x, double y, int restart)
 {
-	if ((P->leaves)&&(!restart))
-		return P; // return to process leaves
+	if ((P->leafs)&&(!restart))
+		return P; // return to process leafs
 	if (P->N1)
 		if (PContained(P->N1->bb,x,y))
 			return SearchLeaf(P->N1, x, y, 0);
@@ -469,30 +499,38 @@ nodetree *SearchLeaf(nodetree *P, double x, double y, int restart)
 	return NULL;
 }	
 
+/* find that one particular leaf */
 int treesearch(triangles *T, nodetree *P, double *X, double *Y, int N, double x, double y)
 {
-	int iter=0;
 	int i;
+	int im=0;
+	double dm, d;
 	if (!P)
 		return tsearch(T, X, Y, N, x, y);
 		
 	while (P)
 	{
-		if (P->leaves)
+		if (P->leafs)
 		{
-			for (i=1;i<=P->leaves[0];i++)
+			for (i=1;i<=P->leafs[0];i++)
 			{
-				iter++;
-				if(IsInTriangle2(T[P->leaves[i]], X, Y, x, y))
+				if(IsInTriangle2(T[P->leafs[i]], X, Y, x, y))
+					return P->leafs[i];
+				else
 				{
-					//printf("%d %d %e\n", iter, N, (double)iter/(double)N);
-					return P->leaves[i];
+					d=dist2(T[P->leafs[i]].ccx, T[P->leafs[i]].ccy, x, y);
+					if (dm>d)
+					{
+						dm=d;
+						im=P->leafs[i];
+					}
 				}
 			}
+				
 		}
 		P=SearchLeaf(P, x, y, 1);
 	}
-	printf("Failed! %e %e\n", x, y);	
-	// failed!
-	return tsearch(T, X, Y, N, x, y);
+	// failed! Hopefully the point just lies out of the convex hull
+	// return the closest triangle we encountered on the way up
+	return im;
 }

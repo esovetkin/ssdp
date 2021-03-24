@@ -171,6 +171,9 @@ void RasterPOA(char *fn, sky_grid sky, topology T, double albedo, double dz, dou
 	FILE *f;
 	int i,j;
 	double x, y;
+	VERB verbstate;
+	verbstate=ssdp_verbosity;
+	ssdp_verbosity=QUIET;
 	if ((f=fopen(fn,"w"))==NULL)
 	{
 		fprintf(stderr,"Cannot open %s for writing\n", fn);
@@ -188,7 +191,33 @@ void RasterPOA(char *fn, sky_grid sky, topology T, double albedo, double dz, dou
 			ssdp_unmask_horizon(&sky);
 		}
 	}	
+	ssdp_verbosity=verbstate;
 	fclose(f);
 }
+
+void RasterTopology(char *fn, topology T, double x1, double y1, double x2, double y2, int Nx, int Ny)
+{
+	FILE *f;
+	int i,j;
+	double x, y;
+	if ((f=fopen(fn,"w"))==NULL)
+	{
+		fprintf(stderr,"Cannot open %s for writing\n", fn);
+		exit(1);
+	}
+	fprintf(f,"# raster plot of topology\n");
+	for (i=0;i<Nx;i++)
+	{
+		x=x1+(x2-x1)*((double)i+0.5)/((double)Nx);
+		for (j=0;j<Ny;j++)
+		{
+			y=y1+(y2-y1)*((double)j+0.5)/((double)Ny);
+			fprintf(f,"%e %e %e\n", x, y, ssdp_sample_topology(x,y,T, NULL));
+		}
+	}	
+	fclose(f);
+}
+
+
 
 

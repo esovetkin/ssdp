@@ -23,4 +23,5 @@ double DirectPlaneOfArray(sky_grid sky, double tilt, double a, int mask);
 double DiffuseHorizontal(sky_grid sky, int mask);
 double DirectHorizontal(sky_grid sky, int mask);
 double POA_Albedo(sky_grid sky, double albedo, double tilt, double a, int mask);
+void POA_to_SurfaceNormal(double *tilt, double *a, sky_pos sn);
 #endif

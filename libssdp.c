@@ -84,6 +84,14 @@ double ssdp_total_poa(sky_grid sky, double albedo, double tilt, double a, int ma
 	POA+=POA_Albedo(sky, albedo, tilt, a, mask);
 	return POA;
 }
+
+void ssdp_poa_to_surface_normal(double tilt, double a, sky_pos sn, double *tilt_out, double *a_out)
+{
+	(*tilt_out)=tilt;
+	(*a_out)=a;
+	POA_to_SurfaceNormal(tilt_out, a_out, sn);
+}
+
 double ssdp_diffuse_sky_horizontal(sky_grid sky, int mask)
 {
 	return DiffuseHorizontal(sky, mask);
@@ -104,10 +112,7 @@ double ssdp_total_sky_horizontal(sky_grid sky, int mask)
 /* topology routines */
 void ssdp_mask_horizon(sky_grid *sky, topology T, double Ox, double Oy, double Oz, sky_pos *sn)
 {
-	vec n;
-	MakeHorizon(sky, T, Ox, Oy, Oz, &n);
-	if (sn)
-		(*sn)=vecdir(n);
+	MakeHorizon(sky, T, Ox, Oy, Oz, sn);
 }
 void ssdp_unmask_horizon(sky_grid *sky)
 {
@@ -124,4 +129,9 @@ topology ssdp_make_rand_topology(double dx, double dy, double dz, double fN, int
 void ssdp_free_topology(topology *T)
 {
 	free_topo (T);
+}
+
+double ssdp_sample_topology(double x, double y, topology T, sky_pos *sn)
+{
+	return SampleTopo(x, y, T, sn);
 }
