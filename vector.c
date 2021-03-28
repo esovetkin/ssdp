@@ -113,7 +113,7 @@ double adiff(double a1, double a2)
 	a2=fmod(a2,2*M_PI);
 	
 	d=a1-a2;
-	if (abs(d)>M_PI)
+	if (fabs(d)>M_PI)
 	{
 		if (d>0)
 			return d-2*M_PI;

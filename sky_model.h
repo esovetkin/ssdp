@@ -18,6 +18,34 @@
 */
 #ifndef _SKY_MODEL_H
 #define _SKY_MODEL_H
+
+typedef struct {
+	char gradation, indicatrix;
+	double a,b,c,d,e;
+	char *descr;
+} CIE_SKY;
+
+// table1 from CIE S 011/E:2003 (ISO 15469:2004(E))
+extern CIE_SKY CIE_SKIES[];
+// sky type defines
+typedef enum CIE_SKY_TYPE {
+	CIE_SKY_TYPE_1,
+	CIE_SKY_TYPE_2,
+	CIE_SKY_TYPE_3,
+	CIE_SKY_TYPE_4,
+	CIE_SKY_TYPE_5,
+	CIE_SKY_TYPE_6,
+	CIE_SKY_TYPE_7,
+	CIE_SKY_TYPE_8,
+	CIE_SKY_TYPE_9,
+	CIE_SKY_TYPE_10,
+	CIE_SKY_TYPE_11,
+	CIE_SKY_TYPE_12,
+	CIE_SKY_TYPE_13,
+	CIE_SKY_TYPE_14,
+	CIE_SKY_TYPE_15
+} CIE_SKY_TYPE;
+
 void UniformSky(sky_grid *sky, sky_pos sun, double GHI, double DHI);
 void PerezSky(sky_grid * sky, sky_pos sun, double GHI, double DHI, double dayofyear);
 #endif

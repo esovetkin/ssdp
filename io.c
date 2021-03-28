@@ -53,7 +53,7 @@ topology LoadTopo(char *fn)
 	return T;
 }
 
-void WriteTopo(char *fn, topology T)
+void WriteTopo(char *fn, topology *T)
 {
 	FILE *f;
 	int i;
@@ -64,11 +64,11 @@ void WriteTopo(char *fn, topology T)
 	}
 	fprintf(f,"# topology data\n");
 	fprintf(f,"# x y z)\n");
-	for (i=0;i<T.N;i++)
-		fprintf(f, "%e %e %e\n", T.x[i], T.y[i], T.z[i]);
+	for (i=0;i<T->N;i++)
+		fprintf(f, "%e %e %e\n", T->x[i], T->y[i], T->z[i]);
 	fclose(f);
 }	
-void WriteTriangles(char *fn, topology T)
+void WriteTriangles(char *fn, topology *T)
 {
 	FILE *f;
 	int i;
@@ -79,17 +79,17 @@ void WriteTriangles(char *fn, topology T)
 	}
 	fprintf(f,"# topology triangle data\n");
 	fprintf(f,"# x y z)\n");
-	for (i=0;i<T.Nt;i++)
+	for (i=0;i<T->Nt;i++)
 	{
-		fprintf(f, "%e %e %d\n", T.x[T.T[i].i], T.y[T.T[i].i], i);
-		fprintf(f, "%e %e %d\n", T.x[T.T[i].j], T.y[T.T[i].j], i);
-		fprintf(f, "%e %e %d\n", T.x[T.T[i].k], T.y[T.T[i].k], i);
-		fprintf(f, "%e %e %d\n\n", T.x[T.T[i].i], T.y[T.T[i].i], i);
+		fprintf(f, "%e %e %d\n", T->x[T->T[i].i], T->y[T->T[i].i], i);
+		fprintf(f, "%e %e %d\n", T->x[T->T[i].j], T->y[T->T[i].j], i);
+		fprintf(f, "%e %e %d\n", T->x[T->T[i].k], T->y[T->T[i].k], i);
+		fprintf(f, "%e %e %d\n\n", T->x[T->T[i].i], T->y[T->T[i].i], i);
 	}
 	fclose(f);
 }	
 	
-void WriteDome3D(char *fn, sky_grid sky, int sun, int mask)
+void WriteDome3D(char *fn, sky_grid *sky, int sun, int mask)
 {
 	FILE *f;
 	int i, si=-1;
@@ -108,26 +108,26 @@ void WriteDome3D(char *fn, sky_grid sky, int sun, int mask)
 		fprintf(f,"# Horizon ignored\n");
 	if (sun)
 	{
-		si=ssdp_find_skypatch(sky,sky.sp);
+		si=ssdp_find_skypatch(sky,sky->sp);
 		fprintf(f,"# Direct light included\n");
 	}
 	else
 		fprintf(f,"# Diffuse only\n");
-	for (i=0;i<sky.N;i++)
+	for (i=0;i<sky->N;i++)
 	{
-		if ((sky.P[i].mask)&&(mask))
-			fprintf(f,"%e %e 0\n",M_PI*cos(sky.P[i].p.a)*sin(sky.P[i].p.z)/2, M_PI*sin(sky.P[i].p.a)*sin(sky.P[i].p.z)/2); // W/sr
+		if ((sky->P[i].mask)&&(mask))
+			fprintf(f,"%e %e 0\n",M_PI*cos(sky->P[i].p.a)*sin(sky->P[i].p.z)/2, M_PI*sin(sky->P[i].p.a)*sin(sky->P[i].p.z)/2); // W/sr
 		else
 		{
 			if (i==si)
-				fprintf(f,"%e %e %e\n",M_PI*cos(sky.P[i].p.a)*sin(sky.P[i].p.z)/2, M_PI*sin(sky.P[i].p.a)*sin(sky.P[i].p.z)/2, sky.N*(sky.P[i].I+sky.sI)/2/M_PI); // W/sr
+				fprintf(f,"%e %e %e\n",M_PI*cos(sky->P[i].p.a)*sin(sky->P[i].p.z)/2, M_PI*sin(sky->P[i].p.a)*sin(sky->P[i].p.z)/2, sky->N*(sky->P[i].I+sky->sI)/2/M_PI); // W/sr
 			else
-				fprintf(f,"%e %e %e\n",M_PI*cos(sky.P[i].p.a)*sin(sky.P[i].p.z)/2, M_PI*sin(sky.P[i].p.a)*sin(sky.P[i].p.z)/2, sky.N*sky.P[i].I/2/M_PI); // W/sr
+				fprintf(f,"%e %e %e\n",M_PI*cos(sky->P[i].p.a)*sin(sky->P[i].p.z)/2, M_PI*sin(sky->P[i].p.a)*sin(sky->P[i].p.z)/2, sky->N*sky->P[i].I/2/M_PI); // W/sr
 		}
 	}	
 	fclose(f);
 }
-void WriteDome4D(char *fn, sky_grid sky, int sun, int mask)
+void WriteDome4D(char *fn, sky_grid *sky, int sun, int mask)
 {
 	FILE *f;
 	int i, si=-1;
@@ -143,30 +143,30 @@ void WriteDome4D(char *fn, sky_grid sky, int sun, int mask)
 		fprintf(f,"# Horizon ignored\n");
 	if (sun)
 	{
-		si=ssdp_find_skypatch(sky,sky.sp);
+		si=ssdp_find_skypatch(sky,sky->sp);
 		fprintf(f,"# Direct light included\n");
 	}
 	else
 		fprintf(f,"# Diffuse only\n");
 	fprintf(f,"# normalized distances\n");
 	fprintf(f,"# x[-]\ty[-]\tz\tI [W/sr]\n");
-	for (i=0;i<sky.N;i++)
+	for (i=0;i<sky->N;i++)
 	{
-		if ((sky.P[i].mask)&&(mask))
-			fprintf(f,"%e %e %e 0\n",cos(sky.P[i].p.a)*sin(sky.P[i].p.z), sin(sky.P[i].p.a)*sin(sky.P[i].p.z), cos(sky.P[i].p.z)); // W/sr
+		if ((sky->P[i].mask)&&(mask))
+			fprintf(f,"%e %e %e 0\n",cos(sky->P[i].p.a)*sin(sky->P[i].p.z), sin(sky->P[i].p.a)*sin(sky->P[i].p.z), cos(sky->P[i].p.z)); // W/sr
 		else
 		{
 			if (i==si)
-				fprintf(f,"%e %e %e %e\n",cos(sky.P[i].p.a)*sin(sky.P[i].p.z), sin(sky.P[i].p.a)*sin(sky.P[i].p.z), cos(sky.P[i].p.z), sky.N*(sky.P[i].I+sky.sI)/2/M_PI); // W/sr
+				fprintf(f,"%e %e %e %e\n",cos(sky->P[i].p.a)*sin(sky->P[i].p.z), sin(sky->P[i].p.a)*sin(sky->P[i].p.z), cos(sky->P[i].p.z), sky->N*(sky->P[i].I+sky->sI)/2/M_PI); // W/sr
 			else
-				fprintf(f,"%e %e %e %e\n",cos(sky.P[i].p.a)*sin(sky.P[i].p.z), sin(sky.P[i].p.a)*sin(sky.P[i].p.z), cos(sky.P[i].p.z), sky.N*sky.P[i].I/2/M_PI); // W/sr
+				fprintf(f,"%e %e %e %e\n",cos(sky->P[i].p.a)*sin(sky->P[i].p.z), sin(sky->P[i].p.a)*sin(sky->P[i].p.z), cos(sky->P[i].p.z), sky->N*sky->P[i].I/2/M_PI); // W/sr
 		}
 	}	
 	fclose(f);
 	
 }
 
-void RasterPOA(char *fn, sky_grid sky, topology T, double albedo, double dz, double a, double tilt, double x1, double y1, double x2, double y2, int Nx, int Ny)
+void RasterPOA(char *fn, sky_grid *sky, topology *T, double albedo, double dz, double a, double tilt, double x1, double y1, double x2, double y2, int Nx, int Ny)
 {
 	FILE *f;
 	int i,j;
@@ -186,9 +186,9 @@ void RasterPOA(char *fn, sky_grid sky, topology T, double albedo, double dz, dou
 		for (j=0;j<Ny;j++)
 		{
 			y=y1+(y2-y1)*((double)j+0.5)/((double)Ny);
-			ssdp_mask_horizon_z_to_ground(&sky,T,x,y,dz, NULL);
+			ssdp_mask_horizon_z_to_ground(sky,T,x,y,dz, NULL);
 			fprintf(f,"%e %e %e\n", x, y, ssdp_total_poa(sky,albedo,tilt, a,1));
-			ssdp_unmask_horizon(&sky);
+			ssdp_unmask_horizon(sky);
 		}
 	}	
 	ssdp_verbosity=verbstate;

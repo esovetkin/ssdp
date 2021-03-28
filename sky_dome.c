@@ -21,6 +21,7 @@
 #include <math.h>
 #include "vector.h"
 #include "sky_dome.h"
+#include "error.h"
 #include "util.h"
 
 // helper routines for indexing hex meshes
@@ -257,20 +258,20 @@ void Connectivity(int Nz)
 
 
 // findpatch routine
-int FindPatch(sky_grid sky, sky_pos p)
+int FindPatch(sky_grid *sky, sky_pos p)
 {
 	int r;
 	int i,j;
 	int dmin, d, rmin;
-	r=GridIndex(sky.Nz, p);
+	r=GridIndex(sky->Nz, p);
 	rmin=r;
 	// result of GridIndex(...) may be a bit approximate
 	// look through the neigbors for the best patch
-	dmin=(p.a-sky.P[r].p.a)*(p.a-sky.P[r].p.a)+(p.z-sky.P[r].p.z)*(p.z-sky.P[r].p.z);
+	dmin=(p.a-sky->P[r].p.a)*(p.a-sky->P[r].p.a)+(p.z-sky->P[r].p.z)*(p.z-sky->P[r].p.z);
 	i=0;
-	while ((j=sky.P[r].NL[i])>=0)
+	while ((j=sky->P[r].NL[i])>=0)
 	{
-		d=(p.a-sky.P[j].p.a)*(p.a-sky.P[j].p.a)+(p.z-sky.P[j].p.z)*(p.z-sky.P[j].p.z);
+		d=(p.a-sky->P[j].p.a)*(p.a-sky->P[j].p.a)+(p.z-sky->P[j].p.z)*(p.z-sky->P[j].p.z);
 		if (d<dmin)
 		{
 			dmin=d;
@@ -279,9 +280,9 @@ int FindPatch(sky_grid sky, sky_pos p)
 		i++;
 	}
 	i=0;
-	while ((j=sky.P[r].PL[i])>=0)
+	while ((j=sky->P[r].PL[i])>=0)
 	{
-		d=(p.a-sky.P[j].p.a)*(p.a-sky.P[j].p.a)+(p.z-sky.P[j].p.z)*(p.z-sky.P[j].p.z);
+		d=(p.a-sky->P[j].p.a)*(p.a-sky->P[j].p.a)+(p.z-sky->P[j].p.z)*(p.z-sky->P[j].p.z);
 		if (d<dmin)
 		{
 			dmin=d;
@@ -289,18 +290,18 @@ int FindPatch(sky_grid sky, sky_pos p)
 		}
 		i++;
 	}
-	if ((j=sky.P[r].PI)>=0)
+	if ((j=sky->P[r].PI)>=0)
 	{
-		d=(p.a-sky.P[j].p.a)*(p.a-sky.P[j].p.a)+(p.z-sky.P[j].p.z)*(p.z-sky.P[j].p.z);
+		d=(p.a-sky->P[j].p.a)*(p.a-sky->P[j].p.a)+(p.z-sky->P[j].p.z)*(p.z-sky->P[j].p.z);
 		if (d<dmin)
 		{
 			dmin=d;
 			rmin=j;
 		}
 	}
-	if ((j=sky.P[r].NI)>=0)
+	if ((j=sky->P[r].NI)>=0)
 	{
-		d=(p.a-sky.P[j].p.a)*(p.a-sky.P[j].p.a)+(p.z-sky.P[j].p.z)*(p.z-sky.P[j].p.z);
+		d=(p.a-sky->P[j].p.a)*(p.a-sky->P[j].p.a)+(p.z-sky->P[j].p.z)*(p.z-sky->P[j].p.z);
 		if (d<dmin)
 		{
 			dmin=d;
@@ -333,7 +334,15 @@ sky_grid InitSky(int Nz)
 	sky.sp=sun; // The default sun, black and straight above you
 	sky.sI=0;
 	sky.smask=0;
-	sky.P=malloc((sky.N+1)*sizeof(hexpatch));
+	
+	// ERRORFLAG MALLOCFAILSKYDOME  "Error memory allocation failed in creating a sky-dome"
+	if ((sky.P=malloc((sky.N+1)*sizeof(hexpatch)))==NULL)
+	{
+		AddErr(MALLOCFAILSKYDOME);
+		sky.Nz=0;
+		sky.N=0;
+		return sky;
+	}
 	for (i=0;i<sky.N;i++)
 	{
 		sky.P[i].I=0;

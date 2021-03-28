@@ -22,9 +22,10 @@
 #include "vector.h"
 #include "sky_dome.h"
 #include "sky_model.h"
+#include "error.h"
 #include "util.h"
 
-double DiffusePlaneOfArray(sky_grid sky, double tilt, double a, int mask)
+double DiffusePlaneOfArray(sky_grid *sky, double tilt, double a, int mask)
 {
 	sky_pos axis, r;
 	double POA=0;
@@ -36,13 +37,13 @@ double DiffusePlaneOfArray(sky_grid sky, double tilt, double a, int mask)
 	Print(VVERBOSE, "Azimuth: %f\n", rad2degr(a));
 	axis.a=a+M_PI/2;// axis points perpendicular to a
 	axis.z=M_PI/2;
-	for (i=0;i<sky.N;i++)
+	for (i=0;i<sky->N;i++)
 	{
-		if ((!sky.P[i].mask)||(!mask))
+		if ((!sky->P[i].mask)||(!mask))
 		{
-			r=rrf(sky.P[i].p, axis, -tilt);  
+			r=rrf(sky->P[i].p, axis, -tilt);  
 			if ((r.z>=0)&&(r.z<=M_PI/2))                                        
-				POA+=sky.P[i].I*cos(r.z);
+				POA+=sky->P[i].I*cos(r.z);
 		}
 	}
 	Print(VERBOSE, "Done\n");
@@ -50,7 +51,7 @@ double DiffusePlaneOfArray(sky_grid sky, double tilt, double a, int mask)
 	
 	return POA;
 }
-double DirectPlaneOfArray(sky_grid sky, double tilt, double a, int mask)
+double DirectPlaneOfArray(sky_grid *sky, double tilt, double a, int mask)
 {
 	sky_pos axis, r;
 	double POA=0;
@@ -60,11 +61,11 @@ double DirectPlaneOfArray(sky_grid sky, double tilt, double a, int mask)
 	Print(VVERBOSE, "Azimuth: %f\n", rad2degr(a));
 	axis.a=a+M_PI/2;// axis points perpendicular to a
 	axis.z=M_PI/2;
-	if ((!sky.smask)||(!mask))
+	if ((!sky->smask)||(!mask))
 	{
-		r=rrf(sky.sp, axis, -tilt); 
+		r=rrf(sky->sp, axis, -tilt); 
 		if ((r.z>=0)&&(r.z<=M_PI/2))       
-			POA=sky.sI*cos(r.z);
+			POA=sky->sI*cos(r.z);
 	}
 	Print(VERBOSE, "Done\n");
 	Print(VVERBOSE, "********************************************************************************\n\n");
@@ -72,35 +73,35 @@ double DirectPlaneOfArray(sky_grid sky, double tilt, double a, int mask)
 	return POA;
 }
 
-double DiffuseHorizontal(sky_grid sky, int mask)
+double DiffuseHorizontal(sky_grid *sky, int mask)
 {
 	double POA=0;
 	int i;	
 	Print(VVERBOSE, "********************************************************************************\n");
 	Print(VERBOSE, "--DiffuseHorizontal\t\t");
 	Print(VVERBOSE, "\n");
-	for (i=0;i<sky.N;i++)   
-		if ((!sky.P[i].mask)||(!mask))
-			POA+=sky.P[i].I*cos(sky.P[i].p.z);  
+	for (i=0;i<sky->N;i++)   
+		if ((!sky->P[i].mask)||(!mask))
+			POA+=sky->P[i].I*cos(sky->P[i].p.z);  
 	Print(VERBOSE, "Done\n");
 	Print(VVERBOSE, "********************************************************************************\n\n");  
 	return POA;
 }
 
-double DirectHorizontal(sky_grid sky, int mask)
+double DirectHorizontal(sky_grid *sky, int mask)
 {
 	double POA=0;
 	Print(VVERBOSE, "********************************************************************************\n");
 	Print(VERBOSE, "--DirectHorizontal\t\t");
 	Print(VVERBOSE, "\n");
-	if ((!sky.smask)||(!mask))
-		POA+=sky.sI*cos(sky.sp.z);
+	if ((!sky->smask)||(!mask))
+		POA+=sky->sI*cos(sky->sp.z);
 	Print(VERBOSE, "Done\n");
 	Print(VVERBOSE, "********************************************************************************\n\n");  
 	return POA;
 }
 
-double POA_Albedo(sky_grid sky, double albedo, double tilt, double a, int mask)
+double POA_Albedo(sky_grid *sky, double albedo, double tilt, double a, int mask)
 {
 	double GHI, POA;
 	sky_grid ground;
@@ -115,9 +116,11 @@ double POA_Albedo(sky_grid sky, double albedo, double tilt, double a, int mask)
 	ssdp_verbosity=QUIET;
 	GHI=DiffuseHorizontal(sky, mask);
 	GHI+=DirectHorizontal(sky, mask);
-	ground=InitSky(sky.Nz); // this should not be necessary but I have to so some math
+	ground=InitSky(sky->Nz); // this should not be necessary but I have to so some math
+	if (ssdp_error_state)
+		return 0;
 	UniformSky(&ground, z, albedo*GHI, albedo*GHI);
-	POA=DiffusePlaneOfArray(ground, tilt+M_PI, a, mask);
+	POA=DiffusePlaneOfArray(&ground, tilt+M_PI, a, mask);
 	free_sky_grid(&ground);	
 	ssdp_verbosity=val;
 	Print(VERBOSE, "Done\n");

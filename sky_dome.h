@@ -43,6 +43,6 @@ typedef struct sky_grid {
 void Connectivity(int Nz);
 sky_grid InitSky(int Nz);
 void free_sky_grid(sky_grid *sky);
-int FindPatch(sky_grid sky, sky_pos p);
+int FindPatch(sky_grid *sky, sky_pos p);
 #define SUNSR 6.807e-5
 #endif

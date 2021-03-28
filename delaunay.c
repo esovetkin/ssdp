@@ -1,4 +1,3 @@
-
 #include "shull.h"
 #include "ll.h"
 #include <time.h>
@@ -6,15 +5,19 @@
 #include <stdio.h>
 #include <math.h>
 #include "delaunay.h"
-
-
-SHULL_STATE SSTATE;
+#include "error.h"
 
 sh_point * MakeShullPoints(double *x, double *y, int N)
 {
 	int i;
 	sh_point *p;
-	p=malloc(N*sizeof(sh_point));
+	
+	// ERRORFLAG MALLOCFAILDELAUNAY  "Error memory allocation failed for Delaunay points"
+	if ((p=malloc(N*sizeof(sh_point)))==NULL)
+	{
+		AddErr(MALLOCFAILDELAUNAY);
+		return p;
+	}
 	for (i=0;i<N;i++)
 	{
 		p[i].x=x[i];
@@ -36,13 +39,20 @@ triangles * CollectTriangles(ll_node *n, int N, int *Nt)
 		
 	o = n;	
 	Na=2*N;
-	T=malloc(Na*sizeof(triangles));
+	
+	// ERRORFLAG MALLOCFAILCOLLTRIANGLE  "Error memory allocation failed in collecting triangles"
+	if ((T=malloc(Na*sizeof(triangles)))==NULL)
+	{
+		AddErr(MALLOCFAILCOLLTRIANGLE);
+		return T;
+	}
 	do
 	{
 		t=(sh_triangle *)n->data;
 		if (i==Na)
 		{
-			SSTATE=SHULL_ERR;
+			// ERRORFLAG TOOMANYTRIANGLES  "Error found more triangles than there should be, panic!"
+			AddErr(TOOMANYTRIANGLES);
 			free(T);
 			return NULL;			
 		}
@@ -55,7 +65,11 @@ triangles * CollectTriangles(ll_node *n, int N, int *Nt)
 		n = n->next;
 	} while (n != o && n != NULL);
 	(*Nt)=i;
-	T=realloc(T,i*sizeof(triangles));
+	if ((T=realloc(T,i*sizeof(triangles)))==NULL)
+	{
+		AddErr(MALLOCFAILCOLLTRIANGLE);
+		return T;
+	}
 	return T;
 }
 
@@ -67,10 +81,11 @@ triangles * Triangulate(double *x, double *y, int N, int *Nt)
 	triangles *T;
 	int result;
 	P=MakeShullPoints(x, y, N);	
+	if (ssdp_error_state)
+		return NULL;
 	result = delaunay(&td, P, N);
 	if (result > 0)
 	{
-		SSTATE=SHULL_OK;
 		T=CollectTriangles(td.triangles, N, Nt);
 
 		ll_mapdestroy(td.triangles, free);
@@ -78,7 +93,7 @@ triangles * Triangulate(double *x, double *y, int N, int *Nt)
 		ll_mapdestroy(td.internal_edges, free);
 	}
 	else
-		SSTATE=SHULL_ERR;
+		T=NULL;
 	
 	free(P);
 	return T;
@@ -219,7 +234,12 @@ int Contained(double bb_parent[], double bb_child[])
 nodetree *InitNode(double bb[])
 {
 	nodetree *T;
-	T=malloc(sizeof(nodetree));
+	// ERRORFLAG MALLOCFAILSEARTREENODE  "Error memory allocation failed in creating search tree branches"
+	if ((T=malloc(sizeof(nodetree)))==NULL)
+	{
+		AddErr(MALLOCFAILSEARTREENODE);
+		return T;
+	}
 	T->bb[0]=bb[0];
 	T->bb[1]=bb[1];
 	T->bb[2]=bb[2];
@@ -277,16 +297,28 @@ void AddNewNode(nodetree *P, int index, double bb[])
 		return;
 	}
 	/* still here? --> Add a leaf to parent and stop recursing */
+	// ERRORFLAG MALLOCFAILLEAFS  "Error memory allocation failed in creating search tree leafs"
 	if (P->leafs)
 	{
 		if (P->leafs[0]%LEAFBLOCK==0)
 			P->leafs=realloc(P->leafs, (P->leafs[0]+LEAFBLOCK+1)*sizeof(int));
+		if (P->leafs==NULL)
+		{
+			AddErr(MALLOCFAILLEAFS);
+			return;
+		}
+		
 		P->leafs[0]++;
 		P->leafs[P->leafs[0]]=index;
 	}
 	else
 	{
 		P->leafs=malloc((LEAFBLOCK+1)*sizeof(int));
+		if (P->leafs==NULL)
+		{
+			AddErr(MALLOCFAILLEAFS);
+			return;
+		}
 		P->leafs[1]=index;
 		P->leafs[0]=1;
 	}
@@ -365,12 +397,22 @@ void AddNode(nodetree *P, int index, double bb[])
 	{
 		if (P->leafs[0]%LEAFBLOCK==0)
 			P->leafs=realloc(P->leafs, (P->leafs[0]+LEAFBLOCK+1)*sizeof(int));
+		if (P->leafs==NULL)
+		{
+			AddErr(MALLOCFAILLEAFS);
+			return;
+		}
 		P->leafs[0]++;
 		P->leafs[P->leafs[0]]=index;
 	}
 	else
 	{
 		P->leafs=malloc((LEAFBLOCK+1)*sizeof(int));
+		if (P->leafs==NULL)
+		{
+			AddErr(MALLOCFAILLEAFS);
+			return;
+		}
 		P->leafs[1]=index;
 		P->leafs[0]=1;
 	}
@@ -504,10 +546,11 @@ int treesearch(triangles *T, nodetree *P, double *X, double *Y, int N, double x,
 {
 	int i;
 	int im=0;
-	double dm, d;
+	double dm=-1, d;
 	if (!P)
 		return tsearch(T, X, Y, N, x, y);
 		
+	dm=dist2(T[P->leafs[im]].ccx, T[P->leafs[im]].ccy, x, y);
 	while (P)
 	{
 		if (P->leafs)

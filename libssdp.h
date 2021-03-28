@@ -76,8 +76,13 @@ typedef struct topology {
 typedef enum {QUIET, VERBOSE, VVERBOSE} VERB;
 extern VERB ssdp_verbosity;
 
+extern char *ssdp_error_messages[];
+extern int ssdp_error_state;	/* signals error occurred, if 0 everything is OK */
+void ssdp_print_error_messages();
+void ssdp_reset_errors();
+
 /* locate the sky patch enclosing a certain point */
-int ssdp_find_skypatch(sky_grid sky, sky_pos p);
+int ssdp_find_skypatch(sky_grid *sky, sky_pos p);
 /* initialize a sky mesh */
 sky_grid ssdp_init_sky(int Nz);
 /* free a sky mesh */
@@ -89,22 +94,22 @@ void ssdp_make_uniform_sky(sky_grid *sky, sky_pos sun, double GHI, double DHI);
 void ssdp_make_perez_all_weather_sky(sky_grid * sky, sky_pos sun, double GHI, double DHI, double dayofyear);
 
 /* projection routings for plane of array irradiance */
-double ssdp_diffuse_sky_poa(sky_grid sky, double tilt, double a, int mask);					// diffuse contribution
-double ssdp_direct_sky_poa(sky_grid sky, double tilt, double a, int mask);					// direct contribution
-double ssdp_total_sky_poa(sky_grid sky, double tilt, double a, int mask);					// all sky contributions together
-double ssdp_groundalbedo_poa(sky_grid sky, double albedo, double tilt, double a, int mask);	// ground albedo contribution (with crude assumptions)
-double ssdp_total_poa(sky_grid sky, double albedo, double tilt, double a, int mask);		// sky+ground
+double ssdp_diffuse_sky_poa(sky_grid * sky, double tilt, double a, int mask);					// diffuse contribution
+double ssdp_direct_sky_poa(sky_grid * sky, double tilt, double a, int mask);					// direct contribution
+double ssdp_total_sky_poa(sky_grid * sky, double tilt, double a, int mask);					// all sky contributions together
+double ssdp_groundalbedo_poa(sky_grid * sky, double albedo, double tilt, double a, int mask);	// ground albedo contribution (with crude assumptions)
+double ssdp_total_poa(sky_grid * sky, double albedo, double tilt, double a, int mask);		// sky+ground
 void ssdp_poa_to_surface_normal(double tilt, double a, sky_pos sn, double *tilt_out, double *a_out);
 																							// if the poa follows the surface normal, this routine rotates the 
 																							// module accordingly
 /* projection routines for GHI */
-double ssdp_diffuse_sky_horizontal(sky_grid sky, int mask);
-double ssdp_direct_sky_horizontal(sky_grid sky, int mask);
-double ssdp_total_sky_horizontal(sky_grid sky, int mask);
+double ssdp_diffuse_sky_horizontal(sky_grid * sky, int mask);
+double ssdp_direct_sky_horizontal(sky_grid * sky, int mask);
+double ssdp_total_sky_horizontal(sky_grid * sky, int mask);
 
 /* compute the horizon */
-void ssdp_mask_horizon(sky_grid *sky, topology T, double Ox, double Oy, double Oz); // absolute x,y,z coordinates
-void ssdp_mask_horizon_z_to_ground(sky_grid *sky, topology T, double Ox, double Oy, double deltaz, sky_pos *sn); 
+void ssdp_mask_horizon(sky_grid *sky, topology *T, double Ox, double Oy, double Oz); // absolute x,y,z coordinates
+void ssdp_mask_horizon_z_to_ground(sky_grid *sky, topology *T, double Ox, double Oy, double deltaz, sky_pos *sn); 
 // z w.r.t. ground, also sets sn, the local surface normal. Can be used to adapt module orientation (ssdp_poa_to_surface_normal)
 void ssdp_unmask_horizon(sky_grid *sky); // clear a horizon from a sky dome
 

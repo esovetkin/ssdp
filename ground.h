@@ -27,6 +27,7 @@ typedef struct topology {
 topology MakeTopology(double *x, double *y, double *z, int N);
 topology CreateRandomTopology(double dx, double dy, double dz, double fN, int N);
 void free_topo (topology *T);
-double SampleTopo(double x, double y, topology T, sky_pos *sn);
-void MakeHorizon(sky_grid *sky, topology T, double xoff, double yoff, double zoff);
+double SampleTopo(double x, double y, topology *T, sky_pos *sn);
+void MaskMakeHorizon(sky_grid *sky, topology *T, double xoff, double yoff, double zoff);
 void ClearHorizon(sky_grid *sky);
+

@@ -1,4 +1,5 @@
 #include "ll.h"
+#include "error.h"
 ll_node *ll_first(ll_node *n) { /*{{{*/
 	if (n == NULL) { return NULL; }
 	for (; n->prev!=NULL; n=n->prev);
@@ -18,9 +19,13 @@ size_t ll_length(const ll_node *n) { /*{{{*/
 	}
 	return c;
 } /*}}}*/
+// ERRORFLAG MALLOCFAILLLNODE  "Error memory allocation failed in linked list"
 ll_node *ll_insert_before(ll_node *n, void *data) { /*{{{*/
 	ll_node *o = malloc(sizeof(ll_node));
-	if (o == NULL) { return NULL; }
+	if (o == NULL) {
+		AddErr(MALLOCFAILLLNODE);
+		return NULL;
+	}
 	o->data = data;
 	if (n == NULL) { /*{{{*/
 		o->prev = NULL;
@@ -38,7 +43,10 @@ ll_node *ll_insert_before(ll_node *n, void *data) { /*{{{*/
 } /*}}}*/
 ll_node *ll_insert_after(ll_node *n, void *data) { /*{{{*/
 	ll_node *o = malloc(sizeof(ll_node));
-	if (o == NULL) { return NULL; }
+	if (o == NULL) {
+		AddErr(MALLOCFAILLLNODE);
+		return NULL;
+	}
 	o->data = data;
 	if (n == NULL) { /*{{{*/
 		o->prev = NULL;

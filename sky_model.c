@@ -21,6 +21,7 @@
 #include <math.h>
 #include "vector.h"
 #include "sky_dome.h"
+#include "sky_model.h"
 #include "util.h"
 	
 void UniformSky(sky_grid *sky, sky_pos sun, double GHI, double DHI)
@@ -240,6 +241,63 @@ void PerezSky(sky_grid * sky, sky_pos sun, double GHI, double DHI, double dayofy
 	Print(VVERBOSE, "on a sky dome with %d patches\n", sky->N);
 	Print(VVERBOSE, "================================================================================\n");
 	Print(VVERBOSE, "Clearness:     %e\nDelta:         %e\n", eps, delta);	
+	Print(VVERBOSE, "a:             %e\nb:             %e\nc:             %e\nd:             %e\ne:             %e\n", a,b,c,d,e);
+	Print(VVERBOSE, "================================================================================\n");
+	
+	// sum intensity cos(z) product to normalize intensities
+	for (i=0;i<sky->N;i++)
+	{
+		g=SolarAngle(sky->P[i].p.z,sun.z, sky->P[i].p.a, sun.a);   
+		sky->P[i].I=Fperez(sky->P[i].p.z,g, a, b, c, d, e);                                                   
+		dhi0+=sky->P[i].I*cos(sky->P[i].p.z);
+	}
+	dhi0=DHI/dhi0;// correction factor
+	for (i=0;i<sky->N;i++)
+		sky->P[i].I*=dhi0;
+	dir=GHI-DHI; // direct contribution
+	sky->sp=sun;
+	sky->sI=dir/cos(sun.z);
+	Print(VERBOSE, "Done\n");
+	Print(VVERBOSE, "********************************************************************************\n\n");
+}
+
+
+// how to invesely compute DHI from CIE Sky type and GHI? 
+// perez has a paper on computing DNI from GHI and other stuff
+CIE_SKY CIE_SKIES[15] = {
+	{1, 1,  4,   -0.7,   0,   -1.0,  0,    "CIE Standard Overcast Sky, Steep luminance gradation towards zenith, azimuthal uniformity"},
+	{1, 2,  4,   -0.7,   2,   -1.5,  0.15, "Overcast, with steep luminance gradation and slight brightening towards the sun"},
+	{2, 1,  1.1, -0.8,   0,   -1.0,  0,    "Overcast, moderately graded with azimuthal uniformity"},
+	{2, 2,  1.1, -0.8,   2,   -1.5,  0.15, "Overcast, moderately graded and slight brightening towards the sun"},
+	{3, 1,  0,   -1,     0,   -1.0,  0,    "Sky of uniform luminance"},
+	{3, 2,  0,   -1,     2,   -1.5,  0.15, "Partly cloudy sky, no gradation towards zenith, slight brightening towards the sun"},
+	{3, 3,  0,   -1,     5,   -2.5,  0.3,  "Partly cloudy sky, no gradation towards zenith, brighter circumsolar region"},
+	{3, 4,  0,   -1,    10,   -3.0,  0.45, "Partly cloudy sky, no gradation towards zenith, distinct solar corona"},
+	{4, 2, -1,   -0.55,  2,   -1.5,  0.15, "Partly cloudy, with the obscured sun"},
+	{4, 3, -1,   -0.55,  5,   -2.5,  0.3,  "Partly cloudy, with brighter circumsolar region"},
+	{4, 4, -1,   -0.55, 10,   -3.0,  0.45, "White-blue sky with distinct solar corona"},
+	{5, 4, -1,   -0.32, 10,   -3.0,  0.45, "CIE Standard Clear Sky, low luminance turbidity"},
+	{5, 5, -1,   -0.32, 16,   -3.0,  0.3,  "CIE Standard Clear Sky, polluted atmosphere"},
+	{6, 5, -1,   -0.15, 16,   -3.0,  0.3,  "Cloudless turbid sky with broad solar corona"},
+	{6, 6, -1,   -0.15, 24,   -2.8,  0.15, "White-blue turbid sky with broad solar corona"}
+};	
+void CIE_Sky(sky_grid * sky, sky_pos sun, double GHI, double DHI, CIE_SKY_TYPE TYPE)
+{
+	double dhi0=0, dir, g;
+	int i;
+	double a, b, c, d, e;
+	a=CIE_SKIES[TYPE].a;
+	b=CIE_SKIES[TYPE].e;
+	c=CIE_SKIES[TYPE].c;
+	d=CIE_SKIES[TYPE].d;
+	e=CIE_SKIES[TYPE].e;
+
+	Print(VVERBOSE, "********************************************************************************\n");
+	Print(VERBOSE, "--CIE Sky\t\t\t");
+	Print(VVERBOSE, "\nGHI:           %e\nDHI:           %e\n", GHI, DHI);
+	Print(VVERBOSE, "Solar Zenith:  %f\nSolar Azimuth: %f\n", rad2degr(sun.z), rad2degr(sun.a));
+	Print(VVERBOSE, "on a sky dome with %d patches\n", sky->N);
+	Print(VVERBOSE, "================================================================================\n");
 	Print(VVERBOSE, "a:             %e\nb:             %e\nc:             %e\nd:             %e\ne:             %e\n", a,b,c,d,e);
 	Print(VVERBOSE, "================================================================================\n");
 	

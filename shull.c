@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <math.h>
 #include "shull.h"
+#include "error.h"
 
 struct flipdata {
 	unsigned int maxflips;
@@ -74,8 +75,9 @@ sh_triangle *create_triangle(sh_point *p, sh_point *q, sh_point *r) {
 	sh_triangle *t = malloc(sizeof(sh_triangle));
 	if (t == NULL)
 	{
-		fprintf(stderr, "cannot create triangle\n");
-		exit(1);
+		// ERRORFLAG MALLOCFAILCREATETRIANGLE  "Error memory allocation failed in creating a triangle"
+		AddErr(MALLOCFAILCREATETRIANGLE);
+		return NULL;
 	}
 	t->p[0] = p;
 	t->p[1] = q;
@@ -90,8 +92,9 @@ sh_edge *create_edge(sh_point *p, sh_point *q, sh_triangle *t, sh_triangle *u) {
 	sh_edge *e = malloc(sizeof(sh_edge));
 	if (e == NULL)
 	{
-		fprintf(stderr, "cannot create edge\n");
-		exit(1);
+		// ERRORFLAG MALLOCFAILCREATEEDHE  "Error memory allocation failed in creating an edge"
+		AddErr(MALLOCFAILCREATETRIANGLE);
+		return NULL;
 	}
 	e->p[0] = p;
 	e->p[1] = q;
@@ -101,18 +104,19 @@ sh_edge *create_edge(sh_point *p, sh_point *q, sh_triangle *t, sh_triangle *u) {
 	return e;
 } 
 void seed_triangulation(sh_triangulation_data *td, sh_point *ps) { 
-	sh_triangle *tri = create_triangle(&ps[0], &ps[1], &ps[2]);
-	sh_edge *e[3] = {
-		create_edge(&ps[2], &ps[0], tri, NULL),
-		create_edge(&ps[1], &ps[2], tri, NULL),
-		create_edge(&ps[0], &ps[1], tri, NULL)
-	};
-	if ((e[0] == NULL)||(e[1] == NULL)||(e[2] == NULL))
-	{
-		fprintf(stderr, "cannot seed triangle\n");
-		exit(1);
-	}
+	sh_triangle *tri;
+	sh_edge *e[3];
 	
+	if ((tri = create_triangle(&ps[0], &ps[1], &ps[2]))==NULL)
+		return;
+	if ((e[0]=create_edge(&ps[2], &ps[0], tri, NULL))==NULL)
+		return;
+	if ((e[1]=create_edge(&ps[1], &ps[2], tri, NULL))==NULL)
+		return;
+	if ((e[2]=create_edge(&ps[0], &ps[1], tri, NULL))==NULL)
+		return;
+	if (ssdp_error_state)
+		return;
 	tri->e[0] = e[1];
 	tri->e[1] = e[0];
 	tri->e[2] = e[2];
@@ -171,6 +175,13 @@ void add_point_to_hull(sh_triangulation_data *td, sh_point *p) {
 		first_hid = ll_cut_after(last_vis);
 		last_hid = ll_cut_before(first_vis);
 	} 
+	if (first_vis==NULL)
+	{
+		// point not visible from hull, set has identical points
+		// ERRORFLAG TRIANGULATIONIDENTICALP  "Error triangulation point set contains identical points (I think)"
+		AddErr(TRIANGULATIONIDENTICALP);
+		return;
+	}
 	sh_edge *e0 = NULL;
 	sh_edge *e1 = NULL;
 	for (ll_node *n=first_vis; n!=NULL; n=NEXT(n)) { 
@@ -181,6 +192,7 @@ void add_point_to_hull(sh_triangulation_data *td, sh_point *p) {
 		e->t[1] = t;
 		if (n == first_vis) {
 			e0 = create_edge(e->p[0], p, t, NULL);
+			
 			last_hid = ll_insert_after(last_hid, e0);
 			/* printf("visible edge %p is first_vis, and remains in hull\n", e); */
 		}
@@ -212,7 +224,8 @@ int triangulate(sh_triangulation_data *td, sh_point *ps, size_t n) {
 	delaunay_restart:
 	if (p0 != 0) { 
 		if (p0 == n) {
-			fprintf(stderr, "can not triangulate this pointset\n");
+			// ERRORFLAG SHULLFAIL  "Error the s-hull Delaunay triangulation failed"
+			AddErr(SHULLFAIL);
 			return false;
 		}
 		swap_points(&ps[0], &ps[p0]);
@@ -293,9 +306,13 @@ int triangulate(sh_triangulation_data *td, sh_point *ps, size_t n) {
 	}
 	
 	seed_triangulation(td, ps);
+	if (ssdp_error_state)
+		return false;
 	/* iteratively add points to the hull */ 
 	for (size_t i=3; i<n; ++i) {
 		add_point_to_hull(td, &ps[i]);
+		if (ssdp_error_state)
+			return false;
 	} 
 
 	return 0;
@@ -340,20 +357,13 @@ void *flip_if_necessary(void *a, void *b) {
 		const int a1 = find_common_index(e->t[1], e->p[0]);
 		const int b0 = find_common_index(e->t[0], e->p[1]);
 		const int b1 = find_common_index(e->t[1], e->p[1]);
-		/* if (e->t[0]->p[a0] != e->t[1]->p[a1]) { */
-		/* 	printf("point a error\n"); */
-		/* } */
-		/* if (e->t[0]->p[b0] != e->t[1]->p[b1]) { */
-		/* 	printf("point a error\n"); */
-		/* } */
+		
 		const int c = 3 ^ a0 ^ b0;
 		const int d = 3 ^ a1 ^ b1;
 
 		if (a0==-1 || a1==-1 || b0==-1 || b1==-1) { 
-			fprintf(stderr, "Error: things are in a mess\n");			
-			fprintf(stderr, "a0=%d a1=%d b0=%d b1=%d\n", a0, a1, b0, b1);
-			fprintf(stderr, "\n");
-			exit(1);
+			AddErr(SHULLFAIL);
+			return a;
 		} 
 		/* printf("---\n"); */
 		if (
@@ -361,12 +371,7 @@ void *flip_if_necessary(void *a, void *b) {
 			e->t[1]->ccr2 > sqdist(&e->t[1]->cc, e->t[0]->p[c])) {
 			++e->flipcount;
 			if (e->flipcount > fd->maxflips) {
-				double sqd;
-				printf("\n");
-				sqd = sqdist(&e->t[0]->cc, e->t[1]->p[d]);
-				printf("%e %e %e\n", e->t[0]->ccr2, sqd, e->t[0]->ccr2-sqd);
-				sqd = sqdist(&e->t[1]->cc, e->t[0]->p[c]);
-				printf("%e %e %e\n", e->t[0]->ccr2, sqd, e->t[0]->ccr2-sqd);
+				fprintf(stderr, "Warning: maximal flipcount reached in shull\n");
 				return a;
 			}
 			fd->flipped = true;
@@ -435,6 +440,13 @@ int make_delaunay(sh_triangulation_data *td) {
 	while (fd.flipped) {
 		fd.flipped = false;
 		ll_map_r(td->internal_edges, flip_if_necessary, &fd);
+		if (ssdp_error_state)
+		{
+			ll_mapdestroy(td->triangles, free);
+			ll_mapdestroy(td->hull_edges, free);
+			ll_mapdestroy(td->internal_edges, free);
+			return -1;
+		}
 	}
 	int flipcount = 0;
 	ll_map_r(td->internal_edges, find_highest_flipcount, &flipcount);
@@ -444,5 +456,8 @@ int delaunay(sh_triangulation_data *td, sh_point *ps, size_t n) {
 	if (triangulate(td, ps, n) == 0) {
 		return make_delaunay(td);
 	}
+	ll_mapdestroy(td->triangles, free);
+	ll_mapdestroy(td->hull_edges, free);
+	ll_mapdestroy(td->internal_edges, free);
 	return -1;
 } 

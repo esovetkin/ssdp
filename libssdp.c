@@ -28,10 +28,18 @@
 #include "ground.h"
 #include "io.h"
 #include "util.h"
+#include "error.h"
 /* libssdp entry points */
-
+void ssdp_print_error_messages()
+{
+	E_Messages();
+}
+void ssdp_reset_errors()
+{
+	ResetErrors();
+}
 /* skydome routines */
-int ssdp_find_skypatch(sky_grid sky, sky_pos p)
+int ssdp_find_skypatch(sky_grid *sky, sky_pos p)
 {
 	return FindPatch(sky, p);
 }
@@ -57,26 +65,26 @@ void ssdp_make_perez_all_weather_sky(sky_grid * sky, sky_pos sun, double GHI, do
 
 /* project routines */
 
-double ssdp_diffuse_sky_poa(sky_grid sky, double tilt, double a, int mask)
+double ssdp_diffuse_sky_poa(sky_grid *sky, double tilt, double a, int mask)
 {
 	return DiffusePlaneOfArray(sky, tilt, a, mask);
 }
-double ssdp_direct_sky_poa(sky_grid sky, double tilt, double a, int mask)
+double ssdp_direct_sky_poa(sky_grid *sky, double tilt, double a, int mask)
 {
 	return DirectPlaneOfArray(sky, tilt, a, mask);
 }
-double ssdp_total_sky_poa(sky_grid sky, double tilt, double a, int mask)
+double ssdp_total_sky_poa(sky_grid *sky, double tilt, double a, int mask)
 {
 	double POA;
 	POA=DiffusePlaneOfArray(sky, tilt, a, mask);
 	POA+=DirectPlaneOfArray(sky, tilt, a, mask);
 	return POA;
 }
-double ssdp_groundalbedo_poa(sky_grid sky, double albedo, double tilt, double a, int mask)
+double ssdp_groundalbedo_poa(sky_grid *sky, double albedo, double tilt, double a, int mask)
 {
 	return POA_Albedo(sky, albedo, tilt, a, mask);
 }
-double ssdp_total_poa(sky_grid sky, double albedo, double tilt, double a, int mask)
+double ssdp_total_poa(sky_grid *sky, double albedo, double tilt, double a, int mask)
 {
 	double POA;
 	POA=DiffusePlaneOfArray(sky, tilt, a, mask);
@@ -92,15 +100,15 @@ void ssdp_poa_to_surface_normal(double tilt, double a, sky_pos sn, double *tilt_
 	POA_to_SurfaceNormal(tilt_out, a_out, sn);
 }
 
-double ssdp_diffuse_sky_horizontal(sky_grid sky, int mask)
+double ssdp_diffuse_sky_horizontal(sky_grid *sky, int mask)
 {
 	return DiffuseHorizontal(sky, mask);
 }
-double ssdp_direct_sky_horizontal(sky_grid sky, int mask)
+double ssdp_direct_sky_horizontal(sky_grid *sky, int mask)
 {
 	return DirectHorizontal(sky, mask);
 }
-double ssdp_total_sky_horizontal(sky_grid sky, int mask)
+double ssdp_total_sky_horizontal(sky_grid *sky, int mask)
 {
 	double GHI;
 	GHI=DiffuseHorizontal(sky, mask);
@@ -110,15 +118,15 @@ double ssdp_total_sky_horizontal(sky_grid sky, int mask)
 
 
 /* topology routines */
-void ssdp_mask_horizon(sky_grid *sky, topology T, double Ox, double Oy, double Oz)
+void ssdp_mask_horizon(sky_grid *sky, topology *T, double Ox, double Oy, double Oz)
 {
-	MakeHorizon(sky, T, Ox, Oy, Oz);
+	MaskMakeHorizon(sky, T, Ox, Oy, Oz);
 }
-void ssdp_mask_horizon_z_to_ground(sky_grid *sky, topology T, double Ox, double Oy, double deltaz, sky_pos *sn)
+void ssdp_mask_horizon_z_to_ground(sky_grid *sky, topology *T, double Ox, double Oy, double deltaz, sky_pos *sn)
 {
 	double Oz;
 	Oz=SampleTopo(Ox, Oy, T, sn)+deltaz;
-	MakeHorizon(sky, T, Ox, Oy, Oz);
+	MaskMakeHorizon(sky, T, Ox, Oy, Oz);
 }
 void ssdp_unmask_horizon(sky_grid *sky)
 {
@@ -137,7 +145,7 @@ void ssdp_free_topology(topology *T)
 	free_topo (T);
 }
 
-double ssdp_sample_topology(double x, double y, topology T, sky_pos *sn)
+double ssdp_sample_topology(double x, double y, topology *T, sky_pos *sn)
 {
 	return SampleTopo(x, y, T, sn);
 }
