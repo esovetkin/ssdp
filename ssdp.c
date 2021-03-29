@@ -111,6 +111,7 @@ int main()
 	printf( "GHI:         %e\n", ssdp_total_sky_horizontal(&sky,1));
 	printf( "POA (sky):   %e\n", ssdp_total_sky_poa(&sky, degr2rad(30), degr2rad(180),1));
 	printf( "POA (total): %e\n", ssdp_total_poa(&sky,0.25,degr2rad(30), degr2rad(180),1));
+	printf( "POA (total): %e\n", ssdp_total_poa_effective(&sky,0.25,degr2rad(30), degr2rad(180),1.5,1));
 	if (ssdp_error_state)
 	{
 		ssdp_print_error_messages();

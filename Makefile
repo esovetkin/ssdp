@@ -1,6 +1,6 @@
-libSRC=sky_dome.c sky_model.c project.c vector.c ground.c util.c libssdp.c shull.c delaunay.c ll.c error.c
-libOBJ=sky_dome.o sky_model.o project.o vector.o ground.o util.o libssdp.o shull.o delaunay.o ll.o error.o
-libHDR=sky_dome.h sky_model.h project.h vector.h ground.h util.h libssdp.h shull.h delaunay.h ll.h error.h
+libSRC=sky_dome.c sky_model.c pv-aoi.c project.c vector.c ground.c util.c libssdp.c shull.c delaunay.c ll.c error.c
+libOBJ=sky_dome.o sky_model.o pv-aoi.o project.o vector.o ground.o util.o libssdp.o shull.o delaunay.o ll.o error.o
+libHDR=sky_dome.h sky_model.h pv-aoi.h project.h vector.h ground.h util.h libssdp.h shull.h delaunay.h ll.h error.h
 
 SRC=io.c ssdp.c
 OBJ=io.o ssdp.o
@@ -23,7 +23,8 @@ io.o:project.h sky_dome.h vector.h util.h
 libssdp.so: Makefile libssdp.map $(libOBJ)
 	$(CC) -shared -o libssdp.so $(libOBJ) $(libssdp_la_LDFLAGS)
 libssdp.o: Makefile libssdp.c $(libHDR) error.h errorflags.h
-project.o:project.h sky_dome.h vector.h util.h error.h errorflags.h project.c
+pv-aoi.o:pv-aoi.c
+project.o:pv-aoi.h project.h sky_dome.h vector.h util.h error.h errorflags.h project.c
 sky_dome.o:sky_dome.h vector.h util.h error.h errorflags.h sky_dome.c
 sky_model.o:sky_dome.h util.h error.h errorflags.h sky_model.c
 vector.o:sky_dome.h util.h error.h errorflags.h vector.c

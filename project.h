@@ -18,10 +18,16 @@
 */
 #ifndef _RROJECT_H
 #define _RROJECT_H
-double DiffusePlaneOfArray(sky_grid *sky, double tilt, double a, int mask);
-double DirectPlaneOfArray(sky_grid *sky, double tilt, double a, int mask);
-double DiffuseHorizontal(sky_grid *sky, int mask);
-double DirectHorizontal(sky_grid *sky, int mask);
-double POA_Albedo(sky_grid *sky, double albedo, double tilt, double a, int mask);
+typedef enum {AOI_NONE, AOI_GLASS, AOI_GLASS_AR} AOI_Model;
+typedef struct {
+	double ng, nar;
+	AOI_Model M;
+} AOI_Model_Data;
+
+double DiffusePlaneOfArray(sky_grid *sky, double tilt, double a, AOI_Model_Data M, int mask);
+double DirectPlaneOfArray(sky_grid *sky, double tilt, double a, AOI_Model_Data M, int mask);
+double DiffuseHorizontal(sky_grid *sky, AOI_Model_Data M, int mask);
+double DirectHorizontal(sky_grid *sky, AOI_Model_Data M, int mask);
+double POA_Albedo(sky_grid *sky, double albedo, double tilt, double a, AOI_Model_Data M, int mask);
 void POA_to_SurfaceNormal(double *tilt, double *a, sky_pos sn);
 #endif

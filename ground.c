@@ -413,7 +413,14 @@ void RizeHorizon(horizon *H, double azi1, double azi2, double zen)
 	}	
 }
 
-void MakeHorizon(horizon *H, topology *T, double xoff, double yoff, double zoff)
+/* MakeHorizon2: old routine kept for reference.
+ * This routine is slightly slower as it relies more on atan2 operations than the new one
+ * In this code three atan2's are used to find the azimuthal range of an element
+ * In the new code the edges of the triangles are analyzed to determine which two corners
+ * determine the azimuthal range and we can skip one atan2 (of 4 per element).
+ */ 
+
+void MakeHorizon2(horizon *H, topology *T, double xoff, double yoff, double zoff)
 {
 	int i;
 	double d;
@@ -444,6 +451,97 @@ void MakeHorizon(horizon *H, topology *T, double xoff, double yoff, double zoff)
 			RizeHorizon(H, a2, a3, M_PI/2-atan2(z-zoff,d));
 		else if ((w3>w1)&&(w3>w2))
 			RizeHorizon(H, a1, a3, M_PI/2-atan2(z-zoff,d));
+	}
+	Print(VERBOSE, "Done\n");
+	Print(VVERBOSE, "********************************************************************************\n\n");
+	
+}
+
+// alternative MakeHorizon code relying on the triangulation producing right handed triangles
+// This code computes onl;y two atan2's to get the azimuth range of a triangle instead of three
+// speeds up the code maybe 15% or so
+double pcross(double ax, double ay, double bx, double by, double cx, double cy) 
+{ 
+	return (bx-ax)*(cy-ay)-(by-ay)*(cx-ax);
+} 
+
+int EdgeVis(double px, double py, double ax, double ay, double bx, double by)
+{
+	return (pcross(px,py,ax,ay,bx,by)<0);
+}
+
+
+#define AX x[T.i]
+#define AY y[T.i]
+#define BX x[T.j]
+#define BY y[T.j]
+#define CX x[T.k]
+#define CY y[T.k]
+int TriangleAziRange(triangles T, double *x, double *y, double xoff, double yoff, double *a1, double *a2)
+{
+	// assume right handed triangles
+	
+	// fprintf(stderr, "Winding %f\n", pcross(AX, AY, BX, BY, CX, CY));
+	if (EdgeVis(xoff,yoff,AX,AY,BX,BY)&&(EdgeVis(xoff,yoff,BX,BY,CX,CY))&&(EdgeVis(xoff,yoff,CX,CY,AX,AY))) // right winding with each edge
+	{
+		(*a1)=-M_PI;
+		(*a2)=M_PI;
+		return 0; // we are inside the triangle
+	}
+	if (pcross(xoff,yoff,AX,AY,BX,BY)*(pcross(xoff,yoff,BX,BY,CX,CY))>0) // consitently left or right winding from A via B to C
+	{
+		// p1 p3
+		(*a1)=atan2(AY,AX);
+		(*a2)=atan2(CY,CX);
+		return 1;
+	}
+	if (pcross(xoff,yoff,BX,BY,CX,CY)*(pcross(xoff,yoff,CX,CY,AX,AY))>0) // consitently left or right winding from B via C to A
+	{
+		// p2 p1
+		(*a1)=atan2(BY,BX);
+		(*a2)=atan2(AY,AX);
+		return 1;
+	}
+	if (pcross(xoff,yoff,CX,CY,AX,AY)*(pcross(xoff,yoff,AX,AY,BX,BY))>0) // consitently left or right winding from C via A to B
+	{
+		// p2 p3
+		(*a1)=atan2(CY,CX);
+		(*a2)=atan2(BY,BX);
+		return 1;
+	}
+	// ERRORFLAG TRIANGLEMESS  "Error cannot figure out the azimuth range of a triangle"
+	AddErr(TRIANGLEMESS);
+	(*a1)=-M_PI;
+	(*a2)=M_PI;
+	return 0;
+}
+#undef AX 
+#undef AY 
+#undef BX 
+#undef BY 
+#undef CX 
+#undef CY 
+
+
+void MakeHorizon(horizon *H, topology *T, double xoff, double yoff, double zoff)
+{
+	int i;
+	double d;
+	double z, a1, a2;
+	Print(VVERBOSE, "********************************************************************************\n");
+	Print(VERBOSE, "--MakeHorizon2\t\t\t");
+	Print(VVERBOSE, "\ntopology: %d points\n", T->N);
+	Print(VVERBOSE, "horizon: %d points\n", H->N);
+	Print(VVERBOSE, "Computing Horizon\n");
+	
+	for (i=0;i<T->Nt;i++)
+	{
+		// compute sky position and diameter in radians
+		
+		d=sqrt((T->T[i].ccx-xoff)*(T->T[i].ccx-xoff)+(T->T[i].ccy-yoff)*(T->T[i].ccy-yoff));
+		z=(T->z[T->T[i].i]+T->z[T->T[i].j]+T->z[T->T[i].k])/3;
+		if (TriangleAziRange(T->T[i], T->x, T->y, xoff, yoff, &a1, &a2)) // the horizon routine is not equipped to put a roof over the PV panel...
+			RizeHorizon(H, a1, a2, M_PI/2-atan2(z-zoff,d));
 	}
 	Print(VERBOSE, "Done\n");
 	Print(VVERBOSE, "********************************************************************************\n\n");
