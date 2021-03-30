@@ -29,6 +29,7 @@
 #include "io.h"
 #include "util.h"
 #include "error.h"
+#include "sunpos.h"
 /* libssdp entry points */
 void ssdp_print_error_messages()
 {
@@ -268,4 +269,10 @@ void ssdp_free_topology(topology *T)
 double ssdp_sample_topology(double x, double y, topology *T, sky_pos *sn)
 {
 	return SampleTopo(x, y, T, sn);
+}
+
+// solar position
+sky_pos ssdp_sunpos(time_t t, double lat, double lon)
+{
+	return sunpos(t, lat, lon);
 }

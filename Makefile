@@ -1,6 +1,6 @@
-libSRC=sky_dome.c sky_model.c pv-aoi.c project.c vector.c ground.c util.c libssdp.c shull.c delaunay.c ll.c error.c
-libOBJ=sky_dome.o sky_model.o pv-aoi.o project.o vector.o ground.o util.o libssdp.o shull.o delaunay.o ll.o error.o
-libHDR=sky_dome.h sky_model.h pv-aoi.h project.h vector.h ground.h util.h libssdp.h shull.h delaunay.h ll.h error.h
+libSRC=sky_dome.c sky_model.c pv-aoi.c project.c vector.c ground.c util.c libssdp.c shull.c delaunay.c ll.c error.c sunpos.c
+libOBJ=sky_dome.o sky_model.o pv-aoi.o project.o vector.o ground.o util.o libssdp.o shull.o delaunay.o ll.o error.o sunpos.o
+libHDR=sky_dome.h sky_model.h pv-aoi.h project.h vector.h ground.h util.h libssdp.h shull.h delaunay.h ll.h error.h sunpos.h
 
 SRC=io.c ssdp.c
 OBJ=io.o ssdp.o
@@ -35,7 +35,7 @@ shull.o:ll.h shull.h error.h errorflags.h shull.c
 ll.o:ll.h error.h ll.c
 	$(CC) -c -DLL_CIRCULAR -D_GNU_SOURCE $(CFLAGS) -o ll.o ll.c
 error.o: error.h errorflags.h errormessages.h
-errorflags.h errormessages.h: gen_errorflags.sh $(SRC)
+errorflags.h errormessages.h: gen_errorflags.sh $(libSRC)
 	${SHELL} gen_errorflags.sh  $(libSRC)
 clean:
 	rm *.o ssdp libssdp.so errorflags.h errormessages.h

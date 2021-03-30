@@ -16,7 +16,7 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
+#include <time.h>
 /* spherical coordinate system (only direction, no radius, hardly ever need that) */
 typedef struct sky_pos {
 	double z,a;
@@ -144,3 +144,6 @@ void ssdp_free_topology(topology *T);
 // Also computes the surface normal if you pass it a non NULL pointer to a sky_pos
 // you can use this to rotate the POA using ssdp_poa_to_surface_normal(...)
 double ssdp_sample_topology(double x, double y, topology T, sky_pos *sn);
+
+
+sky_pos ssdp_sunpos(time_t t, double lat, double lon); // lat & lon in radians
