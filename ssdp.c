@@ -45,16 +45,79 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+#include <string.h>
 #include <time.h>
 #include "libssdp.h"
-#include "io.h"
+#include "util.h"
+#include "parser.h"
+#include "readlineshell.h"
+#include "variables.h"
 
-#define rad2degr(rad) ((rad)*180/M_PI)
-#define degr2rad(degr) ((degr)*M_PI/180)
-// tic-toc timer
-clock_t tic=-1;
-#define TIC() (tic=clock())
-#define TOC() ((double)(clock()-tic)/CLOCKS_PER_SEC)
+#define MAXLINELEN 4096
+void StripEndline(char *line)
+{
+	int i;
+	i=strlen(line)-1;
+	while ((i>0)&&((line[i]=='\n')||(line[i]=='\r')))
+	{
+		line[i]='\0';
+		i--;
+	}
+}
+void ParseFile(char *fn)
+{
+	FILE *f;
+	char *line;	
+	if ((f=fopen(fn,"r"))==NULL)
+	{
+		
+		Warning("Cannot open input file %s for reading", fn);
+		return;
+	}
+	line=malloc(MAXLINELEN*sizeof(char));
+    fgets(line, MAXLINELEN-1, f);
+	while(feof(f)==0)
+	{
+		StripEndline(line);
+		if (ParseComm(line))
+			break;
+		fgets(line, MAXLINELEN-1, f);
+	}
+	free(line);
+}
+int main(int argc, char **argv)
+{
+	int i;
+	InitVars();
+	for (i=1;i<argc;i++)
+	{
+		if (argv[i][0]=='-')
+		{
+			switch (argv[i][1])
+			{
+				case 'f':
+					i++;
+					if (i<argc)
+						ParseFile(argv[i]);
+					else
+						fprintf(stderr,"Error: missing file after -f option\n");
+					break;
+				case 'i':
+					shell();
+					break;
+				default:
+					fprintf(stderr,"Error: unknown option %s\n", argv[i]);
+			}
+		}
+		else
+		
+		if (ParseComm(argv[i]))
+			break;
+	}
+	ClearVars();
+	return 0;
+}
+/*
 int main()
 {
 	double GHI=230.0, DHI=200.0, t;
@@ -62,9 +125,6 @@ int main()
 	sky_pos sun={degr2rad(20), degr2rad(180)};
 	topology T;
 	
-	// ssdp_verbosity=VVERBOSE;
-	//Connectivity(10);
-	// return 0;
 	TIC();
 	sky=ssdp_init_sky(50);
 	if (ssdp_error_state)
@@ -131,10 +191,10 @@ int main()
 	t=TOC();
 	printf( "used %e s\n", t);
 	TIC();
-	//RasterTopology("TOPOraster.dat", &T, -40, -40, 40, 40, 100, 100);
+	RasterTopology("TOPOraster.dat", &T, -40, -40, 40, 40, 100, 100);
 	t=TOC();
 	printf( "used %e s\n", t);
 	ssdp_free_sky(&sky);
 	ssdp_free_topology(&T);
 	return 0;
-}
+}*/

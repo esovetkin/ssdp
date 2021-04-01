@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <math.h>
+#include "error.h"
 #include "vector.h"
 
 /* implementation of the PSA algorithm as described in
@@ -27,6 +28,15 @@ JulianDate MakeJulianDate(time_t t)
 	JulianDate JD;
 	
 	ut=gmtime(&t);	
+	// ERRORFLAG GMTIMENULL  "Error: gmtime returned NULL"
+	if (!ut)
+	{
+		AddErr(GMTIMENULL);
+		JD.JD=JD0;
+		JD.dJD=0.0;
+		JD.hour=0;
+		return JD;
+	}
 	// Calculate time of the day in UT decimal hours
 	JD.hour = (double)ut->tm_hour + ((double)ut->tm_min+((double)ut->tm_sec)/60.0)/60.0;
 	// Calculate current Julian Day

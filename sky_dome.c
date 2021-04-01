@@ -22,7 +22,7 @@
 #include "vector.h"
 #include "sky_dome.h"
 #include "error.h"
-#include "util.h"
+#include "print.h"
 
 // helper routines for indexing hex meshes
 int i_sqrt(int x)	// integer sqrt
@@ -325,7 +325,7 @@ sky_grid InitSky(int Nz)
 	Print(VVERBOSE, "\n");
 	if (Nz>MAXNZ)
 	{
-		Warning("Warning: number of zenith discretizations %d too large, using %d instead\n", Nz, MAXNZ);
+		fprintf(stderr,"Warning: number of zenith discretizations %d too large, using %d instead\n", Nz, MAXNZ);
 		Nz=MAXNZ;
 	}
 	sky.N=NNZ(Nz);	

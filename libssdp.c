@@ -26,8 +26,6 @@
 #include "project.h"
 #include "delaunay.h"
 #include "ground.h"
-#include "io.h"
-#include "util.h"
 #include "error.h"
 #include "sunpos.h"
 /* libssdp entry points */
@@ -64,6 +62,27 @@ void ssdp_make_perez_all_weather_sky(sky_grid * sky, sky_pos sun, double GHI, do
 	PerezSky(sky, sun, GHI, DHI, dayofyear);
 }
 
+void ssdp_make_uniform_sky_coordinate(sky_grid *sky, time_t t, double lon, double lat, double GHI, double DHI)
+{
+	sky_pos sun;	
+	sun=sunpos(t, lat, lon);
+	UniformSky(sky, sun, GHI, DHI);
+}
+void ssdp_make_perez_all_weather_sky_coordinate(sky_grid * sky, time_t t, double lon, double lat, double GHI, double DHI)
+{
+	sky_pos sun;
+	struct tm * ut;
+	ut=gmtime(&t);
+	if (!ut)
+	{
+		AddErr(GMTIMENULL); //GMTIMENULL initialized in sunpos.c
+		return;
+	}
+	sun=sunpos(t, lat, lon);
+	PerezSky(sky, sun, GHI, DHI, ut->tm_yday);
+}
+
+
 /* project routines */
 // orient module w.r.t. ground orientation
 void ssdp_poa_to_surface_normal(double tilt, double a, sky_pos sn, double *tilt_out, double *a_out)
@@ -73,169 +92,54 @@ void ssdp_poa_to_surface_normal(double tilt, double a, sky_pos sn, double *tilt_
 	POA_to_SurfaceNormal(tilt_out, a_out, sn);
 }
 
+AOI_Model_Data ssdp_init_aoi_model(AOI_Model model,double nf, double nar,double *theta, double *effT, int N)
+{
+	return InitAOIModel(model,nf,nar,theta,effT,N);
+}
 /* AOI accptance equal for all angles */
-double ssdp_diffuse_sky_poa(sky_grid *sky, double tilt, double a, int mask)
+double ssdp_diffuse_sky_poa(sky_grid *sky, double tilt, double a, AOI_Model_Data *M, int mask)
 {
-	AOI_Model_Data M0={1.5, 1.5, AOI_NONE};
-	return DiffusePlaneOfArray(sky, tilt, a, M0, mask);
+	return DiffusePlaneOfArray(sky, tilt, a, M, mask);
 }
-double ssdp_direct_sky_poa(sky_grid *sky, double tilt, double a, int mask)
+double ssdp_direct_sky_poa(sky_grid *sky, double tilt, double a, AOI_Model_Data *M, int mask)
 {
-	AOI_Model_Data M0={1.5, 1.5, AOI_NONE};
-	return DirectPlaneOfArray(sky, tilt, a, M0, mask);
+	return DirectPlaneOfArray(sky, tilt, a, M, mask);
 }
-double ssdp_total_sky_poa(sky_grid *sky, double tilt, double a, int mask)
+double ssdp_total_sky_poa(sky_grid *sky, double tilt, double a, AOI_Model_Data *M, int mask)
 {
 	double POA;
-	AOI_Model_Data M0={1.5, 1.5, AOI_NONE};
-	POA=DiffusePlaneOfArray(sky, tilt, a, M0, mask);
-	POA+=DirectPlaneOfArray(sky, tilt, a, M0, mask);
+	POA=DiffusePlaneOfArray(sky, tilt, a, M, mask);
+	POA+=DirectPlaneOfArray(sky, tilt, a, M, mask);
 	return POA;
 }
-double ssdp_groundalbedo_poa(sky_grid *sky, double albedo, double tilt, double a, int mask)
+double ssdp_groundalbedo_poa(sky_grid *sky, double albedo, double tilt, double a, AOI_Model_Data *M, int mask)
 {
-	AOI_Model_Data M0={1.5, 1.5, AOI_NONE};
-	return POA_Albedo(sky, albedo, tilt, a, M0, mask);
+	return POA_Albedo(sky, albedo, tilt, a, M, mask);
 }
-double ssdp_total_poa(sky_grid *sky, double albedo, double tilt, double a, int mask)
+double ssdp_total_poa(sky_grid *sky, double albedo, double tilt, double a, AOI_Model_Data *M, int mask)
 {
 	double POA;
-	AOI_Model_Data M0={1.5, 1.5, AOI_NONE};
-	POA=DiffusePlaneOfArray(sky, tilt, a, M0, mask);
-	POA+=DirectPlaneOfArray(sky, tilt, a, M0, mask);
-	POA+=POA_Albedo(sky, albedo, tilt, a, M0, mask);
+	POA=DiffusePlaneOfArray(sky, tilt, a, M, mask);
+	POA+=DirectPlaneOfArray(sky, tilt, a, M, mask);
+	POA+=POA_Albedo(sky, albedo, tilt, a, M, mask);
 	return POA;
 }
 
-double ssdp_diffuse_sky_horizontal(sky_grid *sky, int mask)
+double ssdp_diffuse_sky_horizontal(sky_grid *sky, AOI_Model_Data *M, int mask)
 {
-	AOI_Model_Data M0={1.5, 1.5, AOI_NONE};
-	return DiffuseHorizontal(sky, M0, mask);
+	return DiffuseHorizontal(sky, M, mask);
 }
-double ssdp_direct_sky_horizontal(sky_grid *sky, int mask)
+double ssdp_direct_sky_horizontal(sky_grid *sky, AOI_Model_Data *M, int mask)
 {
-	AOI_Model_Data M0={1.5, 1.5, AOI_NONE};
-	return DirectHorizontal(sky, M0, mask);
+	return DirectHorizontal(sky, M, mask);
 }
-double ssdp_total_sky_horizontal(sky_grid *sky, int mask)
+double ssdp_total_sky_horizontal(sky_grid *sky, AOI_Model_Data *M, int mask)
 {
 	double GHI;
-	AOI_Model_Data M0={1.5, 1.5, AOI_NONE};
-	GHI=DiffuseHorizontal(sky, M0, mask);
-	GHI+=DirectHorizontal(sky, M0, mask);
+	GHI=DiffuseHorizontal(sky, M, mask);
+	GHI+=DirectHorizontal(sky, M, mask);
 	return GHI;
 }
-
-/* AOI accptance: assume plain front cover */
-
-double ssdp_diffuse_sky_poa_effective(sky_grid *sky, double tilt, double a, double nf, int mask)
-{
-	AOI_Model_Data M0={nf, nf, AOI_GLASS};
-	return DiffusePlaneOfArray(sky, tilt, a, M0, mask);
-}
-double ssdp_direct_sky_poa_effective(sky_grid *sky, double tilt, double a, double nf, int mask)
-{
-	AOI_Model_Data M0={nf, nf, AOI_GLASS};
-	return DirectPlaneOfArray(sky, tilt, a, M0, mask);
-}
-double ssdp_total_sky_poa_effective(sky_grid *sky, double tilt, double a, double nf, int mask)
-{
-	double POA;
-	AOI_Model_Data M0={nf, nf, AOI_GLASS};
-	POA=DiffusePlaneOfArray(sky, tilt, a, M0, mask);
-	POA+=DirectPlaneOfArray(sky, tilt, a, M0, mask);
-	return POA;
-}
-double ssdp_groundalbedo_poa_effective(sky_grid *sky, double albedo, double tilt, double a, double nf, int mask)
-{
-	AOI_Model_Data M0={nf, nf, AOI_GLASS};
-	return POA_Albedo(sky, albedo, tilt, a, M0, mask);
-}
-double ssdp_total_poa_effective(sky_grid *sky, double albedo, double tilt, double a, double nf, int mask)
-{
-	double POA;
-	AOI_Model_Data M0={nf, nf, AOI_GLASS};
-	POA=DiffusePlaneOfArray(sky, tilt, a, M0, mask);
-	POA+=DirectPlaneOfArray(sky, tilt, a, M0, mask);
-	POA+=POA_Albedo(sky, albedo, tilt, a, M0, mask);
-	return POA;
-}
-
-double ssdp_diffuse_sky_horizontal_effective(sky_grid *sky, double nf, int mask)
-{
-	AOI_Model_Data M0={nf, nf, AOI_GLASS};
-	return DiffuseHorizontal(sky, M0, mask);
-}
-double ssdp_direct_sky_horizontal_effective(sky_grid *sky, double nf, int mask)
-{
-	AOI_Model_Data M0={nf, nf, AOI_GLASS};
-	return DirectHorizontal(sky, M0, mask);
-}
-double ssdp_total_sky_horizontal_effective(sky_grid *sky, double nf, int mask)
-{
-	double GHI;
-	AOI_Model_Data M0={nf, nf, AOI_GLASS};
-	GHI=DiffuseHorizontal(sky, M0, mask);
-	GHI+=DirectHorizontal(sky, M0, mask);
-	return GHI;
-}
-
-/* AOI acceptance: assume front cover with AR coating */
-
-double ssdp_diffuse_sky_poa_effective_ar(sky_grid *sky, double tilt, double a, double nf, double nar, int mask)
-{
-	AOI_Model_Data M0={nf, nar, AOI_GLASS_AR};
-	return DiffusePlaneOfArray(sky, tilt, a, M0, mask);
-}
-double ssdp_direct_sky_poa_effective_ar(sky_grid *sky, double tilt, double a, double nf, double nar, int mask)
-{
-	AOI_Model_Data M0={nf, nar, AOI_GLASS_AR};
-	return DirectPlaneOfArray(sky, tilt, a, M0, mask);
-}
-double ssdp_total_sky_poa_effective_ar(sky_grid *sky, double tilt, double a, double nf, double nar, int mask)
-{
-	double POA;
-	AOI_Model_Data M0={nf, nar, AOI_GLASS_AR};
-	POA=DiffusePlaneOfArray(sky, tilt, a, M0, mask);
-	POA+=DirectPlaneOfArray(sky, tilt, a, M0, mask);
-	return POA;
-}
-double ssdp_groundalbedo_poa_effective_ar(sky_grid *sky, double albedo, double tilt, double a, double nf, double nar, int mask)
-{
-	AOI_Model_Data M0={nf, nar, AOI_GLASS_AR};
-	return POA_Albedo(sky, albedo, tilt, a, M0, mask);
-}
-double ssdp_total_poa_effective_ar(sky_grid *sky, double albedo, double tilt, double a, double nf, double nar, int mask)
-{
-	double POA;
-	AOI_Model_Data M0={nf, nar, AOI_GLASS_AR};
-	POA=DiffusePlaneOfArray(sky, tilt, a, M0, mask);
-	POA+=DirectPlaneOfArray(sky, tilt, a, M0, mask);
-	POA+=POA_Albedo(sky, albedo, tilt, a, M0, mask);
-	return POA;
-}
-
-double ssdp_diffuse_sky_horizontal_effective_ar(sky_grid *sky, double nf, double nar, int mask)
-{
-	AOI_Model_Data M0={nf, nar, AOI_GLASS_AR};
-	return DiffuseHorizontal(sky, M0, mask);
-}
-double ssdp_direct_sky_horizontal_effective_ar(sky_grid *sky, double nf, double nar, int mask)
-{
-	AOI_Model_Data M0={nf, nar, AOI_GLASS_AR};
-	return DirectHorizontal(sky, M0, mask);
-}
-double ssdp_total_sky_horizontal_effective_ar(sky_grid *sky, double nf, double nar, int mask)
-{
-	double GHI;
-	AOI_Model_Data M0={nf, nar, AOI_GLASS_AR};
-	GHI=DiffuseHorizontal(sky, M0, mask);
-	GHI+=DirectHorizontal(sky, M0, mask);
-	return GHI;
-}
-
-
-
 
 
 /* topology routines */

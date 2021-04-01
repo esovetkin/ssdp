@@ -18,16 +18,19 @@
 */
 #ifndef _RROJECT_H
 #define _RROJECT_H
-typedef enum {AOI_NONE, AOI_GLASS, AOI_GLASS_AR} AOI_Model;
+typedef enum {AOI_NONE, AOI_GLASS, AOI_GLASS_AR, AOI_USER} AOI_Model;
 typedef struct {
 	double ng, nar;
+	double *theta, *effT;
+	int N;
 	AOI_Model M;
 } AOI_Model_Data;
 
-double DiffusePlaneOfArray(sky_grid *sky, double tilt, double a, AOI_Model_Data M, int mask);
-double DirectPlaneOfArray(sky_grid *sky, double tilt, double a, AOI_Model_Data M, int mask);
-double DiffuseHorizontal(sky_grid *sky, AOI_Model_Data M, int mask);
-double DirectHorizontal(sky_grid *sky, AOI_Model_Data M, int mask);
-double POA_Albedo(sky_grid *sky, double albedo, double tilt, double a, AOI_Model_Data M, int mask);
+AOI_Model_Data InitAOIModel(AOI_Model model, double ng, double nar , double *theta, double *effT, int N);
+double DiffusePlaneOfArray(sky_grid *sky, double tilt, double a, AOI_Model_Data *M, int mask);
+double DirectPlaneOfArray(sky_grid *sky, double tilt, double a, AOI_Model_Data *M, int mask);
+double DiffuseHorizontal(sky_grid *sky, AOI_Model_Data *M, int mask);
+double DirectHorizontal(sky_grid *sky, AOI_Model_Data *M, int mask);
+double POA_Albedo(sky_grid *sky, double albedo, double tilt, double a, AOI_Model_Data *M, int mask);
 void POA_to_SurfaceNormal(double *tilt, double *a, sky_pos sn);
 #endif

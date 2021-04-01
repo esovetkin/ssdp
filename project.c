@@ -24,24 +24,82 @@
 #include "sky_model.h"
 #include "project.h"
 #include "error.h"
-#include "util.h"
+#include "print.h"
 #include "pv-aoi.h"
 
-double EffectiveT(AOI_Model_Data M, double z, double R0)
+AOI_Model_Data InitAOIModel(AOI_Model model, double ng, double nar , double *theta, double *effT, int N)
 {
-	switch (M.M)
+	AOI_Model_Data M;
+	M.M=model;
+	M.ng=ng;
+	M.nar=nar;
+	if (M.M==AOI_USER)
+	{
+		int i;
+		// ERRORFLAG NODATAFORUSERAOIMODEL "Error: no data provided for the user AOI model"
+		if ((!theta)||(!effT)||(N==0))
+		{
+			AddErr(NODATAFORUSERAOIMODEL);
+			// fallback none
+			M.M=AOI_NONE;
+			M.N=0;
+			M.theta=NULL;
+			M.effT=NULL;
+			return M;
+		}
+		// point to data, user must take care of its own arrays and not free them till we are done
+		M.theta=theta;
+		M.effT=effT;
+		M.N=N;
+	}
+	else
+	{
+		M.theta=NULL;
+		M.effT=NULL;
+		M.N=0;
+	}
+	return M;
+}
+	
+
+#define AOIEPS 1e-3
+double EffectiveT(AOI_Model_Data *M, double z, double R0)
+{
+	switch (M->M)
 	{
 		case AOI_GLASS:
-			return Transmission(1.0,M.ng,z)/R0;
+			return Transmission(1.0,M->ng,z)/R0;
 		case AOI_GLASS_AR:
-			return Transmission_ar(1.0,M.nar,M.ng,z)/R0;
+			return Transmission_ar(1.0,M->nar,M->ng,z)/R0;
+		case AOI_USER:
+		{
+			int imin=0, imax=M->N-1, i;
+			// find aoi in theta array
+			if (M->effT[imin]>z)
+				return 1.0;
+			if (M->theta[imax]<z)
+				return M->effT[imax]/M->theta[0];
+			i=(imin+imax)/2;
+			while ((i!=imin)&&(i!=imax))
+			{
+				if (M->theta[i]<z)
+					imin=i;
+				else
+					imax=i;
+				i=(imin+imax)/2;
+			}
+			if ((M->theta[imax]-M->theta[imin])>AOIEPS)
+				return 	((z-M->theta[imin])*M->effT[imax]+(M->theta[imax]-z)*M->effT[imin])/(M->theta[imax]-M->theta[imin])/M->theta[0];
+			else 
+				return 	(M->effT[imax]+M->effT[imin])/2.0/M->theta[0];
+		}		
 		default:
 			return 1/R0;
 	}
 }
 
 
-double DiffusePlaneOfArray(sky_grid *sky, double tilt, double a, AOI_Model_Data M, int mask)
+double DiffusePlaneOfArray(sky_grid *sky, double tilt, double a, AOI_Model_Data *M, int mask)
 {
 	sky_pos axis, r;
 	double POA=0, R0;
@@ -68,7 +126,7 @@ double DiffusePlaneOfArray(sky_grid *sky, double tilt, double a, AOI_Model_Data 
 	
 	return POA;
 }
-double DirectPlaneOfArray(sky_grid *sky, double tilt, double a, AOI_Model_Data M, int mask)
+double DirectPlaneOfArray(sky_grid *sky, double tilt, double a, AOI_Model_Data *M, int mask)
 {
 	sky_pos axis, r;
 	double POA=0, R0;
@@ -91,7 +149,7 @@ double DirectPlaneOfArray(sky_grid *sky, double tilt, double a, AOI_Model_Data M
 	return POA;
 }
 
-double DiffuseHorizontal(sky_grid *sky, AOI_Model_Data M, int mask)
+double DiffuseHorizontal(sky_grid *sky, AOI_Model_Data *M, int mask)
 {
 	double POA=0, R0;
 	int i;	
@@ -107,7 +165,7 @@ double DiffuseHorizontal(sky_grid *sky, AOI_Model_Data M, int mask)
 	return POA;
 }
 
-double DirectHorizontal(sky_grid *sky, AOI_Model_Data M, int mask)
+double DirectHorizontal(sky_grid *sky, AOI_Model_Data *M, int mask)
 {
 	double POA=0, R0;
 	R0=EffectiveT(M, 0, 1);
@@ -121,7 +179,7 @@ double DirectHorizontal(sky_grid *sky, AOI_Model_Data M, int mask)
 	return POA;
 }
 
-double POA_Albedo(sky_grid *sky, double albedo, double tilt, double a, AOI_Model_Data M, int mask)
+double POA_Albedo(sky_grid *sky, double albedo, double tilt, double a, AOI_Model_Data *M, int mask)
 {
 	double GHI, POA;
 	sky_grid ground;

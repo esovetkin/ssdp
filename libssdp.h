@@ -71,6 +71,13 @@ typedef struct topology {
 	nodetree *P;
 } topology;
 
+typedef enum {AOI_NONE, AOI_GLASS, AOI_GLASS_AR, AOI_USER} AOI_Model;
+typedef struct {
+	double ng, nar;
+	double *theta, *effT;
+	int N;
+	AOI_Model M;
+} AOI_Model_Data;
 
 /* verbosity of the library */
 typedef enum {QUIET, VERBOSE, VVERBOSE} VERB;
@@ -93,39 +100,22 @@ void ssdp_make_uniform_sky(sky_grid *sky, sky_pos sun, double GHI, double DHI);
 /* create a sky with the Perez all weather model */
 void ssdp_make_perez_all_weather_sky(sky_grid * sky, sky_pos sun, double GHI, double DHI, double dayofyear);
 
+/* same as above but now specifyiong time and spatial coordinates to compute the solar position and the dayofyear */
+void ssdp_make_uniform_sky_coordinate(sky_grid *sky, time_t t, double lon, double lat, double GHI, double DHI);
+void ssdp_make_perez_all_weather_sky_coordinate(sky_grid * sky, time_t t, double lon, double lat, double GHI, double DHI);
+
 /* projection routings for plane of array irradiance */
 void ssdp_poa_to_surface_normal(double tilt, double a, sky_pos sn, double *tilt_out, double *a_out); // orient module w.r.t grounbd orientation
 
-/* AOI accptance equal for all angles */
-double ssdp_diffuse_sky_poa(sky_grid * sky, double tilt, double a, int mask);					// diffuse contribution
-double ssdp_direct_sky_poa(sky_grid * sky, double tilt, double a, int mask);					// direct contribution
-double ssdp_total_sky_poa(sky_grid * sky, double tilt, double a, int mask);					// all sky contributions together
-double ssdp_groundalbedo_poa(sky_grid * sky, double albedo, double tilt, double a, int mask);	// ground albedo contribution (with crude assumptions)
-double ssdp_total_poa(sky_grid * sky, double albedo, double tilt, double a, int mask);		// sky+ground
-double ssdp_diffuse_sky_horizontal(sky_grid * sky, int mask);
-double ssdp_direct_sky_horizontal(sky_grid * sky, int mask);
-double ssdp_total_sky_horizontal(sky_grid * sky, int mask);
-
-/* AOI accptance: assume plain front cover */
-double ssdp_diffuse_sky_poa_effective(sky_grid *sky, double tilt, double a, double nf, int mask);
-double ssdp_direct_sky_poa_effective(sky_grid *sky, double tilt, double a, double nf, int mask);
-double ssdp_total_sky_poa_effective(sky_grid *sky, double tilt, double a, double nf, int mask);
-double ssdp_groundalbedo_poa_effective(sky_grid *sky, double albedo, double tilt, double a, double nf, int mask);
-double ssdp_total_poa_effective(sky_grid *sky, double albedo, double tilt, double a, double nf, int mask);
-double ssdp_diffuse_sky_horizontal_effective(sky_grid *sky, double nf, int mask);
-double ssdp_direct_sky_horizontal_effective(sky_grid *sky, double nf, int mask);
-double ssdp_total_sky_horizontal_effective(sky_grid *sky, double nf, int mask);
-
-/* AOI acceptance: assume front cover with AR coating */
-double ssdp_diffuse_sky_poa_effective_ar(sky_grid *sky, double tilt, double a, double nf, double nar, int mask);
-double ssdp_direct_sky_poa_effective_ar(sky_grid *sky, double tilt, double a, double nf, double nar, int mask);
-double ssdp_total_sky_poa_effective_ar(sky_grid *sky, double tilt, double a, double nf, double nar, int mask);
-double ssdp_groundalbedo_poa_effective_ar(sky_grid *sky, double albedo, double tilt, double a, double nf, double nar, int mask);
-double ssdp_total_poa_effective_ar(sky_grid *sky, double albedo, double tilt, double a, double nf, double nar, int mask);
-double ssdp_diffuse_sky_horizontal_effective_ar(sky_grid *sky, double nf, double nar, int mask);
-double ssdp_direct_sky_horizontal_effective_ar(sky_grid *sky, double nf, double nar, int mask);
-double ssdp_total_sky_horizontal_effective_ar(sky_grid *sky, double nf, double nar, int mask);
-
+AOI_Model_Data ssdp_init_aoi_model(AOI_Model model,double nf, double nar,double *theta, double *effT, int N);
+double ssdp_diffuse_sky_poa(sky_grid * sky, double tilt, double a, AOI_Model_Data *M, int mask);					// diffuse contribution
+double ssdp_direct_sky_poa(sky_grid * sky, double tilt, double a, AOI_Model_Data *M, int mask);					// direct contribution
+double ssdp_total_sky_poa(sky_grid * sky, double tilt, double a, AOI_Model_Data *M, int mask);					// all sky contributions together
+double ssdp_groundalbedo_poa(sky_grid * sky, double albedo, double tilt, double a, AOI_Model_Data *M, int mask);	// ground albedo contribution (with crude assumptions)
+double ssdp_total_poa(sky_grid * sky, double albedo, double tilt, double a, AOI_Model_Data *M, int mask);		// sky+ground
+double ssdp_diffuse_sky_horizontal(sky_grid * sky, AOI_Model_Data *M, int mask);
+double ssdp_direct_sky_horizontal(sky_grid * sky, AOI_Model_Data *M, int mask);
+double ssdp_total_sky_horizontal(sky_grid * sky, AOI_Model_Data *M, int mask);
 
 /* compute the horizon */
 void ssdp_mask_horizon(sky_grid *sky, topology *T, double Ox, double Oy, double Oz); // absolute x,y,z coordinates

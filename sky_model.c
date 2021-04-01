@@ -22,7 +22,7 @@
 #include "vector.h"
 #include "sky_dome.h"
 #include "sky_model.h"
-#include "util.h"
+#include "print.h"
 	
 void UniformSky(sky_grid *sky, sky_pos sun, double GHI, double DHI)
 {
@@ -56,7 +56,7 @@ double SolarAngle(double z1, double z2, double a1, double a2)
 		return 0.0;
 	else if (f > 1.1 )
 	{
-		Warning("Warning: cannot compute gamma (angle between point and sun)");
+		fprintf(stderr,"Warning: cannot compute gamma (angle between point and sun)");
 		return 0.0;
 	}
 	return acos(f);
