@@ -26,7 +26,6 @@ typedef struct sky_pos {
 typedef struct hexpatch {
 	double I;	// light intensity
 	sky_pos p;	// sky coordinate
-	char mask;	// mark elements behind the horizon
 	int NL[7];	// next level neighbors (at larger zenith angle)
 	int PL[3];	// previous level neighbors (at smaller senith angle)
 	int NI;		// iso level next (same zenith angle, larger azimuth)
@@ -41,7 +40,6 @@ typedef struct sky_grid {
 	// if we want
 	sky_pos sp;	// solar position
 	double sI;	// solar intensity
-	char smask;
 	int N;		
 	int Nz;
 } sky_grid;
@@ -62,6 +60,11 @@ typedef struct nodetree {
 	struct nodetree *N4;
 } nodetree;
 
+typedef struct sky_mask {
+	char *mask;
+	char smask;
+	int N;
+} sky_mask;
 /* topology structure including triangulation data */
 typedef struct topology {
 	double *x, *y, *z;  // 3D coordinates
@@ -105,24 +108,24 @@ void ssdp_make_uniform_sky_coordinate(sky_grid *sky, time_t t, double lon, doubl
 void ssdp_make_perez_all_weather_sky_coordinate(sky_grid * sky, time_t t, double lon, double lat, double GHI, double DHI);
 
 /* projection routings for plane of array irradiance */
-void ssdp_poa_to_surface_normal(double tilt, double a, sky_pos sn, double *tilt_out, double *a_out); // orient module w.r.t grounbd orientation
+void ssdp_poa_to_surface_normal(sky_pos pn0, sky_pos sn, sky_pos *pn); // orient module w.r.t ground orientation
 
 AOI_Model_Data ssdp_init_aoi_model(AOI_Model model,double nf, double nar,double *theta, double *effT, int N);
-double ssdp_diffuse_sky_poa(sky_grid * sky, double tilt, double a, AOI_Model_Data *M, int mask);					// diffuse contribution
-double ssdp_direct_sky_poa(sky_grid * sky, double tilt, double a, AOI_Model_Data *M, int mask);					// direct contribution
-double ssdp_total_sky_poa(sky_grid * sky, double tilt, double a, AOI_Model_Data *M, int mask);					// all sky contributions together
-double ssdp_groundalbedo_poa(sky_grid * sky, double albedo, double tilt, double a, AOI_Model_Data *M, int mask);	// ground albedo contribution (with crude assumptions)
-double ssdp_total_poa(sky_grid * sky, double albedo, double tilt, double a, AOI_Model_Data *M, int mask);		// sky+ground
-double ssdp_diffuse_sky_horizontal(sky_grid * sky, AOI_Model_Data *M, int mask);
-double ssdp_direct_sky_horizontal(sky_grid * sky, AOI_Model_Data *M, int mask);
-double ssdp_total_sky_horizontal(sky_grid * sky, AOI_Model_Data *M, int mask);
+double ssdp_diffuse_sky_poa(sky_grid * sky, sky_pos pn, AOI_Model_Data *M, sky_mask *mask);					// diffuse contribution
+double ssdp_direct_sky_poa(sky_grid * sky, sky_pos pn, AOI_Model_Data *M, sky_mask *mask);					// direct contribution
+double ssdp_total_sky_poa(sky_grid * sky, sky_pos pn, AOI_Model_Data *M, sky_mask *mask);					// all sky contributions together
+double ssdp_groundalbedo_poa(sky_grid * sky, double albedo, sky_pos pn, AOI_Model_Data *M, sky_mask *mask);	// ground albedo contribution (with crude assumptions)
+double ssdp_total_poa(sky_grid * sky, double albedo, sky_pos pn, AOI_Model_Data *M, sky_mask *mask);		// sky+ground
+double ssdp_diffuse_sky_horizontal(sky_grid * sky, AOI_Model_Data *M, sky_mask *mask);
+double ssdp_direct_sky_horizontal(sky_grid * sky, AOI_Model_Data *M, sky_mask *mask);
+double ssdp_total_sky_horizontal(sky_grid * sky, AOI_Model_Data *M, sky_mask *mask);
 
 /* compute the horizon */
-void ssdp_mask_horizon(sky_grid *sky, topology *T, double Ox, double Oy, double Oz); // absolute x,y,z coordinates
-void ssdp_mask_horizon_z_to_ground(sky_grid *sky, topology *T, double Ox, double Oy, double deltaz, sky_pos *sn); 
+sky_mask ssdp_mask_horizon(sky_grid *sky, topology *T, double Ox, double Oy, double Oz); // absolute x,y,z coordinates
+sky_mask  ssdp_mask_horizon_z_to_ground(sky_grid *sky, topology *T, double Ox, double Oy, double deltaz, sky_pos *sn); 
 // z w.r.t. ground, also sets sn, the local surface normal. Can be used to adapt module orientation (ssdp_poa_to_surface_normal)
-void ssdp_unmask_horizon(sky_grid *sky); // clear a horizon from a sky dome
-
+void ssdp_unmask_horizon(sky_mask *mask); // clear a horizon from a sky dome
+void ssdp_free_sky_mask(sky_mask *mask);
 
 // create a topology from a point cloud
 topology ssdp_make_topology(double *x, double *y, double *z, int N);

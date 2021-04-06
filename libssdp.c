@@ -85,11 +85,10 @@ void ssdp_make_perez_all_weather_sky_coordinate(sky_grid * sky, time_t t, double
 
 /* project routines */
 // orient module w.r.t. ground orientation
-void ssdp_poa_to_surface_normal(double tilt, double a, sky_pos sn, double *tilt_out, double *a_out)
+void ssdp_poa_to_surface_normal(sky_pos pn0, sky_pos sn, sky_pos *pn)
 {
-	(*tilt_out)=tilt;
-	(*a_out)=a;
-	POA_to_SurfaceNormal(tilt_out, a_out, sn);
+	(*pn)=pn0;
+	POA_to_SurfaceNormal(pn, sn);
 }
 
 AOI_Model_Data ssdp_init_aoi_model(AOI_Model model,double nf, double nar,double *theta, double *effT, int N)
@@ -97,43 +96,43 @@ AOI_Model_Data ssdp_init_aoi_model(AOI_Model model,double nf, double nar,double 
 	return InitAOIModel(model,nf,nar,theta,effT,N);
 }
 /* AOI accptance equal for all angles */
-double ssdp_diffuse_sky_poa(sky_grid *sky, double tilt, double a, AOI_Model_Data *M, int mask)
+double ssdp_diffuse_sky_poa(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, sky_mask *mask)
 {
-	return DiffusePlaneOfArray(sky, tilt, a, M, mask);
+	return DiffusePlaneOfArray(sky, pn, M, mask);
 }
-double ssdp_direct_sky_poa(sky_grid *sky, double tilt, double a, AOI_Model_Data *M, int mask)
+double ssdp_direct_sky_poa(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, sky_mask *mask)
 {
-	return DirectPlaneOfArray(sky, tilt, a, M, mask);
+	return DirectPlaneOfArray(sky, pn, M, mask);
 }
-double ssdp_total_sky_poa(sky_grid *sky, double tilt, double a, AOI_Model_Data *M, int mask)
+double ssdp_total_sky_poa(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, sky_mask *mask)
 {
 	double POA;
-	POA=DiffusePlaneOfArray(sky, tilt, a, M, mask);
-	POA+=DirectPlaneOfArray(sky, tilt, a, M, mask);
+	POA=DiffusePlaneOfArray(sky, pn, M, mask);
+	POA+=DirectPlaneOfArray(sky, pn, M, mask);
 	return POA;
 }
-double ssdp_groundalbedo_poa(sky_grid *sky, double albedo, double tilt, double a, AOI_Model_Data *M, int mask)
+double ssdp_groundalbedo_poa(sky_grid *sky, double albedo, sky_pos pn, AOI_Model_Data *M, sky_mask *mask)
 {
-	return POA_Albedo(sky, albedo, tilt, a, M, mask);
+	return POA_Albedo(sky, albedo, pn, M, mask);
 }
-double ssdp_total_poa(sky_grid *sky, double albedo, double tilt, double a, AOI_Model_Data *M, int mask)
+double ssdp_total_poa(sky_grid *sky, double albedo, sky_pos pn, AOI_Model_Data *M, sky_mask *mask)
 {
 	double POA;
-	POA=DiffusePlaneOfArray(sky, tilt, a, M, mask);
-	POA+=DirectPlaneOfArray(sky, tilt, a, M, mask);
-	POA+=POA_Albedo(sky, albedo, tilt, a, M, mask);
+	POA=DiffusePlaneOfArray(sky, pn, M, mask);
+	POA+=DirectPlaneOfArray(sky, pn, M, mask);
+	POA+=POA_Albedo(sky, albedo, pn, M, mask);
 	return POA;
 }
 
-double ssdp_diffuse_sky_horizontal(sky_grid *sky, AOI_Model_Data *M, int mask)
+double ssdp_diffuse_sky_horizontal(sky_grid *sky, AOI_Model_Data *M, sky_mask *mask)
 {
 	return DiffuseHorizontal(sky, M, mask);
 }
-double ssdp_direct_sky_horizontal(sky_grid *sky, AOI_Model_Data *M, int mask)
+double ssdp_direct_sky_horizontal(sky_grid *sky, AOI_Model_Data *M, sky_mask *mask)
 {
 	return DirectHorizontal(sky, M, mask);
 }
-double ssdp_total_sky_horizontal(sky_grid *sky, AOI_Model_Data *M, int mask)
+double ssdp_total_sky_horizontal(sky_grid *sky, AOI_Model_Data *M, sky_mask *mask)
 {
 	double GHI;
 	GHI=DiffuseHorizontal(sky, M, mask);
@@ -143,19 +142,23 @@ double ssdp_total_sky_horizontal(sky_grid *sky, AOI_Model_Data *M, int mask)
 
 
 /* topology routines */
-void ssdp_mask_horizon(sky_grid *sky, topology *T, double Ox, double Oy, double Oz)
+sky_mask ssdp_mask_horizon(sky_grid *sky, topology *T, double Ox, double Oy, double Oz)
 {
-	MaskMakeHorizon(sky, T, Ox, Oy, Oz);
+	return MaskHorizon(sky, T, Ox, Oy, Oz);
 }
-void ssdp_mask_horizon_z_to_ground(sky_grid *sky, topology *T, double Ox, double Oy, double deltaz, sky_pos *sn)
+sky_mask ssdp_mask_horizon_z_to_ground(sky_grid *sky, topology *T, double Ox, double Oy, double deltaz, sky_pos *sn)
 {
 	double Oz;
 	Oz=SampleTopo(Ox, Oy, T, sn)+deltaz;
-	MaskMakeHorizon(sky, T, Ox, Oy, Oz);
+	return MaskHorizon(sky, T, Ox, Oy, Oz);
 }
-void ssdp_unmask_horizon(sky_grid *sky)
+void ssdp_unmask_horizon(sky_mask *mask)
 {
-	ClearHorizon(sky);
+	ClearSkyMask(mask);
+}
+void ssdp_free_sky_mask(sky_mask *mask)
+{
+	FreeSkyMask(mask);
 }
 topology ssdp_make_topology(double *x, double *y, double *z, int N)
 {

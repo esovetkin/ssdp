@@ -35,7 +35,6 @@ AOI_Model_Data InitAOIModel(AOI_Model model, double ng, double nar , double *the
 	M.nar=nar;
 	if (M.M==AOI_USER)
 	{
-		int i;
 		// ERRORFLAG NODATAFORUSERAOIMODEL "Error: no data provided for the user AOI model"
 		if ((!theta)||(!effT)||(N==0))
 		{
@@ -99,7 +98,7 @@ double EffectiveT(AOI_Model_Data *M, double z, double R0)
 }
 
 
-double DiffusePlaneOfArray(sky_grid *sky, double tilt, double a, AOI_Model_Data *M, int mask)
+double DiffusePlaneOfArray(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, sky_mask *mask)
 {
 	sky_pos axis, r;
 	double POA=0, R0;
@@ -108,38 +107,66 @@ double DiffusePlaneOfArray(sky_grid *sky, double tilt, double a, AOI_Model_Data 
 	
 	Print(VVERBOSE, "********************************************************************************\n");
 	Print(VERBOSE, "--DiffusePlaneOfArray\t\t");
-	Print(VVERBOSE, "\nTilt:    %f\n", rad2degr(tilt));
-	Print(VVERBOSE, "Azimuth: %f\n", rad2degr(a));
-	axis.a=a+M_PI/2;// axis points perpendicular to a
+	Print(VVERBOSE, "\nTilt:    %f\n", rad2degr(pn.z));
+	Print(VVERBOSE, "Azimuth: %f\n", rad2degr(pn.a));
+	axis.a=pn.a+M_PI/2;// axis points perpendicular to a
 	axis.z=M_PI/2;
-	for (i=0;i<sky->N;i++)
+	if (mask)
 	{
-		if ((!sky->P[i].mask)||(!mask))
+		if (mask->N!=sky->N)
 		{
-			r=rrf(sky->P[i].p, axis, -tilt);  
+			// ERRORFLAG SKYSKYMASKMISMATCH "Error: provided sky_mask does not fitr to the given sky-dome"
+			AddErr(SKYSKYMASKMISMATCH);
+			return POA;
+		}
+		for (i=0;i<sky->N;i++)
+		{
+			if (mask->mask[i]==0)
+			{
+				r=rrf(sky->P[i].p, axis, -pn.z);  
+				if ((r.z>=0)&&(r.z<=M_PI/2))                                        
+					POA+=sky->P[i].I*cos(r.z)*EffectiveT(M, r.z, R0);
+			}
+		}
+	}
+	else
+	{
+		for (i=0;i<sky->N;i++)
+		{
+			r=rrf(sky->P[i].p, axis, -pn.z);  
 			if ((r.z>=0)&&(r.z<=M_PI/2))                                        
 				POA+=sky->P[i].I*cos(r.z)*EffectiveT(M, r.z, R0);
 		}
 	}
+
 	Print(VERBOSE, "Done\n");
 	Print(VVERBOSE, "********************************************************************************\n\n");
 	
 	return POA;
 }
-double DirectPlaneOfArray(sky_grid *sky, double tilt, double a, AOI_Model_Data *M, int mask)
+double DirectPlaneOfArray(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, sky_mask *mask)
 {
 	sky_pos axis, r;
 	double POA=0, R0;
 	R0=EffectiveT(M, 0, 1);
 	Print(VVERBOSE, "********************************************************************************\n");
 	Print(VERBOSE, "--DirectPlaneOfArray\t\t");
-	Print(VVERBOSE, "\nTilt:    %f\n", rad2degr(tilt));
-	Print(VVERBOSE, "Azimuth: %f\n", rad2degr(a));
-	axis.a=a+M_PI/2;// axis points perpendicular to a
+	Print(VVERBOSE, "\nTilt:    %f\n", rad2degr(pn.z));
+	Print(VVERBOSE, "Azimuth: %f\n", rad2degr(pn.a));
+	axis.a=pn.a+M_PI/2;// axis points perpendicular to a
 	axis.z=M_PI/2;
-	if ((!sky->smask)||(!mask))
+	if (mask)
 	{
-		r=rrf(sky->sp, axis, -tilt); 
+		if (mask->smask==0)
+		{
+			r=rrf(sky->sp, axis, -pn.z); 
+			if ((r.z>=0)&&(r.z<=M_PI/2))       
+				POA=sky->sI*cos(r.z)*EffectiveT(M, r.z, R0);
+		}
+	}
+	else
+	{
+		r=rrf(sky->sp, axis, -pn.z); 
 		if ((r.z>=0)&&(r.z<=M_PI/2))       
 			POA=sky->sI*cos(r.z)*EffectiveT(M, r.z, R0);
 	}
@@ -149,7 +176,7 @@ double DirectPlaneOfArray(sky_grid *sky, double tilt, double a, AOI_Model_Data *
 	return POA;
 }
 
-double DiffuseHorizontal(sky_grid *sky, AOI_Model_Data *M, int mask)
+double DiffuseHorizontal(sky_grid *sky, AOI_Model_Data *M, sky_mask *mask)
 {
 	double POA=0, R0;
 	int i;	
@@ -157,29 +184,48 @@ double DiffuseHorizontal(sky_grid *sky, AOI_Model_Data *M, int mask)
 	Print(VVERBOSE, "********************************************************************************\n");
 	Print(VERBOSE, "--DiffuseHorizontal\t\t");
 	Print(VVERBOSE, "\n");
-	for (i=0;i<sky->N;i++)   
-		if ((!sky->P[i].mask)||(!mask))
+	if (mask)
+	{
+		if (mask->N!=sky->N)
+		{
+			AddErr(SKYSKYMASKMISMATCH);
+			return POA;
+		}
+		for (i=0;i<sky->N;i++)   
+			if (mask->mask[i]==0)
+				POA+=sky->P[i].I*cos(sky->P[i].p.z)*EffectiveT(M, sky->P[i].p.z, R0);  
+	}
+	else
+	{
+		for (i=0;i<sky->N;i++)   
 			POA+=sky->P[i].I*cos(sky->P[i].p.z)*EffectiveT(M, sky->P[i].p.z, R0);  
+	}
+	
 	Print(VERBOSE, "Done\n");
 	Print(VVERBOSE, "********************************************************************************\n\n");  
 	return POA;
 }
 
-double DirectHorizontal(sky_grid *sky, AOI_Model_Data *M, int mask)
+double DirectHorizontal(sky_grid *sky, AOI_Model_Data *M, sky_mask *mask)
 {
 	double POA=0, R0;
 	R0=EffectiveT(M, 0, 1);
 	Print(VVERBOSE, "********************************************************************************\n");
 	Print(VERBOSE, "--DirectHorizontal\t\t");
 	Print(VVERBOSE, "\n");
-	if ((!sky->smask)||(!mask))
+	if (mask)
+	{
+		if (mask->smask==0)
+			POA+=sky->sI*cos(sky->sp.z)*EffectiveT(M, sky->sp.z, R0);
+	}
+	else
 		POA+=sky->sI*cos(sky->sp.z)*EffectiveT(M, sky->sp.z, R0);
 	Print(VERBOSE, "Done\n");
 	Print(VVERBOSE, "********************************************************************************\n\n");  
 	return POA;
 }
 
-double POA_Albedo(sky_grid *sky, double albedo, double tilt, double a, AOI_Model_Data *M, int mask)
+double POA_Albedo(sky_grid *sky, double albedo, sky_pos pn, AOI_Model_Data *M, sky_mask *mask)
 {
 	double GHI, POA;
 	sky_grid ground;
@@ -188,17 +234,18 @@ double POA_Albedo(sky_grid *sky, double albedo, double tilt, double a, AOI_Model
 	Print(VVERBOSE, "********************************************************************************\n");
 	Print(VERBOSE, "--POA_Albedo\t\t\t");
 	Print(VVERBOSE, "\nAlbedo:  %f\n", albedo);
-	Print(VVERBOSE, "Tilt:    %f\n", rad2degr(tilt));
-	Print(VVERBOSE, "Azimuth: %f\n", rad2degr(a));
+	Print(VVERBOSE, "Tilt:    %f\n", rad2degr(pn.z));
+	Print(VVERBOSE, "Azimuth: %f\n", rad2degr(pn.a));
 	val=ssdp_verbosity;
 	ssdp_verbosity=QUIET;
 	GHI=DiffuseHorizontal(sky, M, mask);
 	GHI+=DirectHorizontal(sky, M, mask);
-	ground=InitSky(sky->Nz); // this should not be necessary, so some math
+	ground=InitSky(sky->Nz); // this should not be necessary, do some math?
 	if (ssdp_error_state)
 		return 0;
 	UniformSky(&ground, z, albedo*GHI, albedo*GHI);
-	POA=DiffusePlaneOfArray(&ground, tilt+M_PI, a, M, mask);
+	pn.z+=M_PI;
+	POA=DiffusePlaneOfArray(&ground, pn, M, NULL);
 	free_sky_grid(&ground);	
 	ssdp_verbosity=val;
 	Print(VERBOSE, "Done\n");
@@ -207,16 +254,12 @@ double POA_Albedo(sky_grid *sky, double albedo, double tilt, double a, AOI_Model
 }
 
 
-void POA_to_SurfaceNormal(double *tilt, double *a, sky_pos sn)
+void POA_to_SurfaceNormal(sky_pos *pn, sky_pos sn)
 {
-	sky_pos axis, r;
+	sky_pos axis;
 	axis.a=sn.a;
 	axis.z=M_PI/2;
-	r.a=(*a);
-	r.z=(*tilt);
-	r=rrf(r, axis, sn.z);
-	(*a)=r.a;
-	(*tilt)=r.z;
+	(*pn)=rrf(*pn, axis, sn.z);
 }
 	
 	

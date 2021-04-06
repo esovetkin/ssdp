@@ -84,11 +84,13 @@ void ParseFile(char *fn)
 		fgets(line, MAXLINELEN-1, f);
 	}
 	free(line);
+	fclose(f);
 }
 int main(int argc, char **argv)
 {
 	int i;
 	InitVars();
+	
 	for (i=1;i<argc;i++)
 	{
 		if (argv[i][0]=='-')
@@ -114,6 +116,8 @@ int main(int argc, char **argv)
 		if (ParseComm(argv[i]))
 			break;
 	}
+	if (argc==1)
+		shell();
 	ClearVars();
 	return 0;
 }

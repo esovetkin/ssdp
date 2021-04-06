@@ -199,139 +199,6 @@ topology CreateRandomTopology(double dx, double dy, double dz, double fN, int N)
 	return T;
 }
 
-// this routine recursively asks all elements below element index
-// which lie less than W/2 away from the azimuth in p
-void MarkBelow(int index, sky_grid *sky, sky_pos p, double W)
-{
-	int i, k;
-	
-	i=0;
-	while ((k=sky->P[index].NL[i])>=0) // check next level patches
-	{
-		if ((sky->P[k].p.z>sky->P[index].p.z)&&(fabs(adiff(sky->P[k].p.a,p.a))<W/2)&&(!sky->P[k].mask))
-		{
-			sky->P[k].mask=1; // mask patch
-			MarkBelow(k, sky, p, W); // recursively mask patches below
-		}
-		i++;
-	}
-}
-
-void UpdateHorizon(sky_grid *sky, sky_pos p, double W)
-{
-	int i, j, k, g;
-	
-	if ((fabs(adiff(sky->sp.a,p.a))>W/2)&&(sky->sp.z>p.z))
-		sky->smask=1;
-	
-	i=FindPatch(sky, p);
-	if (fabs(adiff(sky->P[i].p.a,p.a))>W/2)
-		return; // shade too small
-		
-	if (sky->P[i].p.z<p.z) // patch not below p.z
-	{
-		g=1;
-		j=0;
-		while (((k=sky->P[i].NL[j])>=0)&&g) // check next level patches
-		{
-			if ((sky->P[k].p.z>p.z)&&(fabs(adiff(sky->P[k].p.a,p.a))<W/2))
-				g=0;
-			j++;
-		}		
-		if (g)
-			return; // cannot find a patch under p.z
-	}
-	
-	// patch is found within azimuth range and below p.z 
-	sky->P[i].mask=1;
-	MarkBelow(i, sky, p, W); // recursively mask all patches below
-	
-	// previous patch at same zenith is N[0], next patch N[1]	
-	j=i;
-	while ((fabs(adiff(p.a,sky->P[j].p.a))<W/2)&&(sky->P[j].PI>0))
-	{		
-		j=sky->P[j].PI;
-		if ((fabs(adiff(p.a,sky->P[j].p.a))<W/2)&&(sky->P[j].mask==0))
-		{
-			sky->P[j].mask=1;
-			MarkBelow(j, sky, p, W); // recursively mask all patches below
-		}
-	}	
-	j=i;
-	while ((fabs(adiff(p.a,sky->P[j].p.a))<W/2)&&(sky->P[j].NI>0))
-	{		
-		j=sky->P[j].NI;
-		if ((fabs(adiff(p.a,sky->P[j].p.a))<W/2)&&(sky->P[j].mask==0))
-		{
-			sky->P[j].mask=1;
-			MarkBelow(j, sky, p, W); // recursively mask all patches below
-		}
-	}
-	
-}
-
-// warning: zoff is absolute and not w.r.t. local ground level
-/*
-void MakeHorizon_(sky_grid *sky, topology *T, double xoff, double yoff, double zoff) 
-{
-	int i;
-	sky_pos p;
-	double d, W;
-	double z, a1, a2, a3, w1,w2,w3;
-	Print(VVERBOSE, "********************************************************************************\n");
-	Print(VERBOSE, "--MakeHorizon\t\t\t");
-	Print(VVERBOSE, "\ntopology: %d points\n", T->N);
-	Print(VVERBOSE, "sky dome: %d patches\n", sky->N);
-	Print(VVERBOSE, "Computing Horizon\n");
-	
-	for (i=0;i<T->Nt;i++)
-	{
-		// compute sky position and diameter in radians
-		
-		d=sqrt((T->T[i].ccx-xoff)*(T->T[i].ccx-xoff)+(T->T[i].ccy-yoff)*(T->T[i].ccy-yoff));
-		z=(T->z[T->T[i].i]+T->z[T->T[i].j]+T->z[T->T[i].k])/3;
-		p.z=M_PI/2-atan2(z-zoff,d);		
-		a1=atan2(T->y[T->T[i].i]-yoff,T->x[T->T[i].i]-xoff);
-		a2=atan2(T->y[T->T[i].j]-yoff,T->x[T->T[i].j]-xoff);
-		a3=atan2(T->y[T->T[i].k]-yoff,T->x[T->T[i].k]-xoff);
-		w1=fabs(adiff(a1, a2));
-		w2=fabs(adiff(a2, a3));
-		w3=fabs(adiff(a1, a3));		
-		
-		if ((w1>w2)&&(w1>w3))
-		{
-			W=w1;
-			p.a=amean(a1, a2);
-		}
-		else if ((w2>w1)&&(w2>w3))
-		{
-			W=w2;
-			p.a=amean(a2, a3);
-		}
-		else if ((w3>w1)&&(w3>w2))
-		{
-			W=w3;
-			p.a=amean(a1, a3);
-		}
-		if (p.z<M_PI/2)
-			UpdateHorizon(sky, p, W);
-	}
-	Print(VERBOSE, "Done\n");
-	Print(VVERBOSE, "********************************************************************************\n\n");
-}
-*/
-void ClearHorizon(sky_grid *sky) 
-{
-	int i;
-	Print(VVERBOSE, "********************************************************************************\n");
-	Print(VERBOSE, "--ClearHorizon\t\t\t");
-	Print(VVERBOSE, "\n");
-	for (i=0;i<sky->N;i++)
-		sky->P[i].mask=0;
-	sky->smask=0;
-	Print(VERBOSE, "Done\n");
-	Print(VVERBOSE, "********************************************************************************\n\n");
-}
 
 
 typedef struct horizon {
@@ -583,19 +450,27 @@ int BelowHorizon(horizon *H, sky_pos p)
 	return (p.z>(H->zen[i]*a2+H->zen[j]*a1)/(a1+a2));
 }
 
-void MaskMakeHorizon(sky_grid *sky, topology *T, double xoff, double yoff, double zoff) 
+sky_mask MaskHorizon(sky_grid *sky, topology *T, double xoff, double yoff, double zoff) 
 {
 	int i, nz;
 	horizon H;
+	sky_mask M={NULL,'\0',0};
 	double minz;
 	H=InitHorizon(sky->Nz);
 	if (ssdp_error_state)
-		return;
+		return M;
 	MakeHorizon(&H, T, xoff, yoff, zoff);
+	M.mask=calloc(sky->N,sizeof(char));
+	M.N=sky->N;
+	if (BelowHorizon(&H, sky->sp))
+		M.smask=1;
+	
 	minz=MinZentith(&H);
 	nz=(int) floor(minz/((M_PI/2)/((double)sky->Nz)));
 	for (i=3*(nz-1)*nz+1;i<sky->N;i++)
 		if (BelowHorizon(&H, sky->P[i].p))
-			sky->P[i].mask=1;
+			M.mask[i]=1;
 	FreeHorizon(&H);
+	return M;
 }
+

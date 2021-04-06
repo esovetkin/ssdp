@@ -22,7 +22,6 @@ typedef struct JulianDate {
 JulianDate MakeJulianDate(time_t t)
 {
 	struct tm *ut;
-	double dJulianDate;
 	long int jumon;
 	long int juday;
 	JulianDate JD;

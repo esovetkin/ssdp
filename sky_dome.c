@@ -333,7 +333,6 @@ sky_grid InitSky(int Nz)
 	Print(VVERBOSE, "Initializing sky dome with %d patches of %e sr\n", sky.N, 2*M_PI/((double)sky.N));
 	sky.sp=sun; // The default sun, black and straight above you
 	sky.sI=0;
-	sky.smask=0;
 	
 	// ERRORFLAG MALLOCFAILSKYDOME  "Error memory allocation failed in creating a sky-dome"
 	if ((sky.P=malloc((sky.N+1)*sizeof(hexpatch)))==NULL)
@@ -347,7 +346,6 @@ sky_grid InitSky(int Nz)
 	{
 		sky.P[i].I=0;
 		sky.P[i].p=GridPos(Nz, i);
-		sky.P[i].mask=0;
 		NextL(Nz, i, sky.P[i].NL);
 		PrevL(Nz, i, sky.P[i].PL);
 		sky.P[i].NI=NextIsoL(Nz, i);
@@ -360,8 +358,23 @@ sky_grid InitSky(int Nz)
 
 void free_sky_grid(sky_grid *sky)
 {
-	free(sky->P);
+	if (sky->P)
+		free(sky->P);
 	sky->P=NULL;
 	sky->N=0;
 	sky->Nz=0;
+}
+
+void ClearSkyMask(sky_mask *M) 
+{
+	int i;
+	for (i=0;i<M->N;i++)
+		M->mask[i]=0;
+	M->smask=0;
+}
+void FreeSkyMask(sky_mask *M)
+{
+	if (M->mask)
+		free(M->mask);
+	M->N=0;
 }

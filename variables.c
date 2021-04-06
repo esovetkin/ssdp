@@ -4,11 +4,9 @@
 #include "libssdp.h"
 #include "variables.h"
 #include "util.h"
-typedef enum {TOPOVAR, SKYDOMEVAR, VECVAR, SIMCONF} VarType;
+typedef enum {SIMCONF, ARRAY} VarType;
 typedef struct {
-	topology T;
-	sky_grid S;
-	sky_pos v;
+	array a;
 	simulation_config C;
 	char *name;
 	VarType type;
@@ -18,6 +16,11 @@ typedef struct {
 Var *variables=NULL;
 int Nvar=0;
 
+
+// the default location ios the Forschungszentrum Jülich
+// gotta be somewhere and I happen to be here alot - bp
+#define FZLAT 50.902996388
+#define FZLON 6.407165038
 simulation_config InitConf()
 {
 	simulation_config C;
@@ -27,12 +30,25 @@ simulation_config InitConf()
 	C.M.theta=NULL;
 	C.M.effT=NULL;
 	C.M.N=0;
-	C.P=POA_ZREL;
+	C.sky_init=0;
+	C.topo_init=0;
+	C.albedo=0.25; 
+	C.lon=FZLON;
+	C.lat=FZLAT;
+	C.loc_init=0;
+	C.x=NULL;
+	C.y=NULL;
+	C.z=NULL;
+	C.o=NULL;
+	C.mask=NULL;
+	C.Nl=0;
 	return C;
 }
 void FreeConf(simulation_config *C)
 {
+	int i;
 	C->M.N=0;
+	C->M.M=AOI_NONE;
 	if (C->M.theta)
 	{
 		free(C->M.theta);
@@ -43,8 +59,46 @@ void FreeConf(simulation_config *C)
 		free(C->M.effT);
 		C->M.effT=NULL;
 	}
+	if (C->sky_init)
+	{
+		ssdp_free_sky(&C->S);
+		C->sky_init=0;
+	}
+	if (C->topo_init)
+	{
+		ssdp_free_topology(&C->T);
+		C->topo_init=0;
+	}
+	if (C->loc_init)
+	{
+		if (C->x)
+			free(C->x);
+		if (C->y)
+			free(C->y);
+		if (C->z)
+			free(C->z);
+		if (C->o)
+			free(C->o);
+		if (C->mask)
+		{
+			for (i=0;i<C->Nl;i++)
+				ssdp_free_sky_mask(C->mask+i);
+			free(C->mask);
+			C->mask=NULL;
+		}
+		C->Nl=0;
+		C->loc_init=0;
+	}
+	
 }
 
+void FreeArray(array *a)
+{
+	free(a->D);
+	a->D=NULL;
+	a->N=0;
+}
+	
 void InitVars()
 {
 	if (variables)
@@ -61,16 +115,12 @@ void ClearVars()
 	{
 		switch(variables[i].type)
 		{
-			case TOPOVAR:
-				ssdp_free_topology(&(variables[i].T));
-				break;
-			case SKYDOMEVAR:
-				ssdp_free_sky(&(variables[i].S));
-				break;
 			case SIMCONF:
 				FreeConf(&(variables[i].C));
 				break;
-			case VECVAR:
+			case ARRAY:
+				FreeArray(&(variables[i].a));
+				break;
 			default:
 				break;
 		}
@@ -87,17 +137,11 @@ void ListVars()
 	{
 		switch(variables[i].type)
 		{
-			case TOPOVAR:
-				printf("Topology          :  ");
-				break;
-			case SKYDOMEVAR:
-				printf("Kky DOme          :  ");
-				break;
-			case VECVAR:
-				printf("Vector            :  ");
-				break;
 			case SIMCONF:
 				printf("Simulation Config :  ");
+				break;
+			case ARRAY:
+				printf("Array             :  ");
 				break;
 			default:
 				break;
@@ -122,163 +166,70 @@ int lookupvar(char *name)
 	return -1;	
 }
 
-int LookupTopology(char *name, topology **T)
-{
-	int i;
-	if ((i=lookupvar(name))<0)
-		return 0;
-	else
-	{
-		if (variables[i].type==TOPOVAR)
-		{
-			(*T)=&variables[i].T;
-			return 1;
-		}
-	}
-	return 0;
-} 
-
-int LookupSkyDome(char *name, sky_grid **S)
-{
-	int i;
-	if ((i=lookupvar(name))<0)
-		return 0;
-	else
-	{
-		if (variables[i].type==SKYDOMEVAR)
-		{
-			(*S)=&variables[i].S;
-			return 1;
-		}
-	}
-	return 0;
-} 
-
-int LookupVec(char *name, sky_pos **v)
-{
-	int i;
-	if ((i=lookupvar(name))<0)
-		return 0;
-	else
-	{
-		if (variables[i].type==VECVAR)
-		{
-			(*v)=&variables[i].v; // return a pointer directly into the veriable
-			return 1;
-		}
-	}
-	return 0;
-} 
-int LookupSimConf(char *name, simulation_config **C)
-{
-	int i;
-	if ((i=lookupvar(name))<0)
-		return 0;
-	else
-	{
-		if (variables[i].type==SIMCONF)
-		{
-			(*C)=&variables[i].C;
-			return 1;
-		}
-	}
-	return 0;
-} 
-
-int AddTopology(char *name, topology T)
-{
-	int i;
-	if ((i=lookupvar(name))<0)
-	{
-		variables[Nvar].name=name;
-		variables[Nvar].T=T;
-		variables[Nvar].type=TOPOVAR;
-		Nvar++;
-		if (Nvar%BLOCK==0)
-			variables=realloc(variables, Nvar+BLOCK);
-		return 0;
-	}
-	if (variables[i].type==TOPOVAR)	
-	{
-		ssdp_free_topology(&(variables[i].T));
-		variables[i].T=T;
-		return 0;
-	}
-	else
-		Warning("Variable %s exists as a different type\n", name);
-	return 1;
+/* to define search functions we use a macro
+ * This creates functions of the form:
+ * int <fn_name>(char *name, <t_name> **<e_name>);
+ * Theres functions serve to serve a pointer to data in the variable array
+ * The macro also needs the kay-name <k_name> which is the key from the 
+ * VarType typedef
+ */
+#define LookUpVar(fn_name,t_name,e_name, k_name) \
+int fn_name(char *name, t_name **e_name) \
+{ \
+	int i; \
+	if ((i=lookupvar(name))<0) \
+		return 0; \
+	else \
+	{ \
+		if (variables[i].type==k_name) \
+		{ \
+			(*e_name)=&variables[i].e_name; \
+			return 1; \
+		} \
+	} \
+	return 0;\
 }
-
-int AddSkyDome(char *name, sky_grid S)
-{
-	int i;
-	if ((i=lookupvar(name))<0)
-	{
-		variables[Nvar].name=name;
-		variables[Nvar].S=S;
-		variables[Nvar].type=SKYDOMEVAR;
-		Nvar++;
-		if (Nvar%BLOCK==0)
-			variables=realloc(variables, Nvar+BLOCK);
-		return 0;
-	}
-	if (variables[i].type==SKYDOMEVAR)	
-	{
-		ssdp_free_sky(&(variables[i].S));
-		variables[i].S=S;
-		return 0;
-	}
-	else
-		Warning("Variable %s exists as a different type\n", name);
-	return 1;
+/* likewise a macro to define add functions
+ * This creates functions of the form:
+ * int <fn_name>(char *name, <t_name> <e_name>);
+ * There functions serve to put data in the variable array
+ * The macro also needs the kay-name <k_name> which is the key from the 
+ * VarType typedef, and a free command <freecomm> of the form
+ * <free-function>(&(variables[i].<e_name>));
+ * If no fee command is needed leave this argument blank
+ */
+#define AddVar(fn_name,t_name,e_name, k_name, freecomm) \
+int fn_name(char *name, t_name e_name) \
+{ \
+	int i;\
+	if ((i=lookupvar(name))<0)\
+	{\
+		variables[Nvar].name=name;\
+		variables[Nvar].e_name=e_name;\
+		variables[Nvar].type=k_name;\
+		Nvar++;\
+		if (Nvar%BLOCK==0)\
+			variables=realloc(variables, (Nvar+BLOCK)*sizeof(Var));\
+		return 0;\
+	}\
+	if (variables[i].type==k_name)\
+	{\
+		freecomm\
+		free(variables[i].name);\
+		variables[i].name=name;\
+		variables[i].e_name=e_name;\
+		return 0;\
+	}\
+	else\
+		Warning("Variable %s exists as a different type\n", name);\
+	return 1;\
 }
+// use the macros to create the functions we need
+LookUpVar(LookupSimConf,simulation_config,C, SIMCONF)
+LookUpVar(LookupArray,array,a, ARRAY)
 
-int AddVec(char *name, sky_pos v)
-{
-	int i;
-	if ((i=lookupvar(name))<0)
-	{
-		variables[Nvar].name=name;
-		variables[Nvar].v=v;
-		variables[Nvar].type=VECVAR;
-		Nvar++;
-		if (Nvar%BLOCK==0)
-			variables=realloc(variables, Nvar+BLOCK);
-		return 0;
-	}
-	if (variables[i].type==VECVAR)	
-	{
-		variables[i].v=v;
-		return 0;
-	}
-	else
-		Warning("Variable %s exists as a different type\n", name);
-	return 1;
-}
-
-int AddSimConf(char *name, simulation_config C)
-{
-	int i;
-	if ((i=lookupvar(name))<0)
-	{
-		variables[Nvar].name=name;
-		variables[Nvar].C=C;
-		variables[Nvar].type=SIMCONF;
-		Nvar++;
-		if (Nvar%BLOCK==0)
-			variables=realloc(variables, Nvar+BLOCK);
-		return 0;
-	}
-	if (variables[i].type==SIMCONF)	
-	{
-		FreeConf(&(variables[i].C));
-		variables[i].C=C;
-		return 0;
-	}
-	else
-		Warning("Variable %s exists as a different type\n", name);
-	return 1;
-}
+AddVar(AddSimConf,simulation_config,C, SIMCONF, FreeConf(&(variables[i].C));)
+AddVar(AddArray,array,a, ARRAY,FreeArray(&(variables[i].a));)
 
 int RMVar(char *name)
 {
@@ -287,16 +238,12 @@ int RMVar(char *name)
 	{
 		switch(variables[i].type)
 		{
-			case TOPOVAR:
-				ssdp_free_topology(&(variables[i].T));
-				break;
-			case SKYDOMEVAR:
-				ssdp_free_sky(&(variables[i].S));
-				break;
 			case SIMCONF:
 				FreeConf(&(variables[i].C));
 				break;
-			case VECVAR:
+			case ARRAY:
+				FreeArray(&(variables[i].a));
+				break;
 			default:
 				break;
 		}

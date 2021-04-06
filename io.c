@@ -1,5 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
+#include <ctype.h>
 #include <math.h>
 #include "libssdp.h"
 
@@ -88,8 +90,8 @@ void WriteTriangles(char *fn, topology *T)
 	}
 	fclose(f);
 }	
-	
-void WriteDome3D(char *fn, sky_grid *sky, int sun, int mask)
+/*	
+void WriteDome3D(char *fn, sky_grid *sky, int sun, sky_mask *mask)
 {
 	FILE *f;
 	int i, si=-1;
@@ -165,8 +167,85 @@ void WriteDome4D(char *fn, sky_grid *sky, int sun, int mask)
 	fclose(f);
 	
 }
+*/
+double **ReadArrays(char *fn, int Narr, int *N)
+{
+	char c, *line, *p, *q;
+	int i, k, Na=50, n;
+	FILE *f;
+	double **data;
+	if ((f=fopen(fn,"rb"))==NULL)
+	{
+		fprintf(stderr,"Cannot open %s for reading\n", fn);
+		exit(1);
+	}
+	line=malloc(MAXSTRLEN*sizeof(char));
+    fgets(line, MAXSTRLEN-1, f);
+	n=0;
+	data=malloc(Narr*sizeof(double *));
+	for (i=0;i<Narr;i++)
+		data[i]=malloc(Na*sizeof(double));
+		
+	while(feof(f)==0)
+	{
+		
+    	k=sscanf(line, " %c", &c);
+		if((k==1)&&(c!='#'))
+		{
+			p=line;
+			for (i=0;i<Narr;i++)
+			{
+				q=p;
+				while ((!isblank(*p))&&*p)
+					p++;
+				c=*p;
+				*p='\0';
+				data[i][n]=atof(q);
+				*p=c;
+				while ((isblank(*p))&&*p)
+					p++;
+				if (!*p)
+					break;
+			}
+			if (i==Narr-1)
+				n++;
+					
+			if (Na-1==n)
+			{
+				Na+=50;
+				for (i=0;i<Narr;i++)
+					data[i]=realloc(data[i], Na*sizeof(double));
+			}
+			
+		}
+    	fgets(line, MAXSTRLEN-1, f);
+	}
+	free(line);
+	fclose(f);
+	(*N)=n;
+	return data;	
+}
 
-void RasterPOA(char *fn, sky_grid *sky, topology *T, double albedo, double dz, double a, AOI_Model_Data *M, double tilt, double x1, double y1, double x2, double y2, int Nx, int Ny)
+
+void WriteArrays(char *fn, double **data, int Narr, int N)
+{
+	FILE *f;
+	int i,j;
+	if ((f=fopen(fn,"w"))==NULL)
+	{
+		fprintf(stderr,"Cannot open %s for writing\n", fn);
+		exit(1);
+	}
+	for (i=0;i<N;i++)
+	{
+		for (j=0;j<Narr-1;j++)
+			fprintf(f, "%12e\t",data[j][i]);
+		fprintf(f, "%12e\n",data[Narr-1][i]);			
+	}	
+	fclose(f);	
+}
+/*
+void RasterPOA(char *fn, sky_grid *sky, topology *T, double albedo, double dz, sky_pos pn, AOI_Model_Data *M, double x1, double y1, double x2, double y2, int Nx, int Ny)
 {
 	FILE *f;
 	int i,j;
@@ -187,7 +266,7 @@ void RasterPOA(char *fn, sky_grid *sky, topology *T, double albedo, double dz, d
 		{
 			y=y1+(y2-y1)*((double)j+0.5)/((double)Ny);
 			ssdp_mask_horizon_z_to_ground(sky,T,x,y,dz, NULL);
-			fprintf(f,"%e %e %e\n", x, y, ssdp_total_poa(sky,albedo,tilt, a,M,1));
+			fprintf(f,"%e %e %e\n", x, y, ssdp_total_poa(sky,albedo,pn,M,1));
 			ssdp_unmask_horizon(sky);
 		}
 	}	
@@ -216,7 +295,7 @@ void RasterTopology(char *fn, topology T, double x1, double y1, double x2, doubl
 		}
 	}	
 	fclose(f);
-}
+}*/
 
 
 

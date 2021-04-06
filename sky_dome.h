@@ -22,7 +22,6 @@
 typedef struct hexpatch {
 	double I;
 	sky_pos p;
-	char mask; // mark elements behind the horizon
 	int NL[7]; // next level neighbors
 	int PL[3]; // previous level neighbors
 	int NI;    // iso level next
@@ -35,14 +34,22 @@ typedef struct sky_grid {
 	// if we want
 	sky_pos sp;	// solar position
 	double sI;	// solar intensity
-	char smask;
 	int N;		
 	int Nz;
 } sky_grid;
+
+
+typedef struct sky_mask {
+	char *mask;
+	char smask;
+	int N;
+} sky_mask;
 
 void Connectivity(int Nz);
 sky_grid InitSky(int Nz);
 void free_sky_grid(sky_grid *sky);
 int FindPatch(sky_grid *sky, sky_pos p);
+void FreeSkyMask(sky_mask *M);
+void ClearSkyMask(sky_mask *M);
 #define SUNSR 6.807e-5
 #endif
