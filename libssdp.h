@@ -136,7 +136,7 @@ void ssdp_free_topology(topology *T);
 // beware: will extrapolate from closest triangle to points outside the hull without warning
 // Also computes the surface normal if you pass it a non NULL pointer to a sky_pos
 // you can use this to rotate the POA using ssdp_poa_to_surface_normal(...)
-double ssdp_sample_topology(double x, double y, topology T, sky_pos *sn);
+double ssdp_sample_topology(double x, double y, topology *T, sky_pos *sn);
 
 
 sky_pos ssdp_sunpos(time_t t, double lat, double lon); // lat & lon in radians

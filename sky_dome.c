@@ -376,5 +376,14 @@ void FreeSkyMask(sky_mask *M)
 {
 	if (M->mask)
 		free(M->mask);
+	M->mask=NULL;
 	M->N=0;
+}
+
+void FreeSkyTransfer(sky_transfer *T)
+{
+	if (T->t)
+		free(T->t);
+	T->t=NULL;
+	T->N=0;
 }

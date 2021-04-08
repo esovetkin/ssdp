@@ -240,7 +240,7 @@ double POA_Albedo(sky_grid *sky, double albedo, sky_pos pn, AOI_Model_Data *M, s
 	ssdp_verbosity=QUIET;
 	GHI=DiffuseHorizontal(sky, M, mask);
 	GHI+=DirectHorizontal(sky, M, mask);
-	ground=InitSky(sky->Nz); // this should not be necessary, do some math?
+	ground=InitSky(sky->Nz); // it is actually simple to do with solid angles but not if we have some AOI model active
 	if (ssdp_error_state)
 		return 0;
 	UniformSky(&ground, z, albedo*GHI, albedo*GHI);
@@ -257,9 +257,16 @@ double POA_Albedo(sky_grid *sky, double albedo, sky_pos pn, AOI_Model_Data *M, s
 void POA_to_SurfaceNormal(sky_pos *pn, sky_pos sn)
 {
 	sky_pos axis;
-	axis.a=sn.a;
+	
 	axis.z=M_PI/2;
-	(*pn)=rrf(*pn, axis, sn.z);
+	axis.a=pn->a-M_PI/2;
+	(*pn)=rrf(sn, axis, pn->z);
+	/*
+	if (fabs(fmod(sn.a, 2*M_PI))<M_PI/2)
+		(*pn)=rrf(*pn, axis, -sn.z);
+	else
+		(*pn)=rrf(*pn, axis, sn.z);*/
+	
 }
 	
 	

@@ -79,7 +79,7 @@ sky_pos vecdir(vec a)
 {
 	sky_pos r;
 	r.a=atan2(a.y,a.x);
-	r.z=atan(sqrt(a.x*a.x+a.y*a.y)/a.z);
+	r.z=atan2(sqrt(a.x*a.x+a.y*a.y), a.z);
 	return r;
 }
 // projection routines

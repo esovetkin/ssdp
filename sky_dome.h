@@ -45,11 +45,18 @@ typedef struct sky_mask {
 	int N;
 } sky_mask;
 
+typedef struct sky_transfer {
+	double *t;
+	int N;
+} sky_transfer;
+
+
 void Connectivity(int Nz);
 sky_grid InitSky(int Nz);
 void free_sky_grid(sky_grid *sky);
 int FindPatch(sky_grid *sky, sky_pos p);
 void FreeSkyMask(sky_mask *M);
 void ClearSkyMask(sky_mask *M);
+void FreeSkyTransfer(sky_transfer *T);
 #define SUNSR 6.807e-5
 #endif

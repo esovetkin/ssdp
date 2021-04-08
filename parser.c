@@ -14,6 +14,10 @@
 #define rad2degr(rad) ((rad)*180/M_PI)
 #define degr2rad(degr) ((degr)*M_PI/180)
 
+clock_t tic;
+#define TOC() ((double)(clock()-tic)/CLOCKS_PER_SEC)
+#define TIC() (tic=clock())
+
 char * GetWord(const char *in, char *word);
 /* core parsing routines */
 /* LookupComm finds takes a keyword and retuns a pointer to the corresponding parser routine */
@@ -257,6 +261,29 @@ void InitConfig(char *in)
 	}
 	free(word);
 }
+// PARSEFLAG config_coord ConfigCoord "C=<config-variable> lat=<latitude> lon=<longitude>"
+void ConfigCoord (char *in)
+{
+	simulation_config *C;
+	char *word;
+	word=malloc((strlen(in)+1)*sizeof(char));
+	if (FetchConfig(in, "C", word, &C))
+	{
+		free(word);
+		return;
+	}
+	if (FetchFloat(in, "lon", word, &(C->lon)))
+	{
+		free(word);
+		return;
+	}
+	if (FetchFloat(in, "lat", word, &(C->lat)))
+	{
+		free(word);
+		return;
+	}
+}
+
 // PARSEFLAG config_aoi ConfigAOI "C=<config-variable> model=<none/front-cover/anti-reflect/user> [nf=<front-cover-refractive-index> [nar=<antireflection-refractive-index>]] [file=<user-defined-aoi>]"
 void ConfigAOI(char *in)
 {
@@ -367,16 +394,26 @@ void FreeConfigLocation(simulation_config *C)
 	C->Nl=0;
 	C->loc_init=0;
 }
-
+#define ProgressLen 40
+#define ProgressTics 4
 void InitConfigMask(simulation_config *C)
 {
 	int i;
 	if ((C->sky_init)&&(C->topo_init)&&(C->loc_init))
 	{
+		double dt;
+		int pcn, pco=0;
 		FreeConfigMask(C); // make sure we are clear to allocate new memory
 		C->mask=malloc(C->Nl*sizeof(sky_mask));
+		TIC();
 		for (i=0;i<C->Nl;i++)
+		{
 			C->mask[i]=ssdp_mask_horizon(&(C->S),&(C->T),C->x[i],C->y[i],C->z[i]);
+			pco=ProgressBar((100*(i+1))/C->Nl, pco, ProgressLen, ProgressTics);
+		}
+		dt=TOC();
+		printf("\n");
+		printf("%d horizons computed in %g s (%g s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));
 	}
 }
 
@@ -606,6 +643,475 @@ void ConfigLoc (char *in)
  * 4: make ground albedo editable
  * 4: if all works, can we save and load a config?
  */ 
+typedef enum arrayops{ARR_PLUS,ARR_MINUS,ARR_MULT,ARR_DIV} arrayops;
+// PARSEFLAG array_array_comp array_array_comp "a=<a-array-variable> op=<operator:+,-,*,/> b=<b-array-variable> c=<c-output-array>"
+void array_array_comp(char *in)
+{
+	int i;
+	char *word;
+	array *a, *b, c;
+	arrayops OP;
+	word=malloc((strlen(in)+1)*sizeof(char));
+	
+	if (FetchArray(in, "a", word, &a))
+	{
+		free(word);
+		return;
+	}
+	if (FetchArray(in, "b", word, &b))
+	{
+		free(word);
+		return;
+	}
+	if (!GetArg(in, "op", word))
+	{
+		free(word);
+		return;
+	}
+	else
+	{
+		if (strlen(word)!=1)
+		{
+			Warning("Unknown Operator %s\n", word);
+			free(word);
+			return;
+		}
+		switch(*word)
+		{
+			case '+':
+				OP=ARR_PLUS;
+				break;
+			case '-':
+				OP=ARR_MINUS;
+				break;
+			case '*':
+				OP=ARR_MULT;
+				break;
+			case '/':
+				OP=ARR_DIV;
+				break;
+			default:
+			{
+				Warning("Unknown Operator %s\n", word);
+				free(word);
+				return;
+			}
+		}
+	}	
+	if (a->N!=b->N)
+	{
+		free(word);
+		Warning("Cannot Add Arrays, arrays not of same length");
+		return;
+	}
+	c.D=malloc(a->N*sizeof(double));
+	c.N=a->N;
+	switch (OP)
+	{
+		case ARR_PLUS:
+			for (i=0;i<a->N;i++)
+				c.D[i]=a->D[i]+b->D[i];
+			break;
+		case ARR_MINUS:
+			for (i=0;i<a->N;i++)
+				c.D[i]=a->D[i]-b->D[i];
+			break;
+		case ARR_MULT:
+			for (i=0;i<a->N;i++)
+				c.D[i]=a->D[i]*b->D[i];
+			break;
+		case ARR_DIV:
+			for (i=0;i<a->N;i++)
+				c.D[i]=a->D[i]/b->D[i];
+			break;
+		default:
+			Warning("the large Hadron collider finally did destroy the world");
+			free(word);
+			return;
+	}	
+	if (!GetArg(in, "c", word))
+	{
+		free(word);
+		return;
+	}
+	printf("creating array %s\n", word);
+	if(AddArray(word, c))
+	{
+		free(word); // failed to make array
+		free(c.D);
+	}	
+}
+
+// PARSEFLAG array_scalar_comp array_scalar_comp "a=<a-array-variable> op=<operator:+,-,*,/> b=<b-array-variable> c=<c-output-array>"
+void array_scalar_comp(char *in)
+{
+	int i;
+	char *word;
+	array *a, c;
+	double b;
+	arrayops OP;
+	word=malloc((strlen(in)+1)*sizeof(char));
+	
+	if (FetchArray(in, "a", word, &a))
+	{
+		free(word);
+		return;
+	}	
+	if (FetchFloat(in, "b", word, &b))
+	{
+		Warning("Could not get froat value from %s\n", word);
+		free(word);
+		return;
+	}
+	if (!GetArg(in, "op", word))
+	{
+		free(word);
+		return;
+	}
+	else
+	{
+		if (strlen(word)!=1)
+		{
+			Warning("Unknown Operator %s\n", word);
+			free(word);
+			return;
+		}
+		switch(*word)
+		{
+			case '+':
+				OP=ARR_PLUS;
+				break;
+			case '-':
+				OP=ARR_MINUS;
+				break;
+			case '*':
+				OP=ARR_MULT;
+				break;
+			case '/':
+				OP=ARR_DIV;
+				break;
+			default:
+			{
+				Warning("Unknown Operator %s\n", word);
+				free(word);
+				return;
+			}
+		}
+	}	
+	c.D=malloc(a->N*sizeof(double));
+	c.N=a->N;
+	switch (OP)
+	{
+		case ARR_PLUS:
+			for (i=0;i<a->N;i++)
+				c.D[i]=a->D[i]+b;
+			break;
+		case ARR_MINUS:
+			for (i=0;i<a->N;i++)
+				c.D[i]=a->D[i]-b;
+			break;
+		case ARR_MULT:
+			for (i=0;i<a->N;i++)
+				c.D[i]=a->D[i]*b;
+			break;
+		case ARR_DIV:
+			for (i=0;i<a->N;i++)
+				c.D[i]=a->D[i]/b;
+			break;
+		default:
+			Warning("the large Hadron collider finally did destroy the world");
+			free(word);
+			return;
+	}
+	
+	if (!GetArg(in, "c", word))
+	{
+		free(word);
+		return;
+	}
+	printf("creating array %s\n", word);
+	if(AddArray(word, c))
+	{
+		free(word); // failed to make array
+		free(c.D);
+	}	
+}
+// PARSEFLAG sample_topo SampleTopography "C=<config-variable>  x=<x-array-variable> y=<y-array-variable> z=<z-output-array> azimuth=<azimuth-output-array> zenith=<zenith-output-array>"
+void SampleTopography(char *in)
+{
+	int i;
+	char *word;
+	simulation_config *C;
+	array *x, *y, z, azi, zen;
+	sky_pos sn;
+	word=malloc((strlen(in)+1)*sizeof(char));
+	
+	if (FetchConfig(in, "C", word, &C))
+	{
+		free(word);
+		return;
+	}	
+	if (!C->topo_init) // TODO: in this case just omit the horizon and compute only one location?
+	{	
+		Warning("Simulation config has no topology initialized\n");
+		free(word);
+		return;
+	}	
+	if (FetchArray(in, "x", word, &x))
+	{
+		free(word);
+		return;
+	}
+	if (FetchArray(in, "y", word, &y))
+	{
+		free(word);
+		return;
+	}
+	if (x->N!=y->N)
+	{
+		Warning("Length of x- and y-arrays do not match\n");
+		free(word);
+		return;
+	}
+	z.D=malloc(x->N*sizeof(double));
+	z.N=x->N;
+	azi.D=malloc(x->N*sizeof(double));
+	azi.N=x->N;
+	zen.D=malloc(x->N*sizeof(double));
+	zen.N=x->N;
+	for (i=0;i<x->N;i++)
+	{
+		z.D[i]=ssdp_sample_topology(x->D[i], y->D[i], &(C->T),&sn);
+		azi.D[i]=sn.a;
+		zen.D[i]=sn.z;
+	}
+	
+	if (GetOption(in, "z", word))
+	{
+		printf("Creating array %s\n",word);
+		if(AddArray(word, z))
+		{
+			Warning("Failed to create array %s\n",word);
+			free(z.D);	
+		}
+		else
+			word=malloc((strlen(in)+1)*sizeof(char));
+	}
+	else
+		free(z.D);
+		
+	if (GetOption(in, "azimuth", word))
+	{
+		printf("Creating array %s\n",word);
+		if(AddArray(word, azi))
+		{
+			Warning("Failed to create array %s\n",word);
+			free(azi.D);	
+		}
+		else
+			word=malloc((strlen(in)+1)*sizeof(char));
+	}
+	else
+		free(azi.D);
+		
+	if (GetOption(in, "zenith", word))
+	{
+		printf("Creating array %s\n",word);
+		if(AddArray(word, zen))
+		{
+			Warning("Failed to create array %s\n",word);
+			free(zen.D);	
+		}
+		else
+			word=NULL;
+	}
+	else
+		free(zen.D);
+	if (word)
+		free(word);
+}
+// PARSEFLAG offset_topo OffsetTopography "C=<config-variable>  o=<offset-value> x=<x-array-variable> y=<y-array-variable> xoff=<offset-x-output-array> yoff=<offset-x-output-array> zoff=<offset-z-output-array>"
+void OffsetTopography(char *in)
+{
+	int i;
+	char *word;
+	simulation_config *C;
+	array *x, *y, zoff, yoff, xoff;
+	double o;
+	sky_pos sn;
+	word=malloc((strlen(in)+1)*sizeof(char));
+	
+	if (FetchConfig(in, "C", word, &C))
+	{
+		free(word);
+		return;
+	}	
+	if (!C->topo_init)
+	{	
+		Warning("Simulation config has no topology initialized\n");
+		free(word);
+		return;
+	}	
+	if (FetchFloat(in, "o", word, &o))
+	{
+		free(word);
+		return;
+	}
+	if (FetchArray(in, "x", word, &x))
+	{
+		free(word);
+		return;
+	}
+	if (FetchArray(in, "y", word, &y))
+	{
+		free(word);
+		return;
+	}
+	if (x->N!=y->N)
+	{
+		Warning("Length of x- and y-arrays do not match\n");
+		free(word);
+		return;
+	}
+	zoff.D=malloc(x->N*sizeof(double));
+	zoff.N=x->N;
+	yoff.D=malloc(x->N*sizeof(double));
+	yoff.N=x->N;
+	xoff.D=malloc(x->N*sizeof(double));
+	xoff.N=x->N;
+	for (i=0;i<x->N;i++)
+	{
+		zoff.D[i]=ssdp_sample_topology(x->D[i], y->D[i], &(C->T),&sn)+o*cos(sn.z);
+		xoff.D[i]=x->D[i]+o*sin(sn.z)*cos(sn.a);
+		yoff.D[i]=y->D[i]+o*sin(sn.z)*sin(sn.a);
+	}
+	
+	
+	if (!GetArg(in, "zoff", word))
+	{
+		free(word);
+		return;
+	}
+	printf("Creating array %s\n",word);
+	if(AddArray(word, zoff))
+	{
+		Warning("Failed to create array %s\n",word);
+		free(zoff.D);	
+	}
+	else
+		word=malloc((strlen(in)+1)*sizeof(char));
+		
+	if (!GetArg(in, "xoff", word))
+	{
+		free(word);
+		return;
+	}	
+	printf("Creating array %s\n",word);
+	if(AddArray(word, xoff))
+	{
+		Warning("Failed to create array %s\n",word);
+		free(xoff.D);	
+	}
+	else
+		word=malloc((strlen(in)+1)*sizeof(char));
+		
+	if (!GetArg(in, "yoff", word))
+	{
+		free(word);
+		return;
+	}
+	printf("Creating array %s\n",word);
+	if(AddArray(word, yoff))
+	{
+		Warning("Failed to create array %s\n",word);
+		free(yoff.D);	
+	}
+	else
+		word=NULL;
+	
+	if (word)
+		free(word);
+}
+// PARSEFLAG rotate_POAto_surface RotatePOA "poa_a=<azimuth-value>  poa_z=<zenith-value> surf_a=<azimuth-array-variable> surf_z=<zenith-array-variable> out_a=<azimuth-output-array> out_z=<zenith-output-array>"
+void RotatePOA(char *in)
+{
+	int i;
+	char *word;
+	array *rot_a, *rot_z, azi, zen;
+	sky_pos poa, poa0;
+	sky_pos sn;
+	word=malloc((strlen(in)+1)*sizeof(char));
+	
+	if (FetchFloat(in, "poa_a", word, &poa0.a))
+	{
+		free(word);
+		return;
+	}
+	if (FetchFloat(in, "poa_z", word, &poa0.z))
+	{
+		free(word);
+		return;
+	}
+	if (FetchArray(in, "surf_a", word, &rot_a))
+	{
+		free(word);
+		return;
+	}
+	if (FetchArray(in, "surf_z", word, &rot_z))
+	{
+		free(word);
+		return;
+	}
+	if (rot_a->N!=rot_z->N)
+	{
+		Warning("Length of azimuth and zenoth of the surface normal do not match\n");
+		free(word);
+		return;
+	}
+	azi.D=malloc(rot_a->N*sizeof(double));
+	azi.N=rot_a->N;
+	zen.D=malloc(rot_a->N*sizeof(double));
+	zen.N=rot_a->N;
+	for (i=0;i<rot_a->N;i++)
+	{
+		sn.a=rot_a->D[i];
+		sn.z=rot_z->D[i];
+		ssdp_poa_to_surface_normal(poa0, sn, &poa); // orient module w.r.t ground orientation
+		azi.D[i]=poa.a;
+		zen.D[i]=poa.z;
+	}
+	
+	
+	if (!GetArg(in, "out_a", word))
+	{
+		free(word);
+		return;
+	}
+	printf("Creating array %s\n",word);
+	if(AddArray(word, azi))
+	{
+		Warning("Failed to create array %s\n",word);
+		free(azi.D);	
+	}
+	else
+		word=malloc((strlen(in)+1)*sizeof(char));
+		
+	if (!GetArg(in, "out_z", word))
+	{
+		free(word);
+		return;
+	}	
+	printf("Creating array %s\n",word);
+	if(AddArray(word, zen))
+	{
+		Warning("Failed to create array %s\n",word);
+		free(zen.D);	
+	}
+	else
+		word=NULL;
+	if (word)
+		free(word);
+}
 
 
 // PARSEFLAG sim_static SimStatic "C=<config-variable> t=<array-variable> GHI=<array-variable> DHI=<array-variable> POA=<out-array>"
@@ -613,8 +1119,13 @@ void SimStatic(char *in)
 {
 	int i, j; // loop through space and time
 	char *word;
+	int H=1;
 	simulation_config *C;
 	array *t, *GH, *DH, out;
+	clock_t tsky0, tpoa0;
+	clock_t tsky=0, tpoa=0;
+	double ttsky, ttpoa;
+	int pcn, pco=0;
 	word=malloc((strlen(in)+1)*sizeof(char));
 	
 	if (FetchConfig(in, "C", word, &C))
@@ -630,9 +1141,8 @@ void SimStatic(char *in)
 	}	
 	if (!C->topo_init) // TODO: in this case just omit the horizon and compute only one location?
 	{	
-		Warning("Simulation config has no topology initialized\n");
-		free(word);
-		return;
+		Warning("No topological data available, omitting horizon\n");
+		H=0;
 	}
 	if (!C->loc_init) // TODO: in this case just omit the horizon and compute only one location?
 	{	
@@ -677,13 +1187,30 @@ void SimStatic(char *in)
 	for (j=0;j<t->N;j++)
 	{
 		// compute sky at evert time instance
+		tsky0=clock();
 		ssdp_make_perez_all_weather_sky_coordinate(&(C->S), (time_t) t->D[j], C->lon, C->lat, GH->D[j], DH->D[j]);
+		tsky+=clock()-tsky0;
 		for (i=0;i<C->Nl;i++)
 		{
 			// compute POA at evert location  instance
-			out.D[j*C->Nl+i]=ssdp_total_poa(&(C->S), C->albedo, C->o[i], &(C->M),C->mask+i);
+			// this operation can be somewhat expensive
+			// we should consider to compute a transfer efficiency for every sky element and every location
+			// this could speed things up quite a bit. The transfer efficiency should entail
+			// cos(z) w.r.t the POA, AOI effects and ground albedo
+			tpoa0=clock();
+			if (H)
+				out.D[j*C->Nl+i]=ssdp_total_poa(&(C->S), C->albedo, C->o[i], &(C->M),C->mask+i);
+			else
+				out.D[j*C->Nl+i]=ssdp_total_poa(&(C->S), C->albedo, C->o[i], &(C->M),NULL);
+			
+			tpoa+=clock()-tpoa0;
+			pco=ProgressBar((100*(j*C->Nl+i+1))/(t->N*C->Nl), pco, ProgressLen, ProgressTics);
 		}
 	}
+	ttsky=(double)tsky/CLOCKS_PER_SEC;
+	ttpoa=(double)tpoa/CLOCKS_PER_SEC;
+	printf("Comuted %d skies in %g s (%g s/sky)\n", t->N, ttsky, ttsky/((double)t->N));
+	printf("Comuted %d POA Irradiances in %g s (%g s/POA)\n", t->N*C->Nl, ttpoa, ttpoa/((double)(t->N*C->Nl)));
 	if(AddArray(word, out))
 	{
 		free(word); // failed to make array
@@ -734,7 +1261,7 @@ void ReadArraysFromFile(char *in)
 	char *word;
 	char *file;
 	double **data;
-	int i, k, Na=4, N;
+	int i, k=0, Na=4, N;
 	file=malloc((strlen(in)+1)*sizeof(char));
 	if (!GetArg(in, "file", file))
 	{
@@ -764,7 +1291,6 @@ void ReadArraysFromFile(char *in)
 		return;
 	}
 	data=ReadArrays(file, i, &N);
-	free(file);
 	if (N>0)
 	{
 		array a;
@@ -773,6 +1299,7 @@ void ReadArraysFromFile(char *in)
 		for (k=0;k<i;k++)
 		{
 			a.D=data[k];
+			printf("Creating array %s\n", names[k]);
 			if(AddArray(names[k], a))
 			{
 				free(names[k]); // failed to make array
@@ -782,12 +1309,14 @@ void ReadArraysFromFile(char *in)
 	}
 	else
 	{
+		printf("Could not parse file %s\n", file);
 		for (k=0;k<i;k++)
 		{
 			free(data[k]);
 			free(names[k]);
 		}
 	}
+	free(file);
 	free(names);
 	free(data);
 }
@@ -1003,116 +1532,6 @@ void MakeGrid(char *in)
 }
 
 
-// _PARSEFLAG sim_static SimStatic "x=<array-variable> y=<array-variable> z=<height-value> t=<array-variable> GHI=<array-variable> DHI=<array-variable> O=<orientation-vector> C=<config-variable> POA=<out-array>"
-/* let us add everything to the config variable, it takes no space 
- * how about the spatial verus temporal coordinates?
- * runtime check whether x,y,GHI,DHI,t all have the same length, or
- * GHI,DHI,t have the same length and x,y not?
- * Maybe no check, just let for x rund and t run and they end the same time, no interpolation, just nearest
- */
-
-/*void SimStatic(char *in)
-{
-	sky_mask *mask; // a mask for every grid point
-	int i, j; // loop through space and time
-	
-	
-}*/
-// _PARSEFLAG sim_route  SimRoute  "x=<array-variable> y=<array-variable> z=<height-value> t=<array-variable> GHI=<array-variable> DHI=<array-variable> O=<orientation-vector> C=<config-variable> POA=<out-array>"
-
-
-
-/* how to get a useful simulator command set:
- * need to be able to specify:
- * GHI,DHI vs time
- * x,y vs time
- * x,y arrays
- * sim_static <(x,y)> <(GHI,DHI)(t)>
- * 		compute horizon for every (x,y)
- * 		compute sky S(t)
- * 		compute poa for every (x,y,t)
- * 
- * sim_route <(x,y)(t)> <(GHI,DHI)(t)>
- *  	compute horizon for every (x,y)
- * 		compute sky S(t)
- * 		compute poa for every (x(t),y(t),t)
- */		
-
-
-/*
-/ PARSEFLAG project_diffuse_sky_poa ProjectDiffSkyPOA "C=<config-variable> S=<sky> pn=<panel-surface-normal>"
-/ PARSEFLAG project_direct_sky_poa ProjectDirSkyPOA "C=<config-variable> S=<sky> pn=<panel-surface-normal"
-/ PARSEFLAG project_ground_albedo_poa ProjectGroundAlbedoPOA "C=<config-variable> S=<sky> pn=<panel-surface-normal"
-/ PARSEFLAG project_total_poa ProjectTotalPOA "C=<config-variable> S=<sky> pn=<panel-surface-normal"
-/ PARSEFLAG project_diffuse_sky_h ProjectDiffSkyH "C=<config-variable> S=<sky>"
-/ PARSEFLAG project_direct_sky_h ProjectDirSkyH "C=<config-variable> S=<sky>"\
-/ PARSEFLAG project_total_h ProjectTotalH"C=<config-variable> S=<sky>"
-void ProjectDiffSkyPOA(char *in)
-{
-	simulation_config *C;
-	sky_grid *S;
-	sky_pos *v;
-	char *word;
-	word=malloc((strlen(in)+1)*sizeof(char));
-	
-	if (GetArg(in, "C", word))
-	{
-		if (!LookupSimConf(word, &C))
-		{
-			Warning("Simulation config %s not available\n",word); 
-			free(word);
-			return;
-		}
-	}
-	else
-	{
-		free(word);
-		return;
-	}
-	if (GetArg(in, "S", word))
-	{
-		if (!LookupSkyDome(word, &S))
-		{
-			Warning("Sky-Dome %s not available\n",word); 
-			free(word);
-			return;
-		}
-	}
-	else
-	{
-		free(word);
-		return;
-	}
-	if (GetArg(in, "pn", word))
-	{
-		if (!LookupVec(word, &v))
-		{
-			Warning("Vector %s not available\n",word); 
-			free(word);
-			return;
-		}
-	}
-	else
-	{
-		free(word);
-		return;
-	}
-	ssdp_diffuse_sky_poa(S, *v, C->M, 1);
-	// surface normal, how to get it in here?
-}
-
-void ssdp_poa_to_surface_normal(sky_pos pn0, sky_pos sn, sky_pos *pn); // orient module w.r.t ground orientation
-
-AOI_Model_Data ssdp_init_aoi_model(AOI_Model model,double nf, double nar,double *theta, double *effT, int N);
-double ssdp_diffuse_sky_poa(sky_grid * sky, sky_pos pn, AOI_Model_Data *M, int mask);					// diffuse contribution
-double ssdp_direct_sky_poa(sky_grid * sky, sky_pos pn, AOI_Model_Data *M, int mask);					// direct contribution
-double ssdp_total_sky_poa(sky_grid * sky, sky_pos pn, AOI_Model_Data *M, int mask);					// all sky contributions together
-double ssdp_groundalbedo_poa(sky_grid * sky, double albedo, sky_pos pn, AOI_Model_Data *M, int mask);	// ground albedo contribution (with crude assumptions)
-double ssdp_total_poa(sky_grid * sky, double albedo, sky_pos pn, AOI_Model_Data *M, int mask);		// sky+ground
-double ssdp_diffuse_sky_horizontal(sky_grid * sky, AOI_Model_Data *M, int mask);
-double ssdp_direct_sky_horizontal(sky_grid * sky, AOI_Model_Data *M, int mask);
-double ssdp_total_sky_horizontal(sky_grid * sky, AOI_Model_Data *M, int mask);
-*/
 // PARSEFLAG list_vars VarLister ""
 void VarLister(char *in)
 {
