@@ -29,4 +29,4 @@ topology MakeTopology(double *x, double *y, double *z, int N);
 topology CreateRandomTopology(double dx, double dy, double dz, double fN, int N);
 void free_topo (topology *T);
 double SampleTopo(double x, double y, topology *T, sky_pos *sn);
-sky_mask MaskHorizon(sky_grid *sky, topology *T, double xoff, double yoff, double zoff);
+sky_transfer MaskHorizon(sky_grid *sky, topology *T, sky_transfer *ST, double xoff, double yoff, double zoff);

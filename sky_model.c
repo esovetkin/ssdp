@@ -33,7 +33,11 @@ void UniformSky(sky_grid *sky, sky_pos sun, double GHI, double DHI)
 	Print(VVERBOSE, "\nGHI:           %e\nDHI:           %e\n\n", GHI, DHI);
 	Print(VVERBOSE, "Solar Zenith:  %f\nSolar Azimuth: %f\n", rad2degr(sun.z), rad2degr(sun.a));
 	Print(VVERBOSE, "on a sky dome with %d patches\n", sky->N);
-	
+	if (GHI<0)
+	{
+		GHI=0; // it is night
+		DHI=0;
+	}
 	// sum intensity cos(z) product to normalize intensities
 	for (i=0;i<sky->N;i++)
 		dhi0+=cos(sky->P[i].p.z);
@@ -41,8 +45,23 @@ void UniformSky(sky_grid *sky, sky_pos sun, double GHI, double DHI)
 	for (i=0;i<sky->N;i++)
 		sky->P[i].I=dhi0;
 	dir=GHI-DHI;
+	if (dir<0)
+	{
+		// no black hole sun
+		dir=0;
+	}
 	sky->sp=sun;
-	sky->sI=dir/cos(sun.z);
+	if (sun.z<M_PI/2)
+	{
+		sky->suni=FindPatch(sky, sun);
+		if (sky->P[sky->suni].p.z<M_PI/2)
+			sky->sI=dir/cos(sky->P[sky->suni].p.z);
+		else
+			sky->suni=-1;
+		
+	}
+	else
+		sky->suni=-1;
 	Print(VERBOSE, "Done\n");
 	Print(VVERBOSE, "********************************************************************************\n\n");
 }
@@ -243,7 +262,11 @@ void PerezSky(sky_grid * sky, sky_pos sun, double GHI, double DHI, double dayofy
 	Print(VVERBOSE, "Clearness:     %e\nDelta:         %e\n", eps, delta);	
 	Print(VVERBOSE, "a:             %e\nb:             %e\nc:             %e\nd:             %e\ne:             %e\n", a,b,c,d,e);
 	Print(VVERBOSE, "================================================================================\n");
-	
+	if (GHI<0)
+	{
+		GHI=0;
+		DHI=0;
+	}
 	// sum intensity cos(z) product to normalize intensities
 	for (i=0;i<sky->N;i++)
 	{
@@ -255,8 +278,23 @@ void PerezSky(sky_grid * sky, sky_pos sun, double GHI, double DHI, double dayofy
 	for (i=0;i<sky->N;i++)
 		sky->P[i].I*=dhi0;
 	dir=GHI-DHI; // direct contribution
+	if (dir<0)
+	{
+		// no black hole sun
+		dir=0;
+	}
 	sky->sp=sun;
-	sky->sI=dir/cos(sun.z);
+	sky->sI=0;
+	if (sun.z<M_PI/2)
+	{
+		sky->suni=FindPatch(sky, sun);
+		if (sky->P[sky->suni].p.z<M_PI/2)
+			sky->sI=dir/cos(sky->P[sky->suni].p.z);
+		else
+			sky->suni=-1;
+	}
+	else
+		sky->suni=-1;
 	Print(VERBOSE, "Done\n");
 	Print(VVERBOSE, "********************************************************************************\n\n");
 }
@@ -312,8 +350,25 @@ void CIE_Sky(sky_grid * sky, sky_pos sun, double GHI, double DHI, CIE_SKY_TYPE T
 	for (i=0;i<sky->N;i++)
 		sky->P[i].I*=dhi0;
 	dir=GHI-DHI; // direct contribution
+	if (dir<0)
+	{
+		// no black hole sun
+		dir=0;
+		if (fabs(dir/GHI)>1e-6)
+			fprintf(stderr,"Warning: Increasing GHI to DHI to avoid a negative direct light contribution\n");
+	}
 	sky->sp=sun;
-	sky->sI=dir/cos(sun.z);
+	if (sun.z<M_PI/2)
+	{
+		sky->suni=FindPatch(sky, sun);
+		if (sky->P[sky->suni].p.z<M_PI/2)
+			sky->sI=dir/cos(sky->P[sky->suni].p.z);
+		else
+			sky->suni=-1;
+		
+	}
+	else
+		sky->suni=-1;
 	Print(VERBOSE, "Done\n");
 	Print(VVERBOSE, "********************************************************************************\n\n");
 }

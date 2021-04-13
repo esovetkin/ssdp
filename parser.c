@@ -277,11 +277,13 @@ void ConfigCoord (char *in)
 		free(word);
 		return;
 	}
+	C->lon=degr2rad(C->lon);
 	if (FetchFloat(in, "lat", word, &(C->lat)))
 	{
 		free(word);
 		return;
 	}
+	C->lat=degr2rad(C->lat);
 }
 
 // PARSEFLAG config_aoi ConfigAOI "C=<config-variable> model=<none/front-cover/anti-reflect/user> [nf=<front-cover-refractive-index> [nar=<antireflection-refractive-index>]] [file=<user-defined-aoi>]"
@@ -368,13 +370,13 @@ void ConfigAOI(char *in)
 void FreeConfigMask(simulation_config *C)
 {
 	int i;
-	if (C->mask)
+	if (C->ST)
 	{
 		for (i=0;C->Nl;i++)
-			ssdp_free_sky_mask(C->mask+i);
+			ssdp_free_sky_transfer(C->ST+i);
 	}
-	free(C->mask);
-	C->mask=NULL;
+	free(C->ST);
+	C->ST=NULL;
 }
 
 void FreeConfigLocation(simulation_config *C)
@@ -402,13 +404,16 @@ void InitConfigMask(simulation_config *C)
 	if ((C->sky_init)&&(C->topo_init)&&(C->loc_init))
 	{
 		double dt;
-		int pcn, pco=0;
+		int pco=0;
+		sky_transfer ST;
 		FreeConfigMask(C); // make sure we are clear to allocate new memory
-		C->mask=malloc(C->Nl*sizeof(sky_mask));
+		C->ST=malloc(C->Nl*sizeof(sky_transfer));
 		TIC();
 		for (i=0;i<C->Nl;i++)
 		{
-			C->mask[i]=ssdp_mask_horizon(&(C->S),&(C->T),C->x[i],C->y[i],C->z[i]);
+			ST=ssdp_mask_horizon(&(C->S),&(C->T),C->x[i],C->y[i],C->z[i]);
+			C->ST[i]=ssdp_total_transfer(&(C->S), C->albedo, C->o[i], &(C->M), &ST);
+			ssdp_free_sky_transfer(&ST);
 			pco=ProgressBar((100*(i+1))/C->Nl, pco, ProgressLen, ProgressTics);
 		}
 		dt=TOC();
@@ -416,6 +421,28 @@ void InitConfigMask(simulation_config *C)
 		printf("%d horizons computed in %g s (%g s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));
 	}
 }
+void InitConfigMaskNoH(simulation_config *C) // same as above but without horizon calculation
+{
+	int i;
+	if ((C->sky_init)&&(C->loc_init))
+	{
+		double dt;
+		int pco=0;
+		FreeConfigMask(C); // make sure we are clear to allocate new memory
+		C->ST=malloc(C->Nl*sizeof(sky_transfer));
+		TIC();
+		for (i=0;i<C->Nl;i++)
+		{
+			//C->ST[i]=ssdp_total_transfer(&(C->S), C->albedo, C->o[i], &(C->M), NULL);
+			C->ST[i]=ssdp_sky_transfer(&(C->S), C->o[i], &(C->M), NULL);
+			pco=ProgressBar((100*(i+1))/C->Nl, pco, ProgressLen, ProgressTics);
+		}
+		dt=TOC();
+		printf("\n");
+		printf("%d transfer functions computed in %g s (%g s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));
+	}
+}
+
 
 // PARSEFLAG config_sky ConfigSKY "C=<config-variable> N=<zenith-steps>"
 void ConfigSKY(char *in)
@@ -458,7 +485,6 @@ void ConfigSKY(char *in)
 	free(word);
 	return;
 }
-
 // PARSEFLAG config_topology ConfigTOPO "C=<config-variable> x=<x-array-variable> y=<y-array-variable> z=<z-array-variable>"
 void ConfigTOPO (char *in)
 {
@@ -513,6 +539,7 @@ void ConfigTOPO (char *in)
 	InitConfigMask(C);
 	return;
 }
+// add albedo to this routine I suppose (i.e. enable locally varying albedo values)
 // PARSEFLAG config_locations ConfigLoc "C=<config-variable> x=<x-array-variable> y=<y-array-variable> z=<z-array-variable> azimuth=<azimuth-array-variable> zenith=zenith-array-variable>"
 void ConfigLoc (char *in)
 {
@@ -584,7 +611,7 @@ void ConfigLoc (char *in)
 	C->z=malloc(C->Nl*sizeof(double));
 	C->o=malloc(C->Nl*sizeof(sky_pos));
 	
-	if ((z->N==1)&&(az->N==1))
+	if ((z->N==1)&&(az->N==1)) // one z, one orientation
 	{
 		for (i=0;i<C->Nl;i++)
 		{
@@ -1119,13 +1146,12 @@ void SimStatic(char *in)
 {
 	int i, j; // loop through space and time
 	char *word;
-	int H=1;
 	simulation_config *C;
 	array *t, *GH, *DH, out;
 	clock_t tsky0, tpoa0;
 	clock_t tsky=0, tpoa=0;
 	double ttsky, ttpoa;
-	int pcn, pco=0;
+	int pco=0;
 	word=malloc((strlen(in)+1)*sizeof(char));
 	
 	if (FetchConfig(in, "C", word, &C))
@@ -1139,12 +1165,12 @@ void SimStatic(char *in)
 		free(word);
 		return;
 	}	
-	if (!C->topo_init) // TODO: in this case just omit the horizon and compute only one location?
+	if (!C->topo_init) 
 	{	
 		Warning("No topological data available, omitting horizon\n");
-		H=0;
+		InitConfigMaskNoH(C);
 	}
-	if (!C->loc_init) // TODO: in this case just omit the horizon and compute only one location?
+	if (!C->loc_init) 
 	{	
 		Warning("Simulation config has no locations initialized\n");
 		free(word);
@@ -1190,6 +1216,7 @@ void SimStatic(char *in)
 		tsky0=clock();
 		ssdp_make_perez_all_weather_sky_coordinate(&(C->S), (time_t) t->D[j], C->lon, C->lat, GH->D[j], DH->D[j]);
 		tsky+=clock()-tsky0;
+		tpoa0=clock();
 		for (i=0;i<C->Nl;i++)
 		{
 			// compute POA at evert location  instance
@@ -1197,20 +1224,15 @@ void SimStatic(char *in)
 			// we should consider to compute a transfer efficiency for every sky element and every location
 			// this could speed things up quite a bit. The transfer efficiency should entail
 			// cos(z) w.r.t the POA, AOI effects and ground albedo
-			tpoa0=clock();
-			if (H)
-				out.D[j*C->Nl+i]=ssdp_total_poa(&(C->S), C->albedo, C->o[i], &(C->M),C->mask+i);
-			else
-				out.D[j*C->Nl+i]=ssdp_total_poa(&(C->S), C->albedo, C->o[i], &(C->M),NULL);
-			
-			tpoa+=clock()-tpoa0;
-			pco=ProgressBar((100*(j*C->Nl+i+1))/(t->N*C->Nl), pco, ProgressLen, ProgressTics);
+			out.D[j*C->Nl+i]=ssdp_total_poa(&(C->S),C->ST+i);
 		}
+		pco=ProgressBar((100*((j+1)*C->Nl))/(t->N*C->Nl), pco, ProgressLen, ProgressTics);
+		tpoa+=clock()-tpoa0;
 	}
 	ttsky=(double)tsky/CLOCKS_PER_SEC;
 	ttpoa=(double)tpoa/CLOCKS_PER_SEC;
-	printf("Comuted %d skies in %g s (%g s/sky)\n", t->N, ttsky, ttsky/((double)t->N));
-	printf("Comuted %d POA Irradiances in %g s (%g s/POA)\n", t->N*C->Nl, ttpoa, ttpoa/((double)(t->N*C->Nl)));
+	printf("Computed %d skies in %g s (%g s/sky)\n", t->N, ttsky, ttsky/((double)t->N));
+	printf("Computed %d POA Irradiances in %g s (%g s/POA)\n", t->N*C->Nl, ttpoa, ttpoa/((double)(t->N*C->Nl)));
 	if(AddArray(word, out))
 	{
 		free(word); // failed to make array
@@ -1220,13 +1242,81 @@ void SimStatic(char *in)
 // _PARSEFLAG sim_route SimRoute "C=<config-variable> x=<array-variable> y=<array-variable> t=<array-variable> GHI=<array-variable> DHI=<array-variable> POA=<out-array>"
 /*void SimStatic(char *in)
 {
-	sky_mask *mask; // a mask for every grid point
+	sky_ST *ST; // a mask for every grid point
 	int i, j; // loop through space and time
 	
 	
 }*/
 
-
+// PARSEFLAG solpos SolarPos "t=<array-variable> lon=<longitude> lat=<latitude> azimuth=<output-array> zenith=<output-array>"
+void SolarPos(char *in)
+{
+	int i;
+	char *word;
+	sky_pos s;
+	array *t, azi, zen;
+	double lon, lat;
+	word=malloc((strlen(in)+1)*sizeof(char));
+	if (FetchArray(in, "t", word, &t))
+	{
+		free(word);
+		return;
+	}
+	
+	if (FetchFloat(in, "lon", word, &lon))
+	{
+		free(word);
+		return;
+	}
+	lon=degr2rad(lon);
+	if (FetchFloat(in, "lat", word, &lat))
+	{
+		free(word);
+		return;
+	}
+	lat=degr2rad(lat);
+	azi.D=malloc(t->N*sizeof(double));
+	if (azi.D==NULL)
+	{
+		free(word);
+		return;
+	}	
+	azi.N=t->N;
+	zen.D=malloc(t->N*sizeof(double));
+	if (zen.D==NULL)
+	{
+		free(word);
+		return;
+	}	
+	zen.N=t->N;
+	for (i=0;i<t->N;i++)
+	{
+		s=ssdp_sunpos((time_t)t->D[i], lat, lon);
+		azi.D[i]=s.a;
+		zen.D[i]=s.z;
+	}
+	if (!GetArg(in, "azimuth", word))
+	{
+		free(word);
+		return;
+	}
+	if(AddArray(word, azi))
+	{
+		free(word); // failed to make array
+		free(azi.D);
+	}	
+	word=malloc((strlen(in)+1)*sizeof(char));
+	if (!GetArg(in, "zenith", word))
+	{
+		free(word);
+		return;
+	}
+	if(AddArray(word, zen))
+	{
+		free(word); // failed to make array
+		free(zen.D);
+	}	
+}
 int GetNumOption(char *in, char *opt, int i, char *word)
 {
 	char *start;

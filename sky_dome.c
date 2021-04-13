@@ -331,8 +331,9 @@ sky_grid InitSky(int Nz)
 	sky.N=NNZ(Nz);	
 	sky.Nz=Nz;
 	Print(VVERBOSE, "Initializing sky dome with %d patches of %e sr\n", sky.N, 2*M_PI/((double)sky.N));
-	sky.sp=sun; // The default sun, black and straight above you
-	sky.sI=0;
+	sky.sp=sun; // The default sun: is strainght above
+	sky.sI=0;	// and pitch black
+	sky.suni=0;
 	
 	// ERRORFLAG MALLOCFAILSKYDOME  "Error memory allocation failed in creating a sky-dome"
 	if ((sky.P=malloc((sky.N+1)*sizeof(hexpatch)))==NULL)
@@ -361,23 +362,25 @@ void free_sky_grid(sky_grid *sky)
 	if (sky->P)
 		free(sky->P);
 	sky->P=NULL;
-	sky->N=0;
 	sky->Nz=0;
+	sky->N=0;
 }
-
-void ClearSkyMask(sky_mask *M) 
+sky_transfer InitSkyTransfer(int N)
 {
+	sky_transfer T;
 	int i;
-	for (i=0;i<M->N;i++)
-		M->mask[i]=0;
-	M->smask=0;
-}
-void FreeSkyMask(sky_mask *M)
-{
-	if (M->mask)
-		free(M->mask);
-	M->mask=NULL;
-	M->N=0;
+	// ERRORFLAG MALLOCFAILSKYTRANS  "Error memory allocation failed in creating a sky-transfer map"
+	if ((T.t=malloc(N*sizeof(double)))==NULL)
+	{
+		AddErr(MALLOCFAILSKYTRANS);
+		T.N=0;
+		return T;
+	}
+	
+	for (i=0;i<N;i++)
+		T.t[i]=1.0;
+	T.N=N;
+	return T;
 }
 
 void FreeSkyTransfer(sky_transfer *T)

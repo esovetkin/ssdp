@@ -450,26 +450,44 @@ int BelowHorizon(horizon *H, sky_pos p)
 	return (p.z>(H->zen[i]*a2+H->zen[j]*a1)/(a1+a2));
 }
 
-sky_mask MaskHorizon(sky_grid *sky, topology *T, double xoff, double yoff, double zoff) 
+/* takes a sky, topology anmd a transfer function.
+ * creates a new transfer function which multiplies the old one with 0 for elements below the horizon 
+ * if ST==NULL it creates a new transfer function with 1's for non masked elements
+ */
+sky_transfer MaskHorizon(sky_grid *sky, topology *T, sky_transfer *ST, double xoff, double yoff, double zoff) 
 {
 	int i, nz;
 	horizon H;
-	sky_mask M={NULL,'\0',0};
+	sky_transfer M={NULL,0};
 	double minz;
+	if (ST)
+	{
+		// ERRORFLAG SKYTRANSSKYMISMATCH  "Error: sky transfer function not compatible with provided sky"
+		if (ST->N!=sky->N)
+		{
+			AddErr(SKYTRANSSKYMISMATCH);
+			return M;
+		}
+	}
 	H=InitHorizon(sky->Nz);
 	if (ssdp_error_state)
 		return M;
 	MakeHorizon(&H, T, xoff, yoff, zoff);
-	M.mask=calloc(sky->N,sizeof(char));
-	M.N=sky->N;
-	if (BelowHorizon(&H, sky->sp))
-		M.smask=1;
-	
+	M=InitSkyTransfer(sky->N);
 	minz=MinZentith(&H);
 	nz=(int) floor(minz/((M_PI/2)/((double)sky->Nz)));
-	for (i=3*(nz-1)*nz+1;i<sky->N;i++)
-		if (BelowHorizon(&H, sky->P[i].p))
-			M.mask[i]=1;
+	if (ST)
+	{
+		for (i=3*(nz-1)*nz+1;i<sky->N;i++)
+			if (BelowHorizon(&H, sky->P[i].p))
+				M.t[i]=ST->t[i]*0.0;
+	}
+	else
+	{
+		for (i=3*(nz-1)*nz+1;i<sky->N;i++)
+			if (BelowHorizon(&H, sky->P[i].p))
+				M.t[i]=0.0;
+	}
 	FreeHorizon(&H);
 	return M;
 }

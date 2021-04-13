@@ -34,19 +34,14 @@ typedef struct sky_grid {
 	// if we want
 	sky_pos sp;	// solar position
 	double sI;	// solar intensity
+	int suni; // index of the sky patch the sun is in
 	int N;		
 	int Nz;
 } sky_grid;
 
 
-typedef struct sky_mask {
-	char *mask;
-	char smask;
-	int N;
-} sky_mask;
-
 typedef struct sky_transfer {
-	double *t;
+	double *t; // transfer sky-patch->POA
 	int N;
 } sky_transfer;
 
@@ -55,8 +50,7 @@ void Connectivity(int Nz);
 sky_grid InitSky(int Nz);
 void free_sky_grid(sky_grid *sky);
 int FindPatch(sky_grid *sky, sky_pos p);
-void FreeSkyMask(sky_mask *M);
-void ClearSkyMask(sky_mask *M);
 void FreeSkyTransfer(sky_transfer *T);
+sky_transfer InitSkyTransfer(int N);
 #define SUNSR 6.807e-5
 #endif

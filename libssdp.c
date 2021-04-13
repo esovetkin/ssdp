@@ -95,70 +95,54 @@ AOI_Model_Data ssdp_init_aoi_model(AOI_Model model,double nf, double nar,double 
 {
 	return InitAOIModel(model,nf,nar,theta,effT,N);
 }
-/* AOI accptance equal for all angles */
-double ssdp_diffuse_sky_poa(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, sky_mask *mask)
+
+sky_transfer ssdp_sky_transfer(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, sky_transfer *ST)
 {
-	return DiffusePlaneOfArray(sky, pn, M, mask);
-}
-double ssdp_direct_sky_poa(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, sky_mask *mask)
-{
-	return DirectPlaneOfArray(sky, pn, M, mask);
-}
-double ssdp_total_sky_poa(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, sky_mask *mask)
-{
-	double POA;
-	POA=DiffusePlaneOfArray(sky, pn, M, mask);
-	POA+=DirectPlaneOfArray(sky, pn, M, mask);
-	return POA;
-}
-double ssdp_groundalbedo_poa(sky_grid *sky, double albedo, sky_pos pn, AOI_Model_Data *M, sky_mask *mask)
-{
-	return POA_Albedo(sky, albedo, pn, M, mask);
-}
-double ssdp_total_poa(sky_grid *sky, double albedo, sky_pos pn, AOI_Model_Data *M, sky_mask *mask)
-{
-	double POA;
-	POA=DiffusePlaneOfArray(sky, pn, M, mask);
-	POA+=DirectPlaneOfArray(sky, pn, M, mask);
-	POA+=POA_Albedo(sky, albedo, pn, M, mask);
-	return POA;
+	return POA_Sky_Transfer(sky, pn, M, ST);
 }
 
-double ssdp_diffuse_sky_horizontal(sky_grid *sky, AOI_Model_Data *M, sky_mask *mask)
+sky_transfer ssdp_albedo_transfer(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, sky_transfer *ST)
 {
-	return DiffuseHorizontal(sky, M, mask);
-}
-double ssdp_direct_sky_horizontal(sky_grid *sky, AOI_Model_Data *M, sky_mask *mask)
-{
-	return DirectHorizontal(sky, M, mask);
-}
-double ssdp_total_sky_horizontal(sky_grid *sky, AOI_Model_Data *M, sky_mask *mask)
-{
-	double GHI;
-	GHI=DiffuseHorizontal(sky, M, mask);
-	GHI+=DirectHorizontal(sky, M, mask);
-	return GHI;
+	return POA_Albedo_Transfer(sky, pn, M, ST);
 }
 
+sky_transfer ssdp_total_transfer(sky_grid *sky, double albedo, sky_pos pn, AOI_Model_Data *M, sky_transfer *ST)
+{
+	sky_transfer Ts, total;
+	int i;
+	Ts=POA_Sky_Transfer(sky, pn, M, ST);
+	total=POA_Albedo_Transfer(sky, pn, M, ST);
+	for (i=0;i<total.N;i++)
+		total.t[i]=albedo*total.t[i]+Ts.t[i];
+	FreeSkyTransfer(&Ts);
+	return total;
+}
+
+void ssdp_free_sky_transfer(sky_transfer *T)
+{
+	FreeSkyTransfer(T);
+}
+
+double ssdp_diffuse_poa(sky_grid *sky, sky_transfer *T)
+{
+	return DiffusePlaneOfArray(sky, T);
+}
+double ssdp_direct_poa(sky_grid *sky, sky_transfer *T)
+{
+	return DirectPlaneOfArray(sky, T);
+}
+double ssdp_total_poa(sky_grid *sky, sky_transfer *T)
+{
+	double POA;
+	POA=DiffusePlaneOfArray(sky, T);
+	POA+=DirectPlaneOfArray(sky, T);
+	return POA;
+}
 
 /* topology routines */
-sky_mask ssdp_mask_horizon(sky_grid *sky, topology *T, double Ox, double Oy, double Oz)
+sky_transfer ssdp_mask_horizon(sky_grid *sky, topology *T, double Ox, double Oy, double Oz)
 {
-	return MaskHorizon(sky, T, Ox, Oy, Oz);
-}
-sky_mask ssdp_mask_horizon_z_to_ground(sky_grid *sky, topology *T, double Ox, double Oy, double deltaz, sky_pos *sn)
-{
-	double Oz;
-	Oz=SampleTopo(Ox, Oy, T, sn)+deltaz;
-	return MaskHorizon(sky, T, Ox, Oy, Oz);
-}
-void ssdp_unmask_horizon(sky_mask *mask)
-{
-	ClearSkyMask(mask);
-}
-void ssdp_free_sky_mask(sky_mask *mask)
-{
-	FreeSkyMask(mask);
+	return MaskHorizon(sky, T, NULL, Ox, Oy, Oz);
 }
 topology ssdp_make_topology(double *x, double *y, double *z, int N)
 {

@@ -27,10 +27,10 @@ typedef struct {
 } AOI_Model_Data;
 
 AOI_Model_Data InitAOIModel(AOI_Model model, double ng, double nar , double *theta, double *effT, int N);
-double DiffusePlaneOfArray(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, sky_mask *mask);
-double DirectPlaneOfArray(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, sky_mask *mask);
-double DiffuseHorizontal(sky_grid *sky, AOI_Model_Data *M, sky_mask *mask);
-double DirectHorizontal(sky_grid *sky, AOI_Model_Data *M, sky_mask *mask);
-double POA_Albedo(sky_grid *sky, double albedo, sky_pos pn, AOI_Model_Data *M, sky_mask *mask);
+sky_transfer POA_Sky_Transfer(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, sky_transfer *ST);
+sky_transfer POA_Albedo_Transfer(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, sky_transfer *ST);
+double DiffusePlaneOfArray(sky_grid *sky, sky_transfer *T);
+double DirectPlaneOfArray(sky_grid *sky, sky_transfer *T);
+double POA_Albedo(sky_grid *sky, double albedo, sky_transfer *T);
 void POA_to_SurfaceNormal(sky_pos *pn, sky_pos sn);
 #endif

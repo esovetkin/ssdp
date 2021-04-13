@@ -96,160 +96,127 @@ double EffectiveT(AOI_Model_Data *M, double z, double R0)
 			return 1/R0;
 	}
 }
-
-
-double DiffusePlaneOfArray(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, sky_mask *mask)
+#define ZENEPS 1e-4
+sky_transfer POA_Sky_Transfer(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, sky_transfer *ST)
 {
+	sky_transfer T={NULL,0};
 	sky_pos axis, r;
-	double POA=0, R0;
 	int i;
+	char rot=1;
+	double R0;
 	R0=EffectiveT(M, 0, 1);
-	
-	Print(VVERBOSE, "********************************************************************************\n");
-	Print(VERBOSE, "--DiffusePlaneOfArray\t\t");
-	Print(VVERBOSE, "\nTilt:    %f\n", rad2degr(pn.z));
-	Print(VVERBOSE, "Azimuth: %f\n", rad2degr(pn.a));
-	axis.a=pn.a+M_PI/2;// axis points perpendicular to a
-	axis.z=M_PI/2;
-	if (mask)
+	if (ST)
 	{
-		if (mask->N!=sky->N)
+		if (ST->N!=sky->N)
 		{
-			// ERRORFLAG SKYSKYMASKMISMATCH "Error: provided sky_mask does not fitr to the given sky-dome"
-			AddErr(SKYSKYMASKMISMATCH);
-			return POA;
+			AddErr(SKYTRANSSKYMISMATCH);// label defined in ground.c
+			return T;
 		}
+	}
+	T=InitSkyTransfer(sky->N);
+	if (fabs(pn.z)<ZENEPS)
+		rot=0;
+	else
+	{
+		axis.a=pn.a+M_PI/2;// axis points perpendicular to a
+		axis.z=M_PI/2;
+	}
+	
+	if (ST)
+	{
 		for (i=0;i<sky->N;i++)
 		{
-			if (mask->mask[i]==0)
-			{
+			if (rot)
 				r=rrf(sky->P[i].p, axis, -pn.z);  
-				if ((r.z>=0)&&(r.z<=M_PI/2))                                        
-					POA+=sky->P[i].I*cos(r.z)*EffectiveT(M, r.z, R0);
-			}
+			else
+				r=sky->P[i].p;
+			if ((r.z>=-M_PI/2)&&(r.z<=M_PI/2))                                        
+				T.t[i]=ST->t[i]*cos(r.z)*EffectiveT(M, r.z, R0);
+			else
+				T.t[i]=0;
 		}
 	}
 	else
 	{
 		for (i=0;i<sky->N;i++)
 		{
-			r=rrf(sky->P[i].p, axis, -pn.z);  
-			if ((r.z>=0)&&(r.z<=M_PI/2))                                        
-				POA+=sky->P[i].I*cos(r.z)*EffectiveT(M, r.z, R0);
+			if (rot)
+				r=rrf(sky->P[i].p, axis, -pn.z);  
+			else
+				r=sky->P[i].p;
+			if ((r.z>=-M_PI/2)&&(r.z<=M_PI/2))  
+				T.t[i]=cos(r.z)*EffectiveT(M, r.z, R0);
+			else
+				T.t[i]=0;
 		}
 	}
-
-	Print(VERBOSE, "Done\n");
-	Print(VVERBOSE, "********************************************************************************\n\n");
-	
-	return POA;
+	return T;
 }
-double DirectPlaneOfArray(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, sky_mask *mask)
+
+double DiffusePlaneOfArray(sky_grid *sky, sky_transfer *T)
 {
-	sky_pos axis, r;
-	double POA=0, R0;
-	R0=EffectiveT(M, 0, 1);
-	Print(VVERBOSE, "********************************************************************************\n");
-	Print(VERBOSE, "--DirectPlaneOfArray\t\t");
-	Print(VVERBOSE, "\nTilt:    %f\n", rad2degr(pn.z));
-	Print(VVERBOSE, "Azimuth: %f\n", rad2degr(pn.a));
-	axis.a=pn.a+M_PI/2;// axis points perpendicular to a
-	axis.z=M_PI/2;
-	if (mask)
-	{
-		if (mask->smask==0)
-		{
-			r=rrf(sky->sp, axis, -pn.z); 
-			if ((r.z>=0)&&(r.z<=M_PI/2))       
-				POA=sky->sI*cos(r.z)*EffectiveT(M, r.z, R0);
-		}
-	}
-	else
-	{
-		r=rrf(sky->sp, axis, -pn.z); 
-		if ((r.z>=0)&&(r.z<=M_PI/2))       
-			POA=sky->sI*cos(r.z)*EffectiveT(M, r.z, R0);
-	}
-	Print(VERBOSE, "Done\n");
-	Print(VVERBOSE, "********************************************************************************\n\n");
-	
+	double POA=0;
+	int i;
+	for (i=0;i<sky->N;i++)                            
+			POA+=sky->P[i].I*T->t[i];
 	return POA;
 }
 
-double DiffuseHorizontal(sky_grid *sky, AOI_Model_Data *M, sky_mask *mask)
+double DirectPlaneOfArray(sky_grid *sky, sky_transfer *T)
 {
-	double POA=0, R0;
-	int i;	
-	R0=EffectiveT(M, 0, 1);
-	Print(VVERBOSE, "********************************************************************************\n");
-	Print(VERBOSE, "--DiffuseHorizontal\t\t");
-	Print(VVERBOSE, "\n");
-	if (mask)
-	{
-		if (mask->N!=sky->N)
-		{
-			AddErr(SKYSKYMASKMISMATCH);
-			return POA;
-		}
-		for (i=0;i<sky->N;i++)   
-			if (mask->mask[i]==0)
-				POA+=sky->P[i].I*cos(sky->P[i].p.z)*EffectiveT(M, sky->P[i].p.z, R0);  
-	}
-	else
-	{
-		for (i=0;i<sky->N;i++)   
-			POA+=sky->P[i].I*cos(sky->P[i].p.z)*EffectiveT(M, sky->P[i].p.z, R0);  
-	}
-	
-	Print(VERBOSE, "Done\n");
-	Print(VVERBOSE, "********************************************************************************\n\n");  
-	return POA;
+	if (sky->suni>=0)
+		return sky->sI*T->t[sky->suni]; // we approximate a bit and use the transfer function of the sun patch for the direct contribution
+	return 0;
 }
 
-double DirectHorizontal(sky_grid *sky, AOI_Model_Data *M, sky_mask *mask)
+sky_transfer POA_Albedo_Transfer(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, sky_transfer *ST)
 {
-	double POA=0, R0;
-	R0=EffectiveT(M, 0, 1);
-	Print(VVERBOSE, "********************************************************************************\n");
-	Print(VERBOSE, "--DirectHorizontal\t\t");
-	Print(VVERBOSE, "\n");
-	if (mask)
-	{
-		if (mask->smask==0)
-			POA+=sky->sI*cos(sky->sp.z)*EffectiveT(M, sky->sp.z, R0);
-	}
-	else
-		POA+=sky->sI*cos(sky->sp.z)*EffectiveT(M, sky->sp.z, R0);
-	Print(VERBOSE, "Done\n");
-	Print(VVERBOSE, "********************************************************************************\n\n");  
-	return POA;
-}
-
-double POA_Albedo(sky_grid *sky, double albedo, sky_pos pn, AOI_Model_Data *M, sky_mask *mask)
-{
-	double GHI, POA;
+	sky_transfer T={NULL,0};
+	sky_transfer Th;
+	double g=0;
 	sky_grid ground;
-	sky_pos z={0,0};
-	VERB val;
-	Print(VVERBOSE, "********************************************************************************\n");
-	Print(VERBOSE, "--POA_Albedo\t\t\t");
-	Print(VVERBOSE, "\nAlbedo:  %f\n", albedo);
-	Print(VVERBOSE, "Tilt:    %f\n", rad2degr(pn.z));
-	Print(VVERBOSE, "Azimuth: %f\n", rad2degr(pn.a));
-	val=ssdp_verbosity;
-	ssdp_verbosity=QUIET;
-	GHI=DiffuseHorizontal(sky, M, mask);
-	GHI+=DirectHorizontal(sky, M, mask);
-	ground=InitSky(sky->Nz); // it is actually simple to do with solid angles but not if we have some AOI model active
+	int i;
+	sky_pos n={0,0};
+	
+	if (ST)
+	{
+		if (ST->N!=sky->N)
+		{
+			AddErr(SKYTRANSSKYMISMATCH);// label defined in ground.c
+			return T;
+		}
+	}
+	/* compute the sky transfer function to the horizontal plane */ 
+	Th=POA_Sky_Transfer(sky, n, M, ST);
+	ground=InitSky(sky->Nz); 
 	if (ssdp_error_state)
-		return 0;
-	UniformSky(&ground, z, albedo*GHI, albedo*GHI);
+	{
+		free_sky_grid(&ground);
+		FreeSkyTransfer(&Th);
+		return T;
+	}
 	pn.z+=M_PI;
-	POA=DiffusePlaneOfArray(&ground, pn, M, NULL);
-	free_sky_grid(&ground);	
-	ssdp_verbosity=val;
-	Print(VERBOSE, "Done\n");
-	Print(VVERBOSE, "********************************************************************************\n\n");
+	pn.z=fmod(pn.z,2*M_PI);
+	T=POA_Sky_Transfer(&ground, pn, M, NULL);
+	
+	free_sky_grid(&ground);
+	for (i=0;i<T.N;i++)
+		g+=T.t[i];
+	g=g/((double)T.N);
+		
+	for (i=0;i<T.N;i++)	
+		T.t[i]=g*Th.t[i];
+		
+	FreeSkyTransfer(&Th);
+	return T;
+}
+
+double POA_Albedo(sky_grid *sky, double albedo, sky_transfer *T)
+{
+	double POA=0;
+	int i;
+	for (i=0;i<sky->N;i++)                            
+		POA+=sky->P[i].I*albedo*T->t[i];
 	return POA;
 }
 
@@ -260,13 +227,7 @@ void POA_to_SurfaceNormal(sky_pos *pn, sky_pos sn)
 	
 	axis.z=M_PI/2;
 	axis.a=pn->a-M_PI/2;
-	(*pn)=rrf(sn, axis, pn->z);
-	/*
-	if (fabs(fmod(sn.a, 2*M_PI))<M_PI/2)
-		(*pn)=rrf(*pn, axis, -sn.z);
-	else
-		(*pn)=rrf(*pn, axis, sn.z);*/
-	
+	(*pn)=rrf(sn, axis, pn->z);	
 }
 	
 	

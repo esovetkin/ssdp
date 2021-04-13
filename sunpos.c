@@ -8,7 +8,7 @@
 /* implementation of the PSA algorithm as described in
  * Blanco-Muriel, Manuel, et al. "Computing the solar vector." Solar energy 70.5 (2001): 431-441.
  * Another implementation is at: http://www.psa.es/sdg/sunpos.htm
- * I reimplemented as I am not sure about the license conditiosn for that version
+ * I reimplemented as I am not sure about the license conditions for that version
  */
 // Julian day noon 1 January 2000 Universal Time
 #define JD0 2451545.0

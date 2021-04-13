@@ -7,8 +7,8 @@ OBJ=io.o variables.o parser.o readlineshell.o util.o
 HDR=io.h variables.h parser.h readlineshell.h util.h 
 CC=gcc
 # CC=clang
-CFLAGS=-Og -flto -g -Wall -pedantic -fPIC
-# CFLAGS=-O3 -flto -fPIC -march=native
+# CFLAGS=-Og -flto -g -Wall -pedantic -fPIC
+CFLAGS=-O3 -flto -fPIC -march=native
 # Ofast can speed up code by some 20% over O3, however, do not use 
 # -funsafe-math-optimizations, it breaks the code.
 # if you feel lucky you can use:
