@@ -370,13 +370,13 @@ void ConfigAOI(char *in)
 void FreeConfigMask(simulation_config *C)
 {
 	int i;
-	if (C->ST)
+	if (C->L)
 	{
 		for (i=0;C->Nl;i++)
-			ssdp_free_sky_transfer(C->ST+i);
+			ssdp_free_location(C->L+i);
 	}
-	free(C->ST);
-	C->ST=NULL;
+	free(C->L);
+	C->L=NULL;
 }
 
 void FreeConfigLocation(simulation_config *C)
@@ -405,20 +405,23 @@ void InitConfigMask(simulation_config *C)
 	{
 		double dt;
 		int pco=0;
-		sky_transfer ST;
 		FreeConfigMask(C); // make sure we are clear to allocate new memory
-		C->ST=malloc(C->Nl*sizeof(sky_transfer));
+		C->L=malloc(C->Nl*sizeof(location));
 		TIC();
 		for (i=0;i<C->Nl;i++)
-		{
-			ST=ssdp_mask_horizon(&(C->S),&(C->T),C->x[i],C->y[i],C->z[i]);
-			C->ST[i]=ssdp_total_transfer(&(C->S), C->albedo, C->o[i], &(C->M), &ST);
-			ssdp_free_sky_transfer(&ST);
+		{ 
+			C->L[i]=ssdp_setup_location(&(C->S), &(C->T), C->albedo, C->o[i], C->x[i],C->y[i],C->z[i], &(C->M));
+			if (ssdp_error_state)
+				break;
 			pco=ProgressBar((100*(i+1))/C->Nl, pco, ProgressLen, ProgressTics);
 		}
 		dt=TOC();
 		printf("\n");
-		printf("%d horizons computed in %g s (%g s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));
+		if (!ssdp_error_state)
+			printf("%d locations traced in %g s (%g s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));
+		else
+			FreeConfigMask(C); // make sure we are clear to allocate new memory
+			
 	}
 }
 void InitConfigMaskNoH(simulation_config *C) // same as above but without horizon calculation
@@ -429,17 +432,24 @@ void InitConfigMaskNoH(simulation_config *C) // same as above but without horizo
 		double dt;
 		int pco=0;
 		FreeConfigMask(C); // make sure we are clear to allocate new memory
-		C->ST=malloc(C->Nl*sizeof(sky_transfer));
+		C->L=malloc(C->Nl*sizeof(location));
 		TIC();
 		for (i=0;i<C->Nl;i++)
 		{
-			//C->ST[i]=ssdp_total_transfer(&(C->S), C->albedo, C->o[i], &(C->M), NULL);
-			C->ST[i]=ssdp_sky_transfer(&(C->S), C->o[i], &(C->M), NULL);
+			C->L[i]=ssdp_setup_location(&(C->S), NULL, C->albedo, C->o[i], C->x[i],C->y[i],C->z[i], &(C->M));
+			if (ssdp_error_state)
+				break;
 			pco=ProgressBar((100*(i+1))/C->Nl, pco, ProgressLen, ProgressTics);
 		}
 		dt=TOC();
 		printf("\n");
-		printf("%d transfer functions computed in %g s (%g s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));
+		if (!ssdp_error_state)
+			printf("%d locations traced in %g s (%g s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));
+		else
+		{
+			ssdp_print_error_messages();
+			FreeConfigMask(C); // make sure we are clear to allocate new memory
+		}
 	}
 }
 
@@ -470,7 +480,7 @@ void ConfigSKY(char *in)
 		else
 			C->sky_init=1;
 		C->S=ssdp_init_sky(N);
-		InitConfigMask(C);
+		InitConfigMask(C);		
 		printf("Configuring sky with %d zenith discretizations\n", N);
 	}
 	else
@@ -537,6 +547,13 @@ void ConfigTOPO (char *in)
 		ssdp_reset_errors();
 	}
 	InitConfigMask(C);
+	if (ssdp_error_state)
+	{
+		ssdp_print_error_messages();
+		ssdp_free_topology(&C->T);
+		C->topo_init=0;
+		ssdp_reset_errors();
+	}
 	return;
 }
 // add albedo to this routine I suppose (i.e. enable locally varying albedo values)
@@ -658,6 +675,13 @@ void ConfigLoc (char *in)
 	C->loc_init=1;
 	
 	InitConfigMask(C);
+	if (ssdp_error_state)
+	{
+		ssdp_print_error_messages();
+		FreeConfigLocation(C);
+		C->loc_init=0;
+		ssdp_reset_errors();
+	}
 	
 	return;
 }
@@ -1169,6 +1193,13 @@ void SimStatic(char *in)
 	{	
 		Warning("No topological data available, omitting horizon\n");
 		InitConfigMaskNoH(C);
+		if (ssdp_error_state)
+		{
+			ssdp_print_error_messages();
+			ssdp_reset_errors();
+			free(word);
+			return;
+		}
 	}
 	if (!C->loc_init) 
 	{	
@@ -1218,14 +1249,7 @@ void SimStatic(char *in)
 		tsky+=clock()-tsky0;
 		tpoa0=clock();
 		for (i=0;i<C->Nl;i++)
-		{
-			// compute POA at evert location  instance
-			// this operation can be somewhat expensive
-			// we should consider to compute a transfer efficiency for every sky element and every location
-			// this could speed things up quite a bit. The transfer efficiency should entail
-			// cos(z) w.r.t the POA, AOI effects and ground albedo
-			out.D[j*C->Nl+i]=ssdp_total_poa(&(C->S),C->ST+i);
-		}
+			out.D[j*C->Nl+i]=ssdp_total_poa(&(C->S), C->o[i], &(C->M), C->L+i);
 		pco=ProgressBar((100*((j+1)*C->Nl))/(t->N*C->Nl), pco, ProgressLen, ProgressTics);
 		tpoa+=clock()-tpoa0;
 	}

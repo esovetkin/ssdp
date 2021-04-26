@@ -18,7 +18,6 @@
 */
 #ifndef _SKY_MODEL_H
 #define _SKY_MODEL_H
-
 typedef struct {
 	char gradation, indicatrix;
 	double a,b,c,d,e;

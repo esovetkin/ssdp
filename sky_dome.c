@@ -313,6 +313,8 @@ int FindPatch(sky_grid *sky, sky_pos p)
 
 // as the number of elements rises quadratically we better set a
 // practical limit on the Nz values
+// if you ever change the 1 Mio below you should consider modifying 
+// ZENEPS in project.c.
 #define MAXNZ NZN(1000000)
 
 sky_grid InitSky(int Nz)
@@ -334,7 +336,6 @@ sky_grid InitSky(int Nz)
 	sky.sp=sun; // The default sun: is strainght above
 	sky.sI=0;	// and pitch black
 	sky.suni=0;
-	
 	// ERRORFLAG MALLOCFAILSKYDOME  "Error memory allocation failed in creating a sky-dome"
 	if ((sky.P=malloc((sky.N+1)*sizeof(hexpatch)))==NULL)
 	{
@@ -343,6 +344,16 @@ sky_grid InitSky(int Nz)
 		sky.N=0;
 		return sky;
 	}
+	if ((sky.cosz=malloc((sky.N+1)*sizeof(double)))==NULL)
+	{
+		free(sky.P);
+		sky.P=NULL;
+		AddErr(MALLOCFAILSKYDOME);
+		sky.Nz=0;
+		sky.N=0;
+		return sky;
+	}
+	
 	for (i=0;i<sky.N;i++)
 	{
 		sky.P[i].I=0;
@@ -351,6 +362,7 @@ sky_grid InitSky(int Nz)
 		PrevL(Nz, i, sky.P[i].PL);
 		sky.P[i].NI=NextIsoL(Nz, i);
 		sky.P[i].PI=PrevIsoL(Nz, i);
+		sky.cosz[i]=cos(sky.P[i].p.z);
 	}
 	Print(VERBOSE, "Done\n");
 	Print(VVERBOSE, "********************************************************************************\n\n");
@@ -362,31 +374,9 @@ void free_sky_grid(sky_grid *sky)
 	if (sky->P)
 		free(sky->P);
 	sky->P=NULL;
+	if (sky->cosz)
+		free(sky->cosz);
+	sky->cosz=NULL;	
 	sky->Nz=0;
 	sky->N=0;
-}
-sky_transfer InitSkyTransfer(int N)
-{
-	sky_transfer T;
-	int i;
-	// ERRORFLAG MALLOCFAILSKYTRANS  "Error memory allocation failed in creating a sky-transfer map"
-	if ((T.t=malloc(N*sizeof(double)))==NULL)
-	{
-		AddErr(MALLOCFAILSKYTRANS);
-		T.N=0;
-		return T;
-	}
-	
-	for (i=0;i<N;i++)
-		T.t[i]=1.0;
-	T.N=N;
-	return T;
-}
-
-void FreeSkyTransfer(sky_transfer *T)
-{
-	if (T->t)
-		free(T->t);
-	T->t=NULL;
-	T->N=0;
 }

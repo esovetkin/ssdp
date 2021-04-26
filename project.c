@@ -21,7 +21,7 @@
 #include <math.h>
 #include "vector.h"
 #include "sky_dome.h"
-#include "sky_model.h"
+#include "trace.h"
 #include "project.h"
 #include "error.h"
 #include "print.h"
@@ -96,61 +96,45 @@ double EffectiveT(AOI_Model_Data *M, double z, double R0)
 			return 1/R0;
 	}
 }
-#define ZENEPS 1e-4
-sky_transfer POA_Sky_Transfer(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, sky_transfer *ST)
+// in sky_dome.c the maximum number af sky patches is set to 1 Mio, which constitutes 577 
+// zenith steps and thus about 2.7e-3 radians. Thus a rotation in zenith over 
+// considerably less than this cannot be adequately resolved, hence 2.7e-4 rad
+#define ZENEPS 2.7e-4 
+void POA_Sky_Transfer(sky_grid *sky, sky_transfer *T, sky_pos pn, AOI_Model_Data *M)
 {
-	sky_transfer T={NULL,0};
 	sky_pos axis, r;
 	int i;
 	char rot=1;
 	double R0;
 	R0=EffectiveT(M, 0, 1);
-	if (ST)
+	if (T->N!=sky->N)
 	{
-		if (ST->N!=sky->N)
-		{
-			AddErr(SKYTRANSSKYMISMATCH);// label defined in ground.c
-			return T;
-		}
+		fprintf(stderr, "%d %d\n", T->N, sky->N);
+		// ERRORFLAG SKYTRANSSKYMISMATCH "Error: sky_transfer and sky_grid data structures size mismatch"
+		AddErr(SKYTRANSSKYMISMATCH);
+		return;
 	}
-	T=InitSkyTransfer(sky->N);
 	if (fabs(pn.z)<ZENEPS)
 		rot=0;
 	else
 	{
-		axis.a=pn.a+M_PI/2;// axis points perpendicular to a
-		axis.z=M_PI/2;
+		axis.a=pn.a+M_PI/2;// rotation axis points perpendicular in azimuth
+		axis.z=M_PI/2;// rotation axis in ground plane
 	}
 	
-	if (ST)
+	for (i=0;i<sky->N;i++)
 	{
-		for (i=0;i<sky->N;i++)
+		if (rot)
 		{
-			if (rot)
-				r=rrf(sky->P[i].p, axis, -pn.z);  
-			else
-				r=sky->P[i].p;
+			r=rrf(sky->P[i].p, axis, -pn.z);  
 			if ((r.z>=-M_PI/2)&&(r.z<=M_PI/2))                                        
-				T.t[i]=ST->t[i]*cos(r.z)*EffectiveT(M, r.z, R0);
+				T->t[i]=T->t[i]*cos(r.z)*EffectiveT(M, r.z, R0);
 			else
-				T.t[i]=0;
+				T->t[i]=0;
 		}
+		else              
+			T->t[i]=T->t[i]*sky->cosz[i]*EffectiveT(M, sky->P[i].p.z, R0);
 	}
-	else
-	{
-		for (i=0;i<sky->N;i++)
-		{
-			if (rot)
-				r=rrf(sky->P[i].p, axis, -pn.z);  
-			else
-				r=sky->P[i].p;
-			if ((r.z>=-M_PI/2)&&(r.z<=M_PI/2))  
-				T.t[i]=cos(r.z)*EffectiveT(M, r.z, R0);
-			else
-				T.t[i]=0;
-		}
-	}
-	return T;
 }
 
 double DiffusePlaneOfArray(sky_grid *sky, sky_transfer *T)
@@ -162,63 +146,65 @@ double DiffusePlaneOfArray(sky_grid *sky, sky_transfer *T)
 	return POA;
 }
 
-double DirectPlaneOfArray(sky_grid *sky, sky_transfer *T)
+double DirectPlaneOfArray(sky_grid *sky, horizon *H, sky_pos pn, AOI_Model_Data *M)
 {
-	if (sky->suni>=0)
-		return sky->sI*T->t[sky->suni]; // we approximate a bit and use the transfer function of the sun patch for the direct contribution
+	sky_pos axis, r;
+	char rot=1;
+	double R0;
+	if (sky->suni<0) // sun not in sky
+		return 0;
+	if (BelowHorizon(H, sky->sp))
+		return 0;
+		
+	R0=EffectiveT(M, 0, 1);
+	if (fabs(pn.z)<ZENEPS)
+		rot=0;
+	else
+	{
+		axis.a=pn.a+M_PI/2;// rotation axis points perpendicular in azimuth
+		axis.z=M_PI/2;// rotation axis in ground plane
+	}
+	
+	if (rot)
+	{
+		r=rrf(sky->sp, axis, -pn.z);    
+		if ((r.z>=-M_PI/2)&&(r.z<=M_PI/2))                                 
+			return sky->sI*cos(r.z)*EffectiveT(M, r.z, R0);
+		else
+			return 0;
+	}
+	else
+		return sky->sI*cos(sky->sp.z)*EffectiveT(M, r.z, R0);
 	return 0;
 }
 
-sky_transfer POA_Albedo_Transfer(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, sky_transfer *ST)
+double POA_Albedo_Transfer(sky_grid *sky, sky_pos pn, AOI_Model_Data *M)
 {
-	sky_transfer T={NULL,0};
 	sky_transfer Th;
 	double g=0;
 	sky_grid ground;
 	int i;
-	sky_pos n={0,0};
 	
-	if (ST)
-	{
-		if (ST->N!=sky->N)
-		{
-			AddErr(SKYTRANSSKYMISMATCH);// label defined in ground.c
-			return T;
-		}
-	}
-	/* compute the sky transfer function to the horizontal plane */ 
-	Th=POA_Sky_Transfer(sky, n, M, ST);
+	/* compute the sky transfer function to the horizontal plane */ 	
 	ground=InitSky(sky->Nz); 
 	if (ssdp_error_state)
 	{
 		free_sky_grid(&ground);
-		FreeSkyTransfer(&Th);
-		return T;
+		return 0;
 	}
 	pn.z+=M_PI;
 	pn.z=fmod(pn.z,2*M_PI);
-	T=POA_Sky_Transfer(&ground, pn, M, NULL);
-	
+	Th=InitSkyTransfer(sky->N);	
+	POA_Sky_Transfer(&ground,&Th, pn, M);	
 	free_sky_grid(&ground);
-	for (i=0;i<T.N;i++)
-		g+=T.t[i];
-	g=g/((double)T.N);
-		
-	for (i=0;i<T.N;i++)	
-		T.t[i]=g*Th.t[i];
-		
-	FreeSkyTransfer(&Th);
-	return T;
+	
+	for (i=0;i<Th.N;i++)
+		g+=Th.t[i];
+	g=g/((double)Th.N);
+	return g;
 }
-
-double POA_Albedo(sky_grid *sky, double albedo, sky_transfer *T)
-{
-	double POA=0;
-	int i;
-	for (i=0;i<sky->N;i++)                            
-		POA+=sky->P[i].I*albedo*T->t[i];
-	return POA;
-}
+// diffuse light albedo transfer : albedo*g*sky->cosz[i];
+// direct light albedo transfer : albedo*g*cos(sky->sp.z);
 
 
 void POA_to_SurfaceNormal(sky_pos *pn, sky_pos sn)

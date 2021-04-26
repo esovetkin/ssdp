@@ -1,3 +1,5 @@
+
+//BEGIN_SSDP_EXPORT
 typedef struct nodetree {
 	int *leafs;
 	double bb[4];
@@ -10,6 +12,7 @@ typedef struct triangles {
 	int i, j, k;
 	double ccx, ccy;
 } triangles;
+//END_SSDP_EXPORT
 typedef enum {SHULL_OK, SHULL_ERR} SHULL_STATE;
 extern SHULL_STATE SSTATE;
 triangles * Triangulate(double *x, double *y, int N, int *Nt);

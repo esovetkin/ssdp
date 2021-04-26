@@ -123,12 +123,3 @@ double adiff(double a1, double a2)
 	return d;
 }
 
-
-double rad2degr(double rad)
-{
-	return rad*180/M_PI;
-}
-double degr2rad(double degr)
-{
-	return degr*M_PI/180;
-}

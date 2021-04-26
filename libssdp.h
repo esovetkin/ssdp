@@ -17,70 +17,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include <time.h>
-/* spherical coordinate system (only direction, no radius, hardly ever need that) */
-typedef struct sky_pos {
-	double z,a;
-} sky_pos;
-
-/* hexagonal patch of sky */
-typedef struct hexpatch {
-	double I;	// light intensity
-	sky_pos p;	// sky coordinate
-	int NL[7];	// next level neighbors (at larger zenith angle)
-	int PL[3];	// previous level neighbors (at smaller senith angle)
-	int NI;		// iso level next (same zenith angle, larger azimuth)
-	int PI;		// iso level previous (same zenith angle, smaller azimuth)
-} hexpatch;
-
-
-/* sky mesh */
-typedef struct sky_grid {
-	hexpatch *P;
-	// get sun out of the hexpatch dome so we can separate contributions
-	// if we want
-	sky_pos sp;	// solar position
-	double sI;	// solar intensity
-	int suni; // index of the sky patch the sun is in
-	int N;		
-	int Nz;
-} sky_grid;
-/* some structures for the topology */
-/* triangulation data */
-typedef struct triangles {
-	int i, j, k;
-	double ccx, ccy;
-} triangles;
-/* quaternary search tree */
-typedef struct nodetree {
-	int *leafs;
-	double bb[4];
-	struct nodetree *N1;
-	struct nodetree *N2;
-	struct nodetree *N3;
-	struct nodetree *N4;
-} nodetree;
-
-typedef struct sky_transfer {
-	double *t; // transfer sky-patch->POA
-	int N;
-} sky_transfer;
-
-/* topology structure including triangulation data */
-typedef struct topology {
-	double *x, *y, *z;  // 3D coordinates
-	int N;		 		// number of points
-	triangles *T;
-	int Nt;		 		// number of triangles
-	nodetree *P;
-} topology;
-
-typedef enum {AOI_NONE, AOI_GLASS, AOI_GLASS_AR, AOI_USER} AOI_Model;
-typedef struct {
-	double ng, nar;
-	double *theta, *effT;
-	int N;
-	AOI_Model M;
-} AOI_Model_Data;
+#include "libssdp_structs.h"
 
 /* verbosity of the library */
 typedef enum {QUIET, VERBOSE, VVERBOSE} VERB;
@@ -112,16 +49,11 @@ void ssdp_poa_to_surface_normal(sky_pos pn0, sky_pos sn, sky_pos *pn); // orient
 
 AOI_Model_Data ssdp_init_aoi_model(AOI_Model model,double nf, double nar,double *theta, double *effT, int N);
 
-sky_transfer ssdp_sky_transfer(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, sky_transfer *ST);					// compute tranfer sky to POA
-sky_transfer ssdp_albedo_transfer(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, sky_transfer *ST);				// compute albedo tranfer: GHI*albedo -> POA
-sky_transfer ssdp_total_transfer(sky_grid *sky, double albedo, sky_pos pn, AOI_Model_Data *M, sky_transfer *ST);  // sky+albedo
-void ssdp_free_sky_transfer(sky_transfer *T);
-double ssdp_diffuse_poa(sky_grid *sky, sky_transfer *T);	// diffuse contribution
-double ssdp_direct_poa(sky_grid *sky, sky_transfer *T);		// direct contribution
-double ssdp_total_poa(sky_grid *sky, sky_transfer *T);		// all contributions together
-
-/* compute the horizon */
-sky_transfer ssdp_mask_horizon(sky_grid *sky, topology *T, double Ox, double Oy, double Oz); // absolute x,y,z coordinates
+void ssdp_free_location(location *l);
+location ssdp_setup_location(sky_grid *sky, topology *T, double albedo, sky_pos pn, double xoff, double yoff, double zoff, AOI_Model_Data *M);
+double ssdp_diffuse_poa(sky_grid *sky, location *l);
+double ssdp_direct_poa(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, location *l);
+double ssdp_total_poa(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, location *l);
 
 // create a topology from a point cloud
 topology ssdp_make_topology(double *x, double *y, double *z, int N);

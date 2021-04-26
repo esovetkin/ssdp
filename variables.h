@@ -18,7 +18,7 @@ typedef struct simulation_config {
 	char loc_init; 			// flags indicating whether location arrays have been initialized or not
 	double *x, *y, *z;		// locations of the module(s)
 	sky_pos *o;				// orientation of the module(s)
-	sky_transfer *ST;			// sky mask for every location
+	location *L;			// traced locations
 	int Nl;					// number of locations
 } simulation_config;
 

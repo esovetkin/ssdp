@@ -19,6 +19,7 @@
 #ifndef _SKY_DOME_H
 #define _SKY_DOME_H
 
+//BEGIN_SSDP_EXPORT
 typedef struct hexpatch {
 	double I;
 	sky_pos p;
@@ -35,22 +36,19 @@ typedef struct sky_grid {
 	sky_pos sp;	// solar position
 	double sI;	// solar intensity
 	int suni; // index of the sky patch the sun is in
+	double *cosz; // per patch cosine of zenith
 	int N;		
 	int Nz;
 } sky_grid;
-
-
-typedef struct sky_transfer {
-	double *t; // transfer sky-patch->POA
-	int N;
-} sky_transfer;
+//END_SSDP_EXPORT
 
 
 void Connectivity(int Nz);
 sky_grid InitSky(int Nz);
 void free_sky_grid(sky_grid *sky);
 int FindPatch(sky_grid *sky, sky_pos p);
-void FreeSkyTransfer(sky_transfer *T);
-sky_transfer InitSkyTransfer(int N);
+
+int NNZ(int n);	// number of elements in a mesh given a number of levels (zenith discretizations)
+int NZN(int n);	// inverse of above, i.e. give it a index and it returns the level (zenith) index
 #define SUNSR 6.807e-5
 #endif

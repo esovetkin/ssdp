@@ -16,6 +16,7 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+//BEGIN_SSDP_EXPORT
 typedef struct topology {
 	double *x, *y, *z;  // 3D coordinates
 	int N;		 		// number of points
@@ -23,10 +24,13 @@ typedef struct topology {
 	int Nt;		 		// number of triangles
 	nodetree *P;
 } topology;
+//END_SSDP_EXPORT
 
 
 topology MakeTopology(double *x, double *y, double *z, int N);
 topology CreateRandomTopology(double dx, double dy, double dz, double fN, int N);
 void free_topo (topology *T);
 double SampleTopo(double x, double y, topology *T, sky_pos *sn);
-sky_transfer MaskHorizon(sky_grid *sky, topology *T, sky_transfer *ST, double xoff, double yoff, double zoff);
+
+void ComputeHorizon(horizon *H, topology *T, double xoff, double yoff, double zoff);
+horizon MakeHorizon(sky_grid *sky, topology *T, double xoff, double yoff, double zoff);

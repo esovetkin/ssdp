@@ -19,9 +19,11 @@
 #ifndef _VECTOR_H
 #define _VECTOR_H
 // basic 3D vector calculation
+//BEGIN_SSDP_EXPORT
 typedef struct sky_pos {
 	double z,a;
 } sky_pos;
+//END_SSDP_EXPORT
 
 typedef struct vec {
 	double x,y,z;
@@ -37,6 +39,8 @@ sky_pos vecdir(vec a);
 double amean(double a1, double a2);
 double adiff(double a1, double a2);
 sky_pos rrf(sky_pos p, sky_pos axis, double beta);
-double rad2degr(double rad);
-double degr2rad(double degr);
+#define RADPDEG 1.745329251994329e-02
+#define DEGPRAD 5.729577951308232e+01
+#define rad2deg(r) (DEGPRAD*(r))
+#define deg2rad(d) (RADPDEG*(d))
 #endif

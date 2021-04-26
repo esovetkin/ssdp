@@ -32,7 +32,7 @@ simulation_config InitConf()
 	C.M.N=0;
 	C.sky_init=0;
 	C.topo_init=0;
-	C.albedo=0.15; 
+	C.albedo=0.0; 
 	C.lon=FZLON;
 	C.lat=FZLAT;
 	C.loc_init=0;
@@ -40,7 +40,7 @@ simulation_config InitConf()
 	C.y=NULL;
 	C.z=NULL;
 	C.o=NULL;
-	C.ST=NULL;
+	C.L=NULL;
 	C.Nl=0;
 	return C;
 }
@@ -79,12 +79,12 @@ void FreeConf(simulation_config *C)
 			free(C->z);
 		if (C->o)
 			free(C->o);
-		if (C->ST)
+		if (C->L)
 		{
 			for (i=0;i<C->Nl;i++)
-				ssdp_free_sky_transfer(C->ST+i);
-			free(C->ST);
-			C->ST=NULL;
+				ssdp_free_location(C->L+i);
+			free(C->L);
+			C->L=NULL;
 		}
 		C->Nl=0;
 		C->loc_init=0;

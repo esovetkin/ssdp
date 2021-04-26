@@ -24,6 +24,7 @@
 #include <math.h>
 #include "vector.h"
 #include "sky_dome.h"
+#include "trace.h"
 #include "delaunay.h"
 #include "ground.h"
 #include "print.h"
@@ -200,53 +201,13 @@ topology CreateRandomTopology(double dx, double dy, double dz, double fN, int N)
 }
 
 
-
-typedef struct horizon {
-	int N;
-	double *zen;
-	double *azi;
-} horizon;
-
-horizon InitHorizon(int Nz)
-{
-	horizon H;
-	horizon H0={0,NULL,NULL};
-	int i;
-	double astep;
-	H.N=6*Nz;
-	astep=2*M_PI/((double)H.N);
-	// ERRORFLAG MALLOCFAILHORIZON  "Error memory allocation failed horizon initialization"
-	H.zen=malloc(H.N*sizeof(double));
-	H.azi=malloc(H.N*sizeof(double));
-	if ((H.zen==NULL)||(H.azi==NULL))
-	{
-		AddErr(MALLOCFAILHORIZON);
-		return H0;
-	}
-	for (i=0;i<H.N;i++)
-	{
-		H.zen[i]=M_PI/2;
-		H.azi[i]=((double)i)*astep;
-	}
-	return H;
-}
-void FreeHorizon(horizon *H)
-{
-	free(H->zen);
-	free(H->azi);
-	H->N=0;
-	H->zen=NULL;
-	H->azi=NULL;
-}
-
 void RizeHorizon(horizon *H, double azi1, double azi2, double zen)
 {
 	int i, j, k;
-	double astep=2*M_PI/((double)H->N);
 	if (zen>M_PI/2)
 		return;
-	i=(int)round(azi1/astep);
-	j=(int)round(azi2/astep);
+	i=(int)round(azi1/H->astep);
+	j=(int)round(azi2/H->astep);
 	if (i<0)
 		i+=H->N;
 	if (j<0)
@@ -390,18 +351,13 @@ int TriangleAziRange(triangles T, double *x, double *y, double xoff, double yoff
 #undef CX 
 #undef CY 
 
-
-void MakeHorizon(horizon *H, topology *T, double xoff, double yoff, double zoff)
+// take a topology and rize the horizon accordingly
+void ComputeHorizon(horizon *H, topology *T, double xoff, double yoff, double zoff)
+// in principle one can later add a second topology to an existing horizon, is this useful? probably not.
 {
 	int i;
 	double d;
-	double z, a1, a2;
-	Print(VVERBOSE, "********************************************************************************\n");
-	Print(VERBOSE, "--MakeHorizon2\t\t\t");
-	Print(VVERBOSE, "\ntopology: %d points\n", T->N);
-	Print(VVERBOSE, "horizon: %d points\n", H->N);
-	Print(VVERBOSE, "Computing Horizon\n");
-	
+	double z, a1, a2;	
 	for (i=0;i<T->Nt;i++)
 	{
 		// compute sky position and diameter in radians
@@ -410,85 +366,17 @@ void MakeHorizon(horizon *H, topology *T, double xoff, double yoff, double zoff)
 		z=(T->z[T->T[i].i]+T->z[T->T[i].j]+T->z[T->T[i].k])/3;
 		if (TriangleAziRange(T->T[i], T->x, T->y, xoff, yoff, &a1, &a2)) // the horizon routine is not equipped to put a roof over the PV panel...
 			RizeHorizon(H, a1, a2, M_PI/2-atan2(z-zoff,d));
-	}
-	Print(VERBOSE, "Done\n");
-	Print(VVERBOSE, "********************************************************************************\n\n");
-	
+	}	
 }
 
-double MinZentith(horizon *H)
+horizon MakeHorizon(sky_grid *sky, topology *T, double xoff, double yoff, double zoff)
 {
-	int i;
-	double min;
-	min=H->zen[0];
-	for (i=1;i<H->N;i++)
-		if (min>H->zen[i])
-			min=H->zen[i];
-	return min;
-}
-
-int BelowHorizon(horizon *H, sky_pos p)
-{
-	int i,j;
-	double astep=2*M_PI/((double)H->N);
-	double a1,a2;
-	i=(int)p.a/astep;
-	if (i<0)
-		i+=H->N;
-	i=i%H->N;
-	if (p.a<0)
-		p.a+=M_PI*2;
-	while (adiff(i*astep, p.a)>0)
-	{
-		i--;
-		if (i<0)
-			i=H->N-1;
-	}
-	j=(i+1)%H->N;
-	a1=adiff(p.a, ((double)i)*astep);
-	a2=adiff(((double)j)*astep, p.a);
-	return (p.z>(H->zen[i]*a2+H->zen[j]*a1)/(a1+a2));
-}
-
-/* takes a sky, topology anmd a transfer function.
- * creates a new transfer function which multiplies the old one with 0 for elements below the horizon 
- * if ST==NULL it creates a new transfer function with 1's for non masked elements
- */
-sky_transfer MaskHorizon(sky_grid *sky, topology *T, sky_transfer *ST, double xoff, double yoff, double zoff) 
-{
-	int i, nz;
-	horizon H;
-	sky_transfer M={NULL,0};
-	double minz;
-	if (ST)
-	{
-		// ERRORFLAG SKYTRANSSKYMISMATCH  "Error: sky transfer function not compatible with provided sky"
-		if (ST->N!=sky->N)
-		{
-			AddErr(SKYTRANSSKYMISMATCH);
-			return M;
-		}
-	}
+	horizon H={0,0,NULL};
 	H=InitHorizon(sky->Nz);
 	if (ssdp_error_state)
-		return M;
-	MakeHorizon(&H, T, xoff, yoff, zoff);
-	M=InitSkyTransfer(sky->N);
-	minz=MinZentith(&H);
-	nz=(int) floor(minz/((M_PI/2)/((double)sky->Nz)));
-	if (ST)
-	{
-		for (i=3*(nz-1)*nz+1;i<sky->N;i++)
-			if (BelowHorizon(&H, sky->P[i].p))
-				M.t[i]=ST->t[i]*0.0;
-	}
-	else
-	{
-		for (i=3*(nz-1)*nz+1;i<sky->N;i++)
-			if (BelowHorizon(&H, sky->P[i].p))
-				M.t[i]=0.0;
-	}
-	FreeHorizon(&H);
-	return M;
+		return H;
+	ComputeHorizon(&H, T, xoff, yoff, zoff);
+	return H;
 }
+
 

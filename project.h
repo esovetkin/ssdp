@@ -18,6 +18,7 @@
 */
 #ifndef _RROJECT_H
 #define _RROJECT_H
+//BEGIN_SSDP_EXPORT
 typedef enum {AOI_NONE, AOI_GLASS, AOI_GLASS_AR, AOI_USER} AOI_Model;
 typedef struct {
 	double ng, nar;
@@ -25,12 +26,12 @@ typedef struct {
 	int N;
 	AOI_Model M;
 } AOI_Model_Data;
+//END_SSDP_EXPORT
 
 AOI_Model_Data InitAOIModel(AOI_Model model, double ng, double nar , double *theta, double *effT, int N);
-sky_transfer POA_Sky_Transfer(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, sky_transfer *ST);
-sky_transfer POA_Albedo_Transfer(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, sky_transfer *ST);
+void POA_Sky_Transfer(sky_grid *sky, sky_transfer *T, sky_pos pn, AOI_Model_Data *M);
+double POA_Albedo_Transfer(sky_grid *sky, sky_pos pn, AOI_Model_Data *M);
 double DiffusePlaneOfArray(sky_grid *sky, sky_transfer *T);
-double DirectPlaneOfArray(sky_grid *sky, sky_transfer *T);
-double POA_Albedo(sky_grid *sky, double albedo, sky_transfer *T);
+double DirectPlaneOfArray(sky_grid *sky, horizon *H, sky_pos pn, AOI_Model_Data *M);
 void POA_to_SurfaceNormal(sky_pos *pn, sky_pos sn);
 #endif

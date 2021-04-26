@@ -31,7 +31,7 @@ void UniformSky(sky_grid *sky, sky_pos sun, double GHI, double DHI)
 	Print(VVERBOSE, "********************************************************************************\n");
 	Print(VERBOSE, "--UniformSky\t\t\t");
 	Print(VVERBOSE, "\nGHI:           %e\nDHI:           %e\n\n", GHI, DHI);
-	Print(VVERBOSE, "Solar Zenith:  %f\nSolar Azimuth: %f\n", rad2degr(sun.z), rad2degr(sun.a));
+	Print(VVERBOSE, "Solar Zenith:  %f\nSolar Azimuth: %f\n", rad2deg(sun.z), rad2deg(sun.a));
 	Print(VVERBOSE, "on a sky dome with %d patches\n", sky->N);
 	if (GHI<0)
 	{
@@ -40,7 +40,7 @@ void UniformSky(sky_grid *sky, sky_pos sun, double GHI, double DHI)
 	}
 	// sum intensity cos(z) product to normalize intensities
 	for (i=0;i<sky->N;i++)
-		dhi0+=cos(sky->P[i].p.z);
+		dhi0+=sky->cosz[i]; // we could store this integral if we need to compute many uniform skies
 	dhi0=DHI/dhi0;
 	for (i=0;i<sky->N;i++)
 		sky->P[i].I=dhi0;
@@ -55,7 +55,7 @@ void UniformSky(sky_grid *sky, sky_pos sun, double GHI, double DHI)
 	{
 		sky->suni=FindPatch(sky, sun);
 		if (sky->P[sky->suni].p.z<M_PI/2)
-			sky->sI=dir/cos(sky->P[sky->suni].p.z);
+			sky->sI=dir/sky->cosz[sky->suni];
 		else
 			sky->suni=-1;
 		
@@ -250,13 +250,24 @@ void PerezSky(sky_grid * sky, sky_pos sun, double GHI, double DHI, double dayofy
 	int i;
 	double a, b, c, d, e;
 	double eps, delta;
+	if (GHI<=1e-10)
+	{
+		for (i=0;i<sky->N;i++)
+			sky->P[i].I=0;
+		sky->sp=sun;
+		sky->sI=0;
+		sky->suni=-1;
+		return;
+	}
+			
+	
 	eps=sky_clearness(sun, DHI, GHI);
 	delta=sky_brightness(sun, DHI, dayofyear);
 	ParamPerez(eps, delta, sun, &a, &b, &c, &d, &e);
 	Print(VVERBOSE, "********************************************************************************\n");
 	Print(VERBOSE, "--PerezSky\t\t\t");
 	Print(VVERBOSE, "\nGHI:           %e\nDHI:           %e\nDay:           %f\n", GHI, DHI, dayofyear);
-	Print(VVERBOSE, "Solar Zenith:  %f\nSolar Azimuth: %f\n", rad2degr(sun.z), rad2degr(sun.a));
+	Print(VVERBOSE, "Solar Zenith:  %f\nSolar Azimuth: %f\n", rad2deg(sun.z), rad2deg(sun.a));
 	Print(VVERBOSE, "on a sky dome with %d patches\n", sky->N);
 	Print(VVERBOSE, "================================================================================\n");
 	Print(VVERBOSE, "Clearness:     %e\nDelta:         %e\n", eps, delta);	
@@ -272,7 +283,7 @@ void PerezSky(sky_grid * sky, sky_pos sun, double GHI, double DHI, double dayofy
 	{
 		g=SolarAngle(sky->P[i].p.z,sun.z, sky->P[i].p.a, sun.a);   
 		sky->P[i].I=Fperez(sky->P[i].p.z,g, a, b, c, d, e);                                                   
-		dhi0+=sky->P[i].I*cos(sky->P[i].p.z);
+		dhi0+=sky->P[i].I*sky->cosz[i];
 	}
 	dhi0=DHI/dhi0;// correction factor
 	for (i=0;i<sky->N;i++)
@@ -288,10 +299,7 @@ void PerezSky(sky_grid * sky, sky_pos sun, double GHI, double DHI, double dayofy
 	if (sun.z<M_PI/2)
 	{
 		sky->suni=FindPatch(sky, sun);
-		if (sky->P[sky->suni].p.z<M_PI/2)
-			sky->sI=dir/cos(sky->P[sky->suni].p.z);
-		else
-			sky->suni=-1;
+		sky->sI=dir/cos(sun.z);
 	}
 	else
 		sky->suni=-1;
@@ -333,7 +341,7 @@ void CIE_Sky(sky_grid * sky, sky_pos sun, double GHI, double DHI, CIE_SKY_TYPE T
 	Print(VVERBOSE, "********************************************************************************\n");
 	Print(VERBOSE, "--CIE Sky\t\t\t");
 	Print(VVERBOSE, "\nGHI:           %e\nDHI:           %e\n", GHI, DHI);
-	Print(VVERBOSE, "Solar Zenith:  %f\nSolar Azimuth: %f\n", rad2degr(sun.z), rad2degr(sun.a));
+	Print(VVERBOSE, "Solar Zenith:  %f\nSolar Azimuth: %f\n", rad2deg(sun.z), rad2deg(sun.a));
 	Print(VVERBOSE, "on a sky dome with %d patches\n", sky->N);
 	Print(VVERBOSE, "================================================================================\n");
 	Print(VVERBOSE, "a:             %e\nb:             %e\nc:             %e\nd:             %e\ne:             %e\n", a,b,c,d,e);
@@ -344,7 +352,7 @@ void CIE_Sky(sky_grid * sky, sky_pos sun, double GHI, double DHI, CIE_SKY_TYPE T
 	{
 		g=SolarAngle(sky->P[i].p.z,sun.z, sky->P[i].p.a, sun.a);   
 		sky->P[i].I=Fperez(sky->P[i].p.z,g, a, b, c, d, e);                                                   
-		dhi0+=sky->P[i].I*cos(sky->P[i].p.z);
+		dhi0+=sky->P[i].I*sky->cosz[i];
 	}
 	dhi0=DHI/dhi0;// correction factor
 	for (i=0;i<sky->N;i++)
@@ -362,7 +370,7 @@ void CIE_Sky(sky_grid * sky, sky_pos sun, double GHI, double DHI, CIE_SKY_TYPE T
 	{
 		sky->suni=FindPatch(sky, sun);
 		if (sky->P[sky->suni].p.z<M_PI/2)
-			sky->sI=dir/cos(sky->P[sky->suni].p.z);
+			sky->sI=dir/sky->cosz[sky->suni];
 		else
 			sky->suni=-1;
 		

@@ -19,6 +19,7 @@ typedef struct JulianDate {
 	double JD, dJD, hour;
 } JulianDate;
 
+// compute the julain date from epoch time
 JulianDate MakeJulianDate(time_t t)
 {
 	struct tm *ut;
@@ -39,8 +40,10 @@ JulianDate MakeJulianDate(time_t t)
 	// Calculate time of the day in UT decimal hours
 	JD.hour = (double)ut->tm_hour + ((double)ut->tm_min+((double)ut->tm_sec)/60.0)/60.0;
 	// Calculate current Julian Day
-	jumon =(ut->tm_mon-14)/12;
-	juday=(1461*(ut->tm_year+4800+jumon))/4+(367*(ut->tm_mon-2-12*jumon))/12-(3*((ut->tm_year+4900+jumon)/100))/4+ut->tm_mday-32075;
+	// note tm_mon is months since january, i.e. it goes from 0 to 11.
+	jumon =(ut->tm_mon-13)/12;
+	// note tm_year is years since 1900
+	juday=(1461*(ut->tm_year+1900+4800+jumon))/4+(367*(ut->tm_mon-1-12*jumon))/12-(3*((ut->tm_year+1900+4900+jumon)/100))/4+ut->tm_mday-32075;
 	JD.JD=((double)(juday))-0.5+JD.hour/24.0;
 	// Day since JD0 (1 January 2000)
 	JD.dJD=JD.JD-JD0;
@@ -76,7 +79,7 @@ double EclipticOblique(JulianDate J)
 double RightAscension(JulianDate J)
 {
 	double el=EclipticLong(J);
-	double ra=EclipticLong(J);
+	double ra;
 	ra=atan2(cos(EclipticOblique(J))*sin(el),cos(el));
 	if (ra<0)
 		ra+=2*M_PI;
@@ -111,6 +114,7 @@ sky_pos sunpos(time_t t, double lat, double lon)
 	de=Declination(J);
 	s.z=acos(cos(lat)*cos(ha)*cos(de)+sin(de)*sin(lat));
 	s.a=atan2(-sin(ha),tan(de)*cos(lat)-sin(lat)*cos(ha));
+	s.a=fmod(s.a,2*M_PI);
 	s.z+=sin(s.z)*EARTH_R/ASTR_UNIT; // add parallax
 	return s;
 }
