@@ -353,7 +353,7 @@ sky_grid InitSky(int Nz)
 		sky.N=0;
 		return sky;
 	}
-	
+	sky.icosz=0;
 	for (i=0;i<sky.N;i++)
 	{
 		sky.P[i].I=0;
@@ -363,6 +363,7 @@ sky_grid InitSky(int Nz)
 		sky.P[i].NI=NextIsoL(Nz, i);
 		sky.P[i].PI=PrevIsoL(Nz, i);
 		sky.cosz[i]=cos(sky.P[i].p.z);
+		sky.icosz+=sky.cosz[i];
 	}
 	Print(VERBOSE, "Done\n");
 	Print(VVERBOSE, "********************************************************************************\n\n");

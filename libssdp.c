@@ -79,6 +79,7 @@ void ssdp_make_perez_all_weather_sky_coordinate(sky_grid * sky, time_t t, double
 	sun=sunpos(t, lat, lon);
 	PerezSky(sky, sun, GHI, DHI, ut->tm_yday);
 }
+// todo add cumulative sky routine
 /* project routines */
 // orient module w.r.t. ground orientation
 void ssdp_poa_to_surface_normal(sky_pos pn0, sky_pos sn, sky_pos *pn)

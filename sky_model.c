@@ -22,26 +22,21 @@
 #include "vector.h"
 #include "sky_dome.h"
 #include "sky_model.h"
+#include "error.h"
 #include "print.h"
 	
 void UniformSky(sky_grid *sky, sky_pos sun, double GHI, double DHI)
 {
 	double dhi0=0, dir;
 	int i;
-	Print(VVERBOSE, "********************************************************************************\n");
-	Print(VERBOSE, "--UniformSky\t\t\t");
-	Print(VVERBOSE, "\nGHI:           %e\nDHI:           %e\n\n", GHI, DHI);
-	Print(VVERBOSE, "Solar Zenith:  %f\nSolar Azimuth: %f\n", rad2deg(sun.z), rad2deg(sun.a));
-	Print(VVERBOSE, "on a sky dome with %d patches\n", sky->N);
 	if (GHI<0)
 	{
 		GHI=0; // it is night
 		DHI=0;
 	}
-	// sum intensity cos(z) product to normalize intensities
-	for (i=0;i<sky->N;i++)
-		dhi0+=sky->cosz[i]; // we could store this integral if we need to compute many uniform skies
-	dhi0=DHI/dhi0;
+	if (DHI<0)
+		DHI=0; // black sky
+	dhi0=DHI/sky->icosz;
 	for (i=0;i<sky->N;i++)
 		sky->P[i].I=dhi0;
 	dir=GHI-DHI;
@@ -259,39 +254,45 @@ void PerezSky(sky_grid * sky, sky_pos sun, double GHI, double DHI, double dayofy
 		sky->suni=-1;
 		return;
 	}
-			
+	if (DHI<0)
+	{
+		Print(VVERBOSE, "Warning: black sky\n");
+		DHI=0;
+	}		
 	
 	eps=sky_clearness(sun, DHI, GHI);
 	delta=sky_brightness(sun, DHI, dayofyear);
 	ParamPerez(eps, delta, sun, &a, &b, &c, &d, &e);
-	Print(VVERBOSE, "********************************************************************************\n");
-	Print(VERBOSE, "--PerezSky\t\t\t");
-	Print(VVERBOSE, "\nGHI:           %e\nDHI:           %e\nDay:           %f\n", GHI, DHI, dayofyear);
-	Print(VVERBOSE, "Solar Zenith:  %f\nSolar Azimuth: %f\n", rad2deg(sun.z), rad2deg(sun.a));
-	Print(VVERBOSE, "on a sky dome with %d patches\n", sky->N);
-	Print(VVERBOSE, "================================================================================\n");
-	Print(VVERBOSE, "Clearness:     %e\nDelta:         %e\n", eps, delta);	
-	Print(VVERBOSE, "a:             %e\nb:             %e\nc:             %e\nd:             %e\ne:             %e\n", a,b,c,d,e);
-	Print(VVERBOSE, "================================================================================\n");
-	if (GHI<0)
-	{
-		GHI=0;
-		DHI=0;
-	}
 	// sum intensity cos(z) product to normalize intensities
 	for (i=0;i<sky->N;i++)
 	{
 		g=SolarAngle(sky->P[i].p.z,sun.z, sky->P[i].p.a, sun.a);   
-		sky->P[i].I=Fperez(sky->P[i].p.z,g, a, b, c, d, e);                                                   
+		sky->P[i].I=Fperez(sky->P[i].p.z,g, a, b, c, d, e);  
+		if (sky->P[i].I<0) // unphysical values...
+			sky->P[i].I=0;
+		else
+			if(!isfinite(sky->P[i].I)) // scary skies
+				sky->P[i].I=0;			
 		dhi0+=sky->P[i].I*sky->cosz[i];
 	}
-	dhi0=DHI/dhi0;// correction factor
-	for (i=0;i<sky->N;i++)
-		sky->P[i].I*=dhi0;
+	if (dhi0<1e-10) // problem
+	{
+		Print(VVERBOSE, "Warning: fall back to uniform sky, Perez gives unreasonable results\n");
+		// perez gives unphysical values, fall back to a uniform sky
+		dhi0=DHI/sky->icosz;
+		for (i=0;i<sky->N;i++)
+			sky->P[i].I=dhi0;
+	}
+	else
+	{
+		dhi0=DHI/dhi0;// correction factor		
+		for (i=0;i<sky->N;i++)
+			sky->P[i].I*=dhi0;
+	}
 	dir=GHI-DHI; // direct contribution
 	if (dir<0)
 	{
-		// no black hole sun
+		Print(VVERBOSE, "Warning: black hole sun\n");// it finally came, RIP Chris
 		dir=0;
 	}
 	sky->sp=sun;
@@ -303,10 +304,80 @@ void PerezSky(sky_grid * sky, sky_pos sun, double GHI, double DHI, double dayofy
 	}
 	else
 		sky->suni=-1;
-	Print(VERBOSE, "Done\n");
-	Print(VVERBOSE, "********************************************************************************\n\n");
 }
-
+// compute an average sky
+void CumulativePerezSky(sky_grid * sky, sky_pos *sun, double *GHI, double *DHI, double *dayofyear, int N)
+{
+	sky_pos s0={0,0};
+	double dhi0, dir, g;
+	int i, j;
+	double a, b, c, d, e;
+	double eps, delta, *I;
+	// rest sky
+	for (i=0;i<sky->N;i++)
+		sky->P[i].I=0;
+	sky->sp=s0;
+	sky->sI=0;
+	sky->suni=-1;
+	
+	I=malloc(sky->N*sizeof(double));
+	if (!I)
+	{
+		// ERRORFLAG MALLOCFAILSKYMODEL  "Error memory allocation failed in computing a cumulative sky"
+		AddErr(MALLOCFAILSKYMODEL);
+		return;
+	}
+	
+	for (j=0;j<N;j++)
+	{
+		double dhi;
+		if (GHI[j]<=1e-10)
+			break;
+		if (DHI[j]<0)
+		{
+			Print(VVERBOSE, "Warning: black sky\n");
+			dhi=0;
+		}		
+		else
+			dhi=DHI[j];
+		eps=sky_clearness(sun[j], dhi, GHI[j]);
+		delta=sky_brightness(sun[j], dhi, dayofyear[j]);
+		ParamPerez(eps, delta, sun[j], &a, &b, &c, &d, &e);
+		// sum intensity cos(z) product to normalize intensities
+		dhi0=0;
+		for (i=0;i<sky->N;i++)
+		{
+			g=SolarAngle(sky->P[i].p.z,sun[j].z, sky->P[i].p.a, sun[j].a);   
+			I[i]=Fperez(sky->P[i].p.z,g, a, b, c, d, e);  
+			if ((I[i]<0)||(!isfinite(I[i])))
+				I[i]=0;			
+			dhi0+=I[i]*sky->cosz[i];
+		}
+		if (dhi0<1e-10) // problem
+		{
+			Print(VVERBOSE, "Warning: fall back to uniform sky, Perez gives unreasonable results\n");
+			// perez gives unphysical values, fall back to a uniform sky
+			dhi0=dhi/sky->icosz;
+			for (i=0;i<sky->N;i++)
+				sky->P[i].I+=dhi0;
+		}
+		else
+		{
+			dhi0=dhi/dhi0;// correction factor		
+			for (i=0;i<sky->N;i++)
+				sky->P[i].I+=I[i]*dhi0;
+		}
+		dir=GHI[j]-dhi; // direct contribution
+		if (dir<0)
+		{
+			Print(VVERBOSE, "Warning: black hole sun\n");// it finally came, RIP Chris
+			dir=0;
+		}
+		if (sun[j].z<M_PI/2)
+			sky->P[FindPatch(sky, sun[j])].I+=dir/cos(sun[j].z);
+	}
+	free(I);
+}
 
 // how to invesely compute DHI from CIE Sky type and GHI? 
 // perez has a paper on computing DNI from GHI and other stuff

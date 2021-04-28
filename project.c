@@ -60,8 +60,6 @@ AOI_Model_Data InitAOIModel(AOI_Model model, double ng, double nar , double *the
 	return M;
 }
 	
-
-#define AOIEPS 1e-3
 double EffectiveT(AOI_Model_Data *M, double z, double R0)
 {
 	switch (M->M)
@@ -73,11 +71,11 @@ double EffectiveT(AOI_Model_Data *M, double z, double R0)
 		case AOI_USER:
 		{
 			int imin=0, imax=M->N-1, i;
-			// find aoi in theta array
-			if (M->effT[imin]>z)
+			// binary search of aoi in theta array
+			if (M->theta[imin]>z)
 				return 1.0;
 			if (M->theta[imax]<z)
-				return M->effT[imax]/M->theta[0];
+				return M->effT[imax]/M->effT[0];
 			i=(imin+imax)/2;
 			while ((i!=imin)&&(i!=imax))
 			{
@@ -87,10 +85,7 @@ double EffectiveT(AOI_Model_Data *M, double z, double R0)
 					imax=i;
 				i=(imin+imax)/2;
 			}
-			if ((M->theta[imax]-M->theta[imin])>AOIEPS)
-				return 	((z-M->theta[imin])*M->effT[imax]+(M->theta[imax]-z)*M->effT[imin])/(M->theta[imax]-M->theta[imin])/M->theta[0];
-			else 
-				return 	(M->effT[imax]+M->effT[imin])/2.0/M->theta[0];
+			return 	((z-M->theta[imin])*M->effT[imax]+(M->theta[imax]-z)*M->effT[imin])/(M->theta[imax]-M->theta[imin])/M->theta[0];
 		}		
 		default:
 			return 1/R0;

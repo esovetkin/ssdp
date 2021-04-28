@@ -193,6 +193,8 @@ double **ReadArrays(char *fn, int Narr, int *N)
 		if((k==1)&&(c!='#'))
 		{
 			p=line;
+			while ((isblank(*p))&&*p)
+				p++;
 			for (i=0;i<Narr;i++)
 			{
 				q=p;
@@ -207,7 +209,7 @@ double **ReadArrays(char *fn, int Narr, int *N)
 				if (!*p)
 					break;
 			}
-			if (i==Narr-1)
+			if (i>=Narr-1)
 				n++;
 					
 			if (Na-1==n)

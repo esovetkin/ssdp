@@ -96,7 +96,7 @@ double lmst(JulianDate J, double longitude)
 	//Greenwich Mean Sidereal Time
 	double gmst=6.6974243242+0.0657098283*J.dJD+J.hour;
 	//Local Mean Sidereal Time
-	return gmst*15*M_PI/180.0+longitude;
+	return deg2rad(gmst*15)+longitude;
 }
 
 double hourangle(JulianDate J, double longitude)

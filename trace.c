@@ -108,13 +108,11 @@ int BelowHorizon(const horizon *H, sky_pos p)
 {
 	int i,j;
 	double a1,a2;
-	i=(int)p.a/H->astep;
-	if (i<0)
-		i+=H->N;
-	i=i%H->N;
 	if (p.a<0)
 		p.a+=M_PI*2;
-	while (adiff(i*H->astep, p.a)>0)
+	i=(int)(p.a/H->astep);
+	i=i%H->N;
+	if (adiff(i*H->astep, p.a)>0)
 	{
 		i--;
 		if (i<0)

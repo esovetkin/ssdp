@@ -37,6 +37,7 @@ typedef struct sky_grid {
 	double sI;	// solar intensity
 	int suni; // index of the sky patch the sun is in
 	double *cosz; // per patch cosine of zenith
+	double icosz;
 	int N;		
 	int Nz;
 } sky_grid;

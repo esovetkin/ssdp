@@ -413,6 +413,12 @@ void InitConfigMask(simulation_config *C)
 			C->L[i]=ssdp_setup_location(&(C->S), &(C->T), C->albedo, C->o[i], C->x[i],C->y[i],C->z[i], &(C->M));
 			if (ssdp_error_state)
 				break;
+			/*{
+				int j;
+				for (j=0;j<C->L[i].H.N;j++)
+					fprintf(stderr, "%e %e\n", j*C->L[i].H.astep, C->L[i].H.zen[j]);
+				fprintf(stderr, "\n");
+			}	*/	
 			pco=ProgressBar((100*(i+1))/C->Nl, pco, ProgressLen, ProgressTics);
 		}
 		dt=TOC();
@@ -597,6 +603,10 @@ void ConfigLoc (char *in)
 		free(word);
 		return;
 	}
+	if (GetOption(in, "albedo", word))
+	{
+		C->albedo=atof(word);
+	}
 	free(word);
 	if (x->N!=y->N)
 	{
@@ -608,6 +618,7 @@ void ConfigLoc (char *in)
 		Warning("z- array must be either of equal length as x- and y- or of length 1\n"); 
 		return;
 	}
+	
 	if (az->N!=ze->N)
 	{
 		Warning("azimuth and zenith arrays must be of equal length\n"); 
@@ -627,7 +638,6 @@ void ConfigLoc (char *in)
 	C->y=malloc(C->Nl*sizeof(double));
 	C->z=malloc(C->Nl*sizeof(double));
 	C->o=malloc(C->Nl*sizeof(sky_pos));
-	
 	if ((z->N==1)&&(az->N==1)) // one z, one orientation
 	{
 		for (i=0;i<C->Nl;i++)
@@ -637,6 +647,7 @@ void ConfigLoc (char *in)
 			C->z[i]=z->D[0];
 			C->o[i].a=az->D[0];
 			C->o[i].z=ze->D[0];
+			
 		}
 	}
 	else if (z->N==1) // many orientations, one z
