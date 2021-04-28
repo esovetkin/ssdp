@@ -95,8 +95,6 @@ AOI_Model_Data ssdp_init_aoi_model(AOI_Model model,double nf, double nar,double 
 typedef struct location {
 	sky_transfer T;
 	horizon H;
-	sky_pos pn;
-	AOI_Model_Data *M;
 } location;
 //END_SSDP_EXPORT
 void ssdp_free_location(location *l)

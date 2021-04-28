@@ -413,12 +413,6 @@ void InitConfigMask(simulation_config *C)
 			C->L[i]=ssdp_setup_location(&(C->S), &(C->T), C->albedo, C->o[i], C->x[i],C->y[i],C->z[i], &(C->M));
 			if (ssdp_error_state)
 				break;
-			/*{
-				int j;
-				for (j=0;j<C->L[i].H.N;j++)
-					fprintf(stderr, "%e %e\n", j*C->L[i].H.astep, C->L[i].H.zen[j]);
-				fprintf(stderr, "\n");
-			}	*/	
 			pco=ProgressBar((100*(i+1))/C->Nl, pco, ProgressLen, ProgressTics);
 		}
 		dt=TOC();
@@ -1274,14 +1268,105 @@ void SimStatic(char *in)
 		free(out.D);
 	}	
 }
-// _PARSEFLAG sim_route SimRoute "C=<config-variable> x=<array-variable> y=<array-variable> t=<array-variable> GHI=<array-variable> DHI=<array-variable> POA=<out-array>"
-/*void SimStatic(char *in)
+// PARSEFLAG sim_route SimRoute "C=<config-variable> t=<array-variable> GHI=<array-variable> DHI=<array-variable> POA=<out-array>"
+void SimRoute(char *in)
 {
-	sky_ST *ST; // a mask for every grid point
 	int i, j; // loop through space and time
+	char *word;
+	simulation_config *C;
+	array *t, *GH, *DH, out;
+	clock_t tsky0, tpoa0;
+	clock_t tsky=0, tpoa=0;
+	double ttsky, ttpoa;
+	int pco=0;
+	word=malloc((strlen(in)+1)*sizeof(char));
 	
-	
-}*/
+	if (FetchConfig(in, "C", word, &C))
+	{
+		free(word);
+		return;
+	}		
+	if (!C->sky_init)
+	{		
+		Warning("Simulation config has no sky initialized\n");
+		free(word);
+		return;
+	}	
+	if (!C->topo_init) 
+	{	
+		Warning("No topological data available\n");
+		free(word);
+		return;
+	}
+	if (!C->loc_init) 
+	{	
+		Warning("Simulation config has no locations initialized\n");
+		free(word);
+		return;
+	}		
+	if (FetchArray(in, "t", word, &t))
+	{
+		free(word);
+		return;
+	}
+	if (FetchArray(in, "GHI", word, &GH))
+	{
+		free(word);
+		return;
+	}
+	if (FetchArray(in, "DHI", word, &DH))
+	{
+		free(word);
+		return;
+	}	
+	if ((t->N!=GH->N)||(t->N!=DH->N))
+	{
+		Warning("Length of t-, GHI-, and DHI-arrays do not match\n");
+		free(word);
+		return;
+	}
+	if (t->N<C->Nl)
+		Warning("Warning: time array contains less points than there are waypoints\n");
+	if (t->N>C->Nl)
+		Warning("Warning: time array contains more points than there are waypoints\n");
+	// fetch name of output var
+	if (!GetArg(in, "POA", word))
+	{
+		free(word);
+		return;
+	}
+	out.D=malloc(t->N*sizeof(double));
+	if (out.D==NULL)
+	{
+		free(word);
+		return;
+	}	
+	out.N=t->N;	
+	for (j=0;j<t->N;j++)
+	{
+		// compute sky at evert time instance
+		tsky0=clock();
+		ssdp_make_perez_all_weather_sky_coordinate(&(C->S), (time_t) t->D[j], C->lon, C->lat, GH->D[j], DH->D[j]);
+		tsky+=clock()-tsky0;
+		tpoa0=clock();
+		if (t->N>1)
+			i=(j*(C->Nl-1))/(t->N-1);
+		else
+			i=0;
+		out.D[j]=ssdp_total_poa(&(C->S), C->o[i], &(C->M), C->L+i);
+		pco=ProgressBar((100*(j+1))/t->N, pco, ProgressLen, ProgressTics);
+		tpoa+=clock()-tpoa0;
+	}
+	ttsky=(double)tsky/CLOCKS_PER_SEC;
+	ttpoa=(double)tpoa/CLOCKS_PER_SEC;
+	printf("Computed %d skies in %g s (%g s/sky)\n", t->N, ttsky, ttsky/((double)t->N));
+	printf("Computed %d POA Irradiances in %g s (%g s/POA)\n", t->N, ttpoa, ttpoa/((double)(t->N)));
+	if(AddArray(word, out))
+	{
+		free(word); // failed to make array
+		free(out.D);
+	}	
+}
 
 // PARSEFLAG solpos SolarPos "t=<array-variable> lon=<longitude> lat=<latitude> azimuth=<output-array> zenith=<output-array>"
 void SolarPos(char *in)
@@ -1478,6 +1563,7 @@ void WriteArraysToFile(char *in)
 			N=a->N;
 		else if (a->N!=N)
 		{
+			printf("0: %d %d:%d\n", N, i, a->N);
 			Warning("Error: arrays must be of equal length\n"); 
 			free(word);
 			free(data);

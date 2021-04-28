@@ -450,11 +450,17 @@ int make_delaunay(sh_triangulation_data *td) {
 	}
 	int flipcount = 0;
 	ll_map_r(td->internal_edges, find_highest_flipcount, &flipcount);
-	return flipcount;
+	if (fd.maxflips>flipcount)
+		return flipcount;
+	else
+		return -1;
 }
 int delaunay(sh_triangulation_data *td, sh_point *ps, size_t n) { 
+	int res;
 	if (triangulate(td, ps, n) == 0) {
-		return make_delaunay(td);
+		res=make_delaunay(td);
+		if (res>0)
+			return res;
 	}
 	ll_mapdestroy(td->triangles, free);
 	ll_mapdestroy(td->hull_edges, free);

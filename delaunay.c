@@ -73,6 +73,18 @@ triangles * CollectTriangles(ll_node *n, int N, int *Nt)
 	return T;
 }
 
+#define DISTEPS 1e-12
+void Distort(double *x, double *y, int N)
+{
+	// in case triangulation fails we can try distorting the arrays a bit
+	int i;
+	srand(time(NULL));
+	for (i=0;i<N;i++)
+	{
+		x[i]*=(1.0+DISTEPS*(((double)rand())/RAND_MAX-0.5));
+		y[i]*=(1.0+DISTEPS*(((double)rand())/RAND_MAX-0.5));
+	}
+}
 
 triangles * Triangulate(double *x, double *y, int N, int *Nt)
 {
@@ -93,8 +105,27 @@ triangles * Triangulate(double *x, double *y, int N, int *Nt)
 		ll_mapdestroy(td.internal_edges, free);
 	}
 	else
-		T=NULL;
+	{
+		// give it one more try after a random distortion of the mesh
+		free(P);
+		Distort(x,y, N);
+		P=MakeShullPoints(x, y, N);	
+		result = delaunay(&td, P, N);
+		if (result > 0)
+		{
+			T=CollectTriangles(td.triangles, N, Nt);
 	
+			ll_mapdestroy(td.triangles, free);
+			ll_mapdestroy(td.hull_edges, free);
+			ll_mapdestroy(td.internal_edges, free);
+		}
+		else
+		{
+			// ERRORFLAG TRIANGULATIONFAILED  "Error triangulation failed!"
+			AddErr(TRIANGULATIONFAILED);
+			T=NULL;
+		}
+	}
 	free(P);
 	return T;
 }
