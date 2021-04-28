@@ -305,10 +305,10 @@ int EdgeVis(double px, double py, double ax, double ay, double bx, double by)
 #define CX x[T.k]
 #define CY y[T.k]
 
-int TriangleAziRange(triangles T, double *x, double *y, double xoff, double yoff, double *a1, double *a2)
+int TriangleAziRange(triangles T, double *x, double *y, double dz, double xoff, double yoff, double *a1, double *a2)
 {
 	// assume right handed triangles
-	
+	double dx, dy, l, dz2=dz*dz;
 	// fprintf(stderr, "Winding %f\n", pcross(AX, AY, BX, BY, CX, CY));
 	if (EdgeVis(xoff,yoff,AX,AY,BX,BY)&&(EdgeVis(xoff,yoff,BX,BY,CX,CY))&&(EdgeVis(xoff,yoff,CX,CY,AX,AY))) // right winding with each edge
 	{
@@ -319,22 +319,44 @@ int TriangleAziRange(triangles T, double *x, double *y, double xoff, double yoff
 	if (pcross(xoff,yoff,AX,AY,BX,BY)*(pcross(xoff,yoff,BX,BY,CX,CY))>0) // consitently left or right winding from A via B to C
 	{
 		// p1 p3
-		(*a1)=atan2(AY-yoff,AX-xoff);
-		(*a2)=atan2(CY-yoff,CX-xoff);
+		dx=AX-xoff;
+		dy=AY-yoff;
+		l=sqrt((dx*dx+dz2)/(dx*dx+dy*dy));
+		(*a1)=atan2(l*dy,l*dx);
+		
+		dx=CX-xoff;
+		dy=CY-yoff;
+		l=sqrt((dx*dx+dz2)/(dx*dx+dy*dy));
+		(*a2)=atan2(l*dy,l*dx);
 		return 1;
 	}
 	if (pcross(xoff,yoff,BX,BY,CX,CY)*(pcross(xoff,yoff,CX,CY,AX,AY))>0) // consitently left or right winding from B via C to A
 	{
 		// p2 p1
-		(*a1)=atan2(BY-yoff,BX-xoff);
-		(*a2)=atan2(AY-yoff,AX-xoff);
+		dx=BX-xoff;
+		dy=BY-yoff;
+		l=sqrt((dx*dx+dz2)/(dx*dx+dy*dy));
+		(*a1)=atan2(l*dy,l*dx);
+		
+		dx=AX-xoff;
+		dy=AY-yoff;
+		l=sqrt((dx*dx+dz2)/(dx*dx+dy*dy));
+		(*a2)=atan2(l*dy,l*dx);
 		return 1;
 	}
 	if (pcross(xoff,yoff,CX,CY,AX,AY)*(pcross(xoff,yoff,AX,AY,BX,BY))>0) // consitently left or right winding from C via A to B
 	{
 		// p2 p3
-		(*a1)=atan2(CY-yoff,CX-xoff);
-		(*a2)=atan2(BY-yoff,BX-xoff);
+		dx=CX-xoff;
+		dy=CY-yoff;
+		l=sqrt((dx*dx+dz2)/(dx*dx+dy*dy));
+		(*a1)=atan2(l*dy,l*dx);
+		
+		dx=BX-xoff;
+		dy=BY-yoff;
+		l=sqrt((dx*dx+dz2)/(dx*dx+dy*dy));
+		(*a2)=atan2(l*dy,l*dx);
+		
 		return 1;
 	}
 	// ERRORFLAG TRIANGLEMESS  "Error cannot figure out the azimuth range of a triangle"
@@ -363,7 +385,7 @@ void ComputeHorizon(horizon *H, topology *T, double xoff, double yoff, double zo
 		
 		d=sqrt((T->T[i].ccx-xoff)*(T->T[i].ccx-xoff)+(T->T[i].ccy-yoff)*(T->T[i].ccy-yoff));
 		z=(T->z[T->T[i].i]+T->z[T->T[i].j]+T->z[T->T[i].k])/3;
-		if (TriangleAziRange(T->T[i], T->x, T->y, xoff, yoff, &a1, &a2)) // the horizon routine is not equipped to put a roof over the PV panel...
+		if (TriangleAziRange(T->T[i], T->x, T->y, z-zoff, xoff, yoff, &a1, &a2)) // the horizon routine is not equipped to put a roof over the PV panel...
 		{
 			//fprintf(stderr, "%e %e %e %e %e\n", d, z-zoff, a1, a2,  atan2(d, z-zoff));
 			RizeHorizon(H, a1, a2, atan2(d, z-zoff));
