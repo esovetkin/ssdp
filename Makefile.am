@@ -11,14 +11,14 @@ libssdp_la_CFLAGS = $(AM_CFLAGS) -DLL_CIRCULAR -D_GNU_SOURCE
 
 
 bin_PROGRAMS = ssdp
-ssdp_SOURCES = io.c variables.c parser.c readlineshell.c util.c ssdp.c io.h variables.h parser.h readlineshell.h util.h 
+ssdp_SOURCES = io.c variables.c parser.c configparser.c arrayparser.c topoparser.c simparser.c readlineshell.c util.c ssdp.c io.h variables.h parser.h parserutil.h readlineshell.h util.h 
 ssdp_LDADD = libssdp.la -lreadline
 
 
 BUILT_SOURCES = errorflags.h errormessages.h gen_errorflags.sh libssdp_structs.h collect_datastructs.sh parsedef.h gen_parserflags.sh
 
 parsedef.h: gen_parserflags.sh parser.c
-	cd ${top_srcdir} && ${SHELL} gen_parserflags.sh parser.c
+	cd ${top_srcdir} && ${SHELL} gen_parserflags.sh parser.c configparser.c arrayparser.c topoparser.c simparser.c
 errorflags.h errormessages.h: gen_errorflags.sh $(libssdp_la_SOURCES)
 	cd ${top_srcdir} && ${SHELL} gen_errorflags.sh  $(libssdp_la_SOURCES)
 libssdp_structs.h: collect_datastructs.sh vector.h sky_dome.h delaunay.h trace.h ground.h project.h libssdp.c
