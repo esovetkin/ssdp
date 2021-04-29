@@ -23,12 +23,15 @@
 #include <stdarg.h>
 #include <ctype.h>
 #include "print.h"
-VERB ssdp_verbosity=QUIET;
+VERB ssdp_verbosity=WARNING;
 
 void Print(VERB v, const char *format_str, ...)
 {
 	va_list ap;
 	va_start (ap, format_str);
-	if (v<=ssdp_verbosity)
-		vprintf(format_str, ap); 
+	if (v==WARNING)
+		vfprintf(stderr, format_str, ap); 
+	else
+		if (v<=ssdp_verbosity)
+			vprintf(format_str, ap); 
 }

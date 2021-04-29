@@ -37,9 +37,6 @@ topology MakeTopology(double *x, double *y, double *z, int N)
 	topology T;
 	topology T0={NULL,NULL,NULL,0,NULL,0,NULL};
 	int i;
-	Print(VVERBOSE, "********************************************************************************\n");
-	Print(VERBOSE, "--MakeTopology\t\t\t");
-	Print(VVERBOSE, "\ncreating topology: %d points\n", N);
 	// ERRORFLAG MALLOCFAILTOPOLOGY  "Error memory allocation failed in creating a topology"
 	T.x=malloc(N*sizeof(double));
 	T.y=malloc(N*sizeof(double));
@@ -60,9 +57,6 @@ topology MakeTopology(double *x, double *y, double *z, int N)
 	if (ssdp_error_state)
 		return T0;
 	T.P=InitTree(T.T, T.Nt, T.x, T.y, N);
-	Print(VVERBOSE, "\ntriangulation: %d triangles\n", T.Nt);
-	Print(VERBOSE, "Done\n");
-	Print(VVERBOSE, "********************************************************************************\n");
 	return T;
 }
 
@@ -133,12 +127,6 @@ topology CreateRandomTopology(double dx, double dy, double dz, double fN, int N)
 	topology T;
 	topology T0={NULL,NULL,NULL,0,NULL,0,NULL};
 	int i, n;
-	VERB verbstate;
-	verbstate=ssdp_verbosity;
-	ssdp_verbosity=QUIET;
-	Print(VVERBOSE, "********************************************************************************\n");
-	Print(VERBOSE, "--Create Random Topology\t\t\t");
-	Print(VVERBOSE, "\ncreating topology: %d points\n", N);
 	fN=fabs(fN);
 	if (fN>1)
 		fN=1/fN;
@@ -193,10 +181,6 @@ topology CreateRandomTopology(double dx, double dy, double dz, double fN, int N)
 	free(x);
 	free(y);
 	free(z);
-	ssdp_verbosity=verbstate;
-	Print(VVERBOSE, "\ntriangulation: %d triangles\n", T.Nt);
-	Print(VERBOSE, "Done\n");
-	Print(VVERBOSE, "********************************************************************************\n");
 	return T;
 }
 
@@ -253,11 +237,6 @@ void MakeHorizon2(horizon *H, topology *T, double xoff, double yoff, double zoff
 	int i;
 	double d;
 	double z, a1, a2, a3, w1,w2,w3;
-	Print(VVERBOSE, "********************************************************************************\n");
-	Print(VERBOSE, "--MakeHorizon2\t\t\t");
-	Print(VVERBOSE, "\ntopology: %d points\n", T->N);
-	Print(VVERBOSE, "horizon: %d points\n", H->N);
-	Print(VVERBOSE, "Computing Horizon\n");
 	
 	for (i=0;i<T->Nt;i++)
 	{
@@ -280,8 +259,6 @@ void MakeHorizon2(horizon *H, topology *T, double xoff, double yoff, double zoff
 		else if ((w3>w1)&&(w3>w2))
 			RizeHorizon(H, a1, a3, M_PI/2-atan2(z-zoff,d));
 	}
-	Print(VERBOSE, "Done\n");
-	Print(VVERBOSE, "********************************************************************************\n\n");
 	
 }
 // alternative MakeHorizon code relying on the triangulation producing right handed triangles
@@ -318,16 +295,22 @@ int TriangleAziRange(triangles T, double *x, double *y, double dz, double xoff, 
 	}
 	if (pcross(xoff,yoff,AX,AY,BX,BY)*(pcross(xoff,yoff,BX,BY,CX,CY))>0) // consitently left or right winding from A via B to C
 	{
+		/* the cartesian and angular systems used here orientate to how we generally use 
+		 * maps and compasses this means that north is up (i.e. the y-axis points north) 
+		 * and is at 0°. The x-axis points to the east which is at 90° (i.e. we go clockwise). 
+		 * Thus in the following atan2's we swap the usual positions of the x and y arguments.
+		 * Note that the definition of angles is also affected by the sunpos.c code.
+		 */ 
 		// p1 p3
 		dx=AX-xoff;
 		dy=AY-yoff;
 		l=sqrt((dx*dx+dz2)/(dx*dx+dy*dy));
-		(*a1)=atan2(l*dy,l*dx);
+		(*a1)=atan2(l*dx,l*dy); // I want north to be 0° and east
 		
 		dx=CX-xoff;
 		dy=CY-yoff;
 		l=sqrt((dx*dx+dz2)/(dx*dx+dy*dy));
-		(*a2)=atan2(l*dy,l*dx);
+		(*a2)=atan2(l*dx,l*dy);
 		return 1;
 	}
 	if (pcross(xoff,yoff,BX,BY,CX,CY)*(pcross(xoff,yoff,CX,CY,AX,AY))>0) // consitently left or right winding from B via C to A
@@ -336,12 +319,12 @@ int TriangleAziRange(triangles T, double *x, double *y, double dz, double xoff, 
 		dx=BX-xoff;
 		dy=BY-yoff;
 		l=sqrt((dx*dx+dz2)/(dx*dx+dy*dy));
-		(*a1)=atan2(l*dy,l*dx);
+		(*a1)=atan2(l*dx,l*dy);
 		
 		dx=AX-xoff;
 		dy=AY-yoff;
 		l=sqrt((dx*dx+dz2)/(dx*dx+dy*dy));
-		(*a2)=atan2(l*dy,l*dx);
+		(*a2)=atan2(l*dx,l*dy);
 		return 1;
 	}
 	if (pcross(xoff,yoff,CX,CY,AX,AY)*(pcross(xoff,yoff,AX,AY,BX,BY))>0) // consitently left or right winding from C via A to B
@@ -350,12 +333,12 @@ int TriangleAziRange(triangles T, double *x, double *y, double dz, double xoff, 
 		dx=CX-xoff;
 		dy=CY-yoff;
 		l=sqrt((dx*dx+dz2)/(dx*dx+dy*dy));
-		(*a1)=atan2(l*dy,l*dx);
+		(*a1)=atan2(l*dx,l*dy);
 		
 		dx=BX-xoff;
 		dy=BY-yoff;
 		l=sqrt((dx*dx+dz2)/(dx*dx+dy*dy));
-		(*a2)=atan2(l*dy,l*dx);
+		(*a2)=atan2(l*dx,l*dy);
 		
 		return 1;
 	}

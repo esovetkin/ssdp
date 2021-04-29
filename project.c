@@ -104,7 +104,6 @@ void POA_Sky_Transfer(sky_grid *sky, sky_transfer *T, sky_pos pn, AOI_Model_Data
 	R0=EffectiveT(M, 0, 1);
 	if (T->N!=sky->N)
 	{
-		fprintf(stderr, "%d %d\n", T->N, sky->N);
 		// ERRORFLAG SKYTRANSSKYMISMATCH "Error: sky_transfer and sky_grid data structures size mismatch"
 		AddErr(SKYTRANSSKYMISMATCH);
 		return;
@@ -169,7 +168,7 @@ double DirectPlaneOfArray(sky_grid *sky, horizon *H, sky_pos pn, AOI_Model_Data 
 			return 0;
 	}
 	else
-		return sky->sI*cos(sky->sp.z)*EffectiveT(M, r.z, R0);
+		return sky->sI*cos(sky->sp.z)*EffectiveT(M, sky->sp.z, R0);
 	return 0;
 }
 

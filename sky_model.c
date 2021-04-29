@@ -57,8 +57,6 @@ void UniformSky(sky_grid *sky, sky_pos sun, double GHI, double DHI)
 	}
 	else
 		sky->suni=-1;
-	Print(VERBOSE, "Done\n");
-	Print(VVERBOSE, "********************************************************************************\n\n");
 }
 
 double SolarAngle(double z1, double z2, double a1, double a2)
@@ -70,7 +68,7 @@ double SolarAngle(double z1, double z2, double a1, double a2)
 		return 0.0;
 	else if (f > 1.1 )
 	{
-		fprintf(stderr,"Warning: cannot compute gamma (angle between point and sun)");
+		Print(WARNING,"Warning: cannot compute angle between sky-patch and sun");
 		return 0.0;
 	}
 	return acos(f);
@@ -277,7 +275,7 @@ void PerezSky(sky_grid * sky, sky_pos sun, double GHI, double DHI, double dayofy
 	}
 	if (dhi0<1e-10) // problem
 	{
-		Print(VVERBOSE, "Warning: fall back to uniform sky, Perez gives unreasonable results\n");
+		Print(VERBOSE, "Warning: fall back to uniform sky, Perez gives unreasonable results\n");
 		// perez gives unphysical values, fall back to a uniform sky
 		dhi0=DHI/sky->icosz;
 		for (i=0;i<sky->N;i++)
@@ -355,7 +353,7 @@ void CumulativePerezSky(sky_grid * sky, sky_pos *sun, double *GHI, double *DHI, 
 		}
 		if (dhi0<1e-10) // problem
 		{
-			Print(VVERBOSE, "Warning: fall back to uniform sky, Perez gives unreasonable results\n");
+			Print(VERBOSE, "Warning: fall back to uniform sky, Perez gives unreasonable results\n");
 			// perez gives unphysical values, fall back to a uniform sky
 			dhi0=dhi/sky->icosz;
 			for (i=0;i<sky->N;i++)
@@ -379,8 +377,7 @@ void CumulativePerezSky(sky_grid * sky, sky_pos *sun, double *GHI, double *DHI, 
 	free(I);
 }
 
-// how to invesely compute DHI from CIE Sky type and GHI? 
-// perez has a paper on computing DNI from GHI and other stuff
+// do I include CIE Skies? For PV yield it is not so much of interest I suppose
 CIE_SKY CIE_SKIES[15] = {
 	{1, 1,  4,   -0.7,   0,   -1.0,  0,    "CIE Standard Overcast Sky, Steep luminance gradation towards zenith, azimuthal uniformity"},
 	{1, 2,  4,   -0.7,   2,   -1.5,  0.15, "Overcast, with steep luminance gradation and slight brightening towards the sun"},
@@ -408,15 +405,6 @@ void CIE_Sky(sky_grid * sky, sky_pos sun, double GHI, double DHI, CIE_SKY_TYPE T
 	c=CIE_SKIES[TYPE].c;
 	d=CIE_SKIES[TYPE].d;
 	e=CIE_SKIES[TYPE].e;
-
-	Print(VVERBOSE, "********************************************************************************\n");
-	Print(VERBOSE, "--CIE Sky\t\t\t");
-	Print(VVERBOSE, "\nGHI:           %e\nDHI:           %e\n", GHI, DHI);
-	Print(VVERBOSE, "Solar Zenith:  %f\nSolar Azimuth: %f\n", rad2deg(sun.z), rad2deg(sun.a));
-	Print(VVERBOSE, "on a sky dome with %d patches\n", sky->N);
-	Print(VVERBOSE, "================================================================================\n");
-	Print(VVERBOSE, "a:             %e\nb:             %e\nc:             %e\nd:             %e\ne:             %e\n", a,b,c,d,e);
-	Print(VVERBOSE, "================================================================================\n");
 	
 	// sum intensity cos(z) product to normalize intensities
 	for (i=0;i<sky->N;i++)
@@ -434,7 +422,7 @@ void CIE_Sky(sky_grid * sky, sky_pos sun, double GHI, double DHI, CIE_SKY_TYPE T
 		// no black hole sun
 		dir=0;
 		if (fabs(dir/GHI)>1e-6)
-			fprintf(stderr,"Warning: Increasing GHI to DHI to avoid a negative direct light contribution\n");
+			Print(VERBOSE,"Warning: Increasing GHI to DHI to avoid a negative direct light contribution\n");
 	}
 	sky->sp=sun;
 	if (sun.z<M_PI/2)
@@ -448,6 +436,4 @@ void CIE_Sky(sky_grid * sky, sky_pos sun, double GHI, double DHI, CIE_SKY_TYPE T
 	}
 	else
 		sky->suni=-1;
-	Print(VERBOSE, "Done\n");
-	Print(VVERBOSE, "********************************************************************************\n\n");
 }

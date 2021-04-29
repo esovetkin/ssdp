@@ -27,6 +27,7 @@
 #include "project.h"
 #include "delaunay.h"
 #include "ground.h"
+#include "print.h"
 #include "error.h"
 #include "sunpos.h"
 /* libssdp entry points */
@@ -134,7 +135,7 @@ location ssdp_setup_location(sky_grid *sky, topology *T, double albedo, sky_pos 
 	if (albedo>ALBEPS)
 	{
 		if (albedo>1)
-			fprintf(stderr, "Warning: albedo larger than one\n");
+			Print(WARNING, "Warning: albedo larger than one\n");
 		l.T.g=albedo*POA_Albedo_Transfer(sky, pn, M);
 		if (ssdp_error_state)
 		{

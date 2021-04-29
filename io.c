@@ -4,6 +4,7 @@
 #include <ctype.h>
 #include <math.h>
 #include "libssdp.h"
+#include "util.h"
 
 #define MAXSTRLEN 1028
 
@@ -15,10 +16,8 @@ topology LoadTopo(char *fn)
 	double *x, *y, *z;
 	topology T;	
 	if ((f=fopen(fn,"rb"))==NULL)
-	{
-		fprintf(stderr,"Cannot open %s for reading\n", fn);
-		exit(1);
-	}
+		Fatal("Cannot open %s for reading\n", fn); // should return a null topography so we can recover
+		
 	line=malloc(MAXSTRLEN*sizeof(char));
     fgets(line, MAXSTRLEN-1, f);
 	N=0;
@@ -60,10 +59,7 @@ void WriteTopo(char *fn, topology *T)
 	FILE *f;
 	int i;
 	if ((f=fopen(fn,"w"))==NULL)
-	{
-		fprintf(stderr,"Cannot open %s for writing\n", fn);
-		exit(1);
-	}
+		Fatal("Cannot open %s for writing\n", fn); // should not kill myself over this
 	fprintf(f,"# topology data\n");
 	fprintf(f,"# x y z)\n");
 	for (i=0;i<T->N;i++)
@@ -75,10 +71,7 @@ void WriteTriangles(char *fn, topology *T)
 	FILE *f;
 	int i;
 	if ((f=fopen(fn,"w"))==NULL)
-	{
-		fprintf(stderr,"Cannot open %s for writing\n", fn);
-		exit(1);
-	}
+		Fatal("Cannot open %s for writing\n", fn);
 	fprintf(f,"# topology triangle data\n");
 	fprintf(f,"# x y z)\n");
 	for (i=0;i<T->Nt;i++)
@@ -175,10 +168,8 @@ double **ReadArrays(char *fn, int Narr, int *N)
 	FILE *f;
 	double **data;
 	if ((f=fopen(fn,"rb"))==NULL)
-	{
-		fprintf(stderr,"Cannot open %s for reading\n", fn);
-		exit(1);
-	}
+		Fatal("Cannot open %s for reading\n", fn);
+		
 	line=malloc(MAXSTRLEN*sizeof(char));
     fgets(line, MAXSTRLEN-1, f);
 	n=0;
@@ -234,10 +225,7 @@ void WriteArrays(char *fn, double **data, int Narr, int N)
 	FILE *f;
 	int i,j;
 	if ((f=fopen(fn,"w"))==NULL)
-	{
-		fprintf(stderr,"Cannot open %s for writing\n", fn);
-		exit(1);
-	}
+		Fatal("Cannot open %s for writing\n", fn);
 	for (i=0;i<N;i++)
 	{
 		for (j=0;j<Narr-1;j++)
@@ -246,58 +234,6 @@ void WriteArrays(char *fn, double **data, int Narr, int N)
 	}	
 	fclose(f);	
 }
-/*
-void RasterPOA(char *fn, sky_grid *sky, topology *T, double albedo, double dz, sky_pos pn, AOI_Model_Data *M, double x1, double y1, double x2, double y2, int Nx, int Ny)
-{
-	FILE *f;
-	int i,j;
-	double x, y;
-	VERB verbstate;
-	verbstate=ssdp_verbosity;
-	ssdp_verbosity=QUIET;
-	if ((f=fopen(fn,"w"))==NULL)
-	{
-		fprintf(stderr,"Cannot open %s for writing\n", fn);
-		exit(1);
-	}
-	fprintf(f,"# raster plot of topology\n");
-	for (i=0;i<Nx;i++)
-	{
-		x=x1+(x2-x1)*((double)i+0.5)/((double)Nx);
-		for (j=0;j<Ny;j++)
-		{
-			y=y1+(y2-y1)*((double)j+0.5)/((double)Ny);
-			ssdp_mask_horizon_z_to_ground(sky,T,x,y,dz, NULL);
-			fprintf(f,"%e %e %e\n", x, y, ssdp_total_poa(sky,albedo,pn,M,1));
-			ssdp_unmask_horizon(sky);
-		}
-	}	
-	ssdp_verbosity=verbstate;
-	fclose(f);
-}
-
-void RasterTopology(char *fn, topology T, double x1, double y1, double x2, double y2, int Nx, int Ny)
-{
-	FILE *f;
-	int i,j;
-	double x, y;
-	if ((f=fopen(fn,"w"))==NULL)
-	{
-		fprintf(stderr,"Cannot open %s for writing\n", fn);
-		exit(1);
-	}
-	fprintf(f,"# raster plot of topology\n");
-	for (i=0;i<Nx;i++)
-	{
-		x=x1+(x2-x1)*((double)i+0.5)/((double)Nx);
-		for (j=0;j<Ny;j++)
-		{
-			y=y1+(y2-y1)*((double)j+0.5)/((double)Ny);
-			fprintf(f,"%e %e %e\n", x, y, ssdp_sample_topology(x,y,T, NULL));
-		}
-	}	
-	fclose(f);
-}*/
 
 
 

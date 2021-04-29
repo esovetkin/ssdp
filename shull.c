@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <math.h>
+#include "print.h"
 #include "shull.h"
 #include "error.h"
 
@@ -194,12 +195,10 @@ void add_point_to_hull(sh_triangulation_data *td, sh_point *p) {
 			e0 = create_edge(e->p[0], p, t, NULL);
 			
 			last_hid = ll_insert_after(last_hid, e0);
-			/* printf("visible edge %p is first_vis, and remains in hull\n", e); */
 		}
 		else {
 			e0 = e1;
 			e0->t[1] = t;
-			/* printf("adding t=%p to e=%p\n", t, e0); */
 			td->internal_edges = ll_insert_before(td->internal_edges, e0);
 		}
 		e1 = create_edge(p, e->p[1], t, NULL);
@@ -221,6 +220,7 @@ void add_point_to_hull(sh_triangulation_data *td, sh_point *p) {
 int triangulate(sh_triangulation_data *td, sh_point *ps, size_t n) { 
 
 	int p0 = 0;
+	int deg=0;
 	delaunay_restart:
 	if (p0 != 0) { 
 		if (p0 == n) {
@@ -270,7 +270,7 @@ int triangulate(sh_triangulation_data *td, sh_point *ps, size_t n) {
 	i_best = 2;
 	r_best = sqcircumradius(&ps[2], &ps[1], &ps[0]);
 	if (r_best == -1) { 
-		fprintf(stderr, "circumradius degenerate case\n");
+		deg++;
 		++p0;
 		goto delaunay_restart;
 	} 
@@ -290,10 +290,12 @@ int triangulate(sh_triangulation_data *td, sh_point *ps, size_t n) {
 	}
 	else if (cross == 0) {
 		++p0;
-		fprintf(stderr, "cross product degenerate case\n");
+		deg++;
 		goto delaunay_restart;
 	}
 	
+	if (deg)
+		Print(WARNING,"Warning: degenerate cases triangulation\n");
 	/* calculate circumcircle centre and sort points based on distance */ 
 	sh_point cc;
 	double radius = circumcircle(&cc, &ps[0], &ps[1], &ps[2]);
@@ -314,7 +316,6 @@ int triangulate(sh_triangulation_data *td, sh_point *ps, size_t n) {
 		if (ssdp_error_state)
 			return false;
 	} 
-
 	return 0;
 
 } 
@@ -371,7 +372,6 @@ void *flip_if_necessary(void *a, void *b) {
 			e->t[1]->ccr2 > sqdist(&e->t[1]->cc, e->t[0]->p[c])) {
 			++e->flipcount;
 			if (e->flipcount > fd->maxflips) {
-				fprintf(stderr, "Warning: maximal flipcount reached in shull\n");
 				return a;
 			}
 			fd->flipped = true;
@@ -453,7 +453,8 @@ int make_delaunay(sh_triangulation_data *td) {
 	if (fd.maxflips>flipcount)
 		return flipcount;
 	else
-		return -1;
+		Print(WARNING,"Warning: reached maximum flipcount in shull\n");
+	return -1;
 }
 int delaunay(sh_triangulation_data *td, sh_point *ps, size_t n) { 
 	int res;

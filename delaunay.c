@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <math.h>
 #include "delaunay.h"
+#include "print.h"
 #include "error.h"
 
 sh_point * MakeShullPoints(double *x, double *y, int N)
@@ -107,6 +108,7 @@ triangles * Triangulate(double *x, double *y, int N, int *Nt)
 	else
 	{
 		// give it one more try after a random distortion of the mesh
+		Print(WARNING,"Warning triangulation failed, retry with random pertubations\n");
 		free(P);
 		Distort(x,y, N);
 		P=MakeShullPoints(x, y, N);	

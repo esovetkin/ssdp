@@ -18,7 +18,7 @@
 */
 #ifndef _UTIL_H
 #define _UTIL_H
-typedef enum {QUIET, VERBOSE, VVERBOSE} VERB;
+typedef enum {QUIET, WARNING, VERBOSE, VVERBOSE} VERB;
 extern VERB ssdp_verbosity;
 void Print(VERB v, const char *format_str, ...);
 #endif

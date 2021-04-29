@@ -226,7 +226,7 @@ void Neighbors(int Nz, int index, int *N) // collect all neighbors
 		n++;	
 }
 
-
+// used for degugging, see if patches know their neighbors
 void PlotConn(int Nz, int N[], int index)
 {
 	sky_pos p0,p;
@@ -244,7 +244,6 @@ void PlotConn(int Nz, int N[], int index)
 		i++;
 	}
 }	
-// check proper connecting of mech points
 void Connectivity(int Nz)
 {
 	int i;
@@ -322,17 +321,13 @@ sky_grid InitSky(int Nz)
 	sky_grid sky;
 	sky_pos sun={0,0};// default sun, straight above
 	int i;
-	Print(VVERBOSE, "********************************************************************************\n");
-	Print(VERBOSE, "--InitSky\t\t\t");
-	Print(VVERBOSE, "\n");
 	if (Nz>MAXNZ)
 	{
-		fprintf(stderr,"Warning: number of zenith discretizations %d too large, using %d instead\n", Nz, MAXNZ);
+		Print(WARNING,"Warning: number of zenith discretizations %d too large, using %d instead\n", Nz, MAXNZ);
 		Nz=MAXNZ;
 	}
 	sky.N=NNZ(Nz);	
 	sky.Nz=Nz;
-	Print(VVERBOSE, "Initializing sky dome with %d patches of %e sr\n", sky.N, 2*M_PI/((double)sky.N));
 	sky.sp=sun; // The default sun: is strainght above
 	sky.sI=0;	// and pitch black
 	sky.suni=0;
@@ -365,8 +360,6 @@ sky_grid InitSky(int Nz)
 		sky.cosz[i]=cos(sky.P[i].p.z);
 		sky.icosz+=sky.cosz[i];
 	}
-	Print(VERBOSE, "Done\n");
-	Print(VVERBOSE, "********************************************************************************\n\n");
 	return sky;
 }
 
