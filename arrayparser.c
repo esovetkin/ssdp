@@ -14,8 +14,8 @@
 
 
 typedef enum arrayops{ARR_PLUS,ARR_MINUS,ARR_MULT,ARR_DIV} arrayops;
-// PARSEFLAG array_array_comp array_array_comp "a=<a-array-variable> op=<operator:+,-,*,/> b=<b-array-variable> c=<c-output-array>"
-void array_array_comp(char *in)
+// PARSEFLAG array_eval array_comp "a=<a-array-variable> op=<operator:+,-,*,/> b=<b-array-variable> c=<c-output-array>"
+void array_comp(char *in)
 {
 	int i;
 	char *word;
@@ -68,11 +68,19 @@ void array_array_comp(char *in)
 			}
 		}
 	}	
-	if (a->N!=b->N)
+	if ((a->N!=b->N)&&(a->N!=1)&&(b->N!=1))
 	{
 		free(word);
 		Warning("Cannot Add Arrays, arrays not of same length");
 		return;
+	}
+	if (a->N==1)
+	{
+		array *d;
+		// swap a and b
+		d=b;
+		b=a;
+		a=d;
 	}
 	c.D=malloc(a->N*sizeof(double));
 	c.N=a->N;
@@ -80,22 +88,22 @@ void array_array_comp(char *in)
 	{
 		case ARR_PLUS:
 			for (i=0;i<a->N;i++)
-				c.D[i]=a->D[i]+b->D[i];
+				c.D[i]=a->D[i]+b->D[i%b->N];
 			break;
 		case ARR_MINUS:
 			for (i=0;i<a->N;i++)
-				c.D[i]=a->D[i]-b->D[i];
+				c.D[i]=a->D[i]-b->D[i%b->N];
 			break;
 		case ARR_MULT:
 			for (i=0;i<a->N;i++)
-				c.D[i]=a->D[i]*b->D[i];
+				c.D[i]=a->D[i]*b->D[i%b->N];
 			break;
 		case ARR_DIV:
 			for (i=0;i<a->N;i++)
-				c.D[i]=a->D[i]/b->D[i];
+				c.D[i]=a->D[i]/b->D[i%b->N];
 			break;
 		default:
-			Warning("the large Hadron collider finally did destroy the world");
+			Warning("the large Hadron collider finally did destroy the world (or is it a bug?)");
 			free(word);
 			return;
 	}	
@@ -112,100 +120,6 @@ void array_array_comp(char *in)
 	}	
 }
 
-// PARSEFLAG array_scalar_comp array_scalar_comp "a=<a-array-variable> op=<operator:+,-,*,/> b=<b-array-variable> c=<c-output-array>"
-void array_scalar_comp(char *in)
-{
-	int i;
-	char *word;
-	array *a, c;
-	double b;
-	arrayops OP;
-	word=malloc((strlen(in)+1)*sizeof(char));
-	
-	if (FetchArray(in, "a", word, &a))
-	{
-		free(word);
-		return;
-	}	
-	if (FetchFloat(in, "b", word, &b))
-	{
-		Warning("Could not get froat value from %s\n", word);
-		free(word);
-		return;
-	}
-	if (!GetArg(in, "op", word))
-	{
-		free(word);
-		return;
-	}
-	else
-	{
-		if (strlen(word)!=1)
-		{
-			Warning("Unknown Operator %s\n", word);
-			free(word);
-			return;
-		}
-		switch(*word)
-		{
-			case '+':
-				OP=ARR_PLUS;
-				break;
-			case '-':
-				OP=ARR_MINUS;
-				break;
-			case '*':
-				OP=ARR_MULT;
-				break;
-			case '/':
-				OP=ARR_DIV;
-				break;
-			default:
-			{
-				Warning("Unknown Operator %s\n", word);
-				free(word);
-				return;
-			}
-		}
-	}	
-	c.D=malloc(a->N*sizeof(double));
-	c.N=a->N;
-	switch (OP)
-	{
-		case ARR_PLUS:
-			for (i=0;i<a->N;i++)
-				c.D[i]=a->D[i]+b;
-			break;
-		case ARR_MINUS:
-			for (i=0;i<a->N;i++)
-				c.D[i]=a->D[i]-b;
-			break;
-		case ARR_MULT:
-			for (i=0;i<a->N;i++)
-				c.D[i]=a->D[i]*b;
-			break;
-		case ARR_DIV:
-			for (i=0;i<a->N;i++)
-				c.D[i]=a->D[i]/b;
-			break;
-		default:
-			Warning("the large Hadron collider finally did destroy the world");
-			free(word);
-			return;
-	}
-	
-	if (!GetArg(in, "c", word))
-	{
-		free(word);
-		return;
-	}
-	printf("creating array %s\n", word);
-	if(AddArray(word, c))
-	{
-		free(word); // failed to make array
-		free(c.D);
-	}	
-}
 
 int GetNumOption(char *in, char *opt, int i, char *word)
 {
@@ -234,7 +148,7 @@ int GetNumOption(char *in, char *opt, int i, char *word)
 	free(opti);	
 	return 1;
 }
-// PARSEFLAG read_array ReadArraysFromFile "a0=<array0> a1=<array1> .. aN=<arrayN> file=<file>"
+// PARSEFLAG read_array ReadArraysFromFile "a0=<array0> a1=<array1> .. aN=<arrayN> file=<file-str>"
 void ReadArraysFromFile(char *in)
 {
 	char **names;
@@ -300,7 +214,7 @@ void ReadArraysFromFile(char *in)
 	free(names);
 	free(data);
 }
-// PARSEFLAG write_array WriteArraysToFile "a0=<array0> a1=<array1> .. aN=<arrayN> file=<file>"
+// PARSEFLAG write_array WriteArraysToFile "a0=<array0> a1=<array1> .. aN=<arrayN> file=<file-str>"
 void WriteArraysToFile(char *in)
 {
 	char *word;
@@ -359,7 +273,7 @@ void WriteArraysToFile(char *in)
 	free(file);
 	free(data);
 }
-// PARSEFLAG make_array MakeArray "x=<array-variable> x1=<startval> x2=<endval> Nx=<x-steps>"
+// PARSEFLAG make_array MakeArray "x=<array-variable> x1=<startval-str> x2=<endval-str> Nx=<x-steps-str>"
 void MakeArray(char *in)
 {
 	char *word;
@@ -414,7 +328,7 @@ void MakeArray(char *in)
 	return;	
 }
 
-// PARSEFLAG make_grid MakeGrid "x=<array-variable> x=<array-variable> x1=<start-x> x2=<end-x> y1=<start-y> y2=<end-y> Nx=<x-stapes> Ny=<y-steps>"
+// PARSEFLAG make_grid MakeGrid "x=<array-variable> y=<array-variable> x1=<start-x-str> x2=<end-x-str> y1=<start-y-str> y2=<end--stry> Nx=<x-steps-str> Ny=<y-steps-str>"
 void MakeGrid(char *in)
 {
 	char *word;
@@ -511,3 +425,75 @@ void MakeGrid(char *in)
 	}
 	return;	
 }
+
+// PARSEFLAG make_scalar MakeScalar "x=<array-variable> val=<value-str>"
+void MakeScalar(char *in)
+{
+	char *word;
+	double v;
+	array a;
+	word=malloc((strlen(in)+1)*sizeof(char));
+	if (FetchFloat(in, "val", word, &v))
+	{
+		free(word);
+		return;
+	}
+	if (!GetArg(in, "x", word))
+	{
+		free(word);
+		return;
+	}	
+	
+	a.D=malloc(sizeof(double));
+	if (!a.D)
+	{
+		Warning("memory allocation failed\n");
+		free(word);
+		return;
+	}
+	a.N=1;
+	a.D[0]=v;
+	
+	if(AddArray(word, a))
+	{
+		free(a.D);	
+		free(word);
+	}
+	return;	
+}
+
+// PARSEFLAG rad2deg ArrayRad2Deg "x=<array-variable>"
+void ArrayRad2Deg(char *in)
+{
+	char *word;
+	array *x;
+	int i;
+	word=malloc((strlen(in)+1)*sizeof(char));
+	if (FetchArray(in, "x", word, &x))
+	{
+		free(word);
+		return;
+	}
+	
+	for(i=0;i<x->N;i++)
+		x->D[i]=rad2deg(x->D[i]);
+	return;	
+}
+// PARSEFLAG deg2rad ArrayDeg2Rad "x=<array-variable>"
+void ArrayDeg2Rad(char *in)
+{
+	char *word;
+	array *x;
+	int i;
+	word=malloc((strlen(in)+1)*sizeof(char));
+	if (FetchArray(in, "x", word, &x))
+	{
+		free(word);
+		return;
+	}
+	
+	for(i=0;i<x->N;i++)
+		x->D[i]=deg2rad(x->D[i]);
+	return;	
+}
+

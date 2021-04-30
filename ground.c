@@ -117,7 +117,13 @@ double SampleTopo(double x, double y, topology *T, sky_pos *sn)
 	D=nn.x*a.x+nn.y*a.y+nn.z*a.z;
 	z=(D-nn.x*x-nn.y*y)/nn.z;
 	if (sn)
+	{
+		a=nn;
+		// in our coordinate system we go counter clockwise with 0 degrees pointing up (swap x and y)
+		nn.x=nn.y;
+		nn.y=a.x;
 		(*sn)=vecdir(nn);
+	}
 	return z;	
 }
 topology CreateRandomTopology(double dx, double dy, double dz, double fN, int N)

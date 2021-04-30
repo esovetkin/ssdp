@@ -207,7 +207,7 @@ void POA_to_SurfaceNormal(sky_pos *pn, sky_pos sn)
 	
 	axis.z=M_PI/2;
 	axis.a=pn->a-M_PI/2;
-	(*pn)=rrf(sn, axis, pn->z);	
+	(*pn)=rrf(sn, axis, -pn->z);	// which way to rotate?
 }
 	
 	

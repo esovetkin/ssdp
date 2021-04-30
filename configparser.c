@@ -33,6 +33,7 @@ void InitConfig(char *in)
 void ConfigCoord (char *in)
 {
 	simulation_config *C;
+	array *l;
 	char *word;
 	word=malloc((strlen(in)+1)*sizeof(char));
 	if (FetchConfig(in, "C", word, &C))
@@ -40,18 +41,30 @@ void ConfigCoord (char *in)
 		free(word);
 		return;
 	}
-	if (FetchFloat(in, "lon", word, &(C->lon)))
+	if (FetchArray(in, "lon", word, &l))
 	{
 		free(word);
 		return;
 	}
-	C->lon=degr2rad(C->lon);
-	if (FetchFloat(in, "lat", word, &(C->lat)))
+	if (l->N!=1)
+	{
+		Warning("config_coord expects a scalar value as longitude\n");
+		free(word);
+		return;
+	}
+	C->lon=l->D[0];
+	if (FetchArray(in, "lat", word, &l))
 	{
 		free(word);
 		return;
 	}
-	C->lat=degr2rad(C->lat);
+	if (l->N!=1)
+	{
+		Warning("config_coord expects a scalar value as lastitude\n");
+		free(word);
+		return;
+	}
+	C->lat=l->D[0];
 }
 
 // PARSEFLAG config_aoi ConfigAOI "C=<config-variable> model=<none/front-cover/anti-reflect/user> [nf=<front-cover-refractive-index> [nar=<antireflection-refractive-index>]] [file=<user-defined-aoi>]"

@@ -232,13 +232,13 @@ void SolarPos(char *in)
 		free(word);
 		return;
 	}
-	lon=degr2rad(lon);
+	lon=deg2rad(lon);
 	if (FetchFloat(in, "lat", word, &lat))
 	{
 		free(word);
 		return;
 	}
-	lat=degr2rad(lat);
+	lat=deg2rad(lat);
 	azi.D=malloc(t->N*sizeof(double));
 	if (azi.D==NULL)
 	{
