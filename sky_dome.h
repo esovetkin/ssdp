@@ -51,5 +51,12 @@ int FindPatch(sky_grid *sky, sky_pos p);
 
 int NNZ(int n);	// number of elements in a mesh given a number of levels (zenith discretizations)
 int NZN(int n);	// inverse of above, i.e. give it a index and it returns the level (zenith) index
-#define SUNSR 6.807e-5
+/* sun solid angle:
+ * fe '(appi(64)*(1391400.0/2)^2)/(149.597870700e6^2)'
+ * diameter sun:   1391400    km
+ * distance sun: 149597870.7  km
+ * solid angle : ~ A/d^2 = (pi * 1391400 ^2 / 4) / 149597870.7^2 = 6.7942739713694071218e-05
+ * Note that the actual distance sun-earth varies about 3% so the result is not to be taken as accurate
+ */
+#define SUNSR 6.794e-5	
 #endif

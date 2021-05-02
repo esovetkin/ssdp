@@ -309,7 +309,7 @@ void RotatePOA(char *in)
 		free(word);
 }
 
-// PARSEFLAG bearing Bearing "x=<array-variable>" "y=<array-variable" "azimuth=<azimuth-output-array>"" 
+// PARSEFLAG bearing Bearing "x=<array-variable> y=<array-variable> azimuth=<azimuth-output-array>" 
 void Bearing(char *in)
 {
 	char *word;
@@ -351,5 +351,59 @@ void Bearing(char *in)
 		Warning("Failed to create array %s\n",word);
 		free(azi.D);	
 	}
+	return;	
+}
+
+// PARSEFLAG export_topo ExportTopo "C=<config-variable> file=<file-str>"
+void ExportTopo(char *in)
+{
+	char *word;
+	simulation_config *C;
+	word=malloc((strlen(in)+1)*sizeof(char));
+	
+	if (FetchConfig(in, "C", word, &C))
+	{
+		free(word);
+		return;
+	}	
+	if (!C->topo_init)
+	{	
+		Warning("Simulation config has no topology initialized\n");
+		free(word);
+		return;
+	}		
+	if (!GetArg(in, "file", word))
+	{
+		free(word);
+		return;
+	}
+	WriteTopo(word, &(C->T));
+	return;	
+}
+
+// PARSEFLAG export_triangles ExportTriangles "C=<config-variable> file=<file-str>"
+void ExportTriangles(char *in)
+{
+	char *word;
+	simulation_config *C;
+	word=malloc((strlen(in)+1)*sizeof(char));
+	
+	if (FetchConfig(in, "C", word, &C))
+	{
+		free(word);
+		return;
+	}	
+	if (!C->topo_init)
+	{	
+		Warning("Simulation config has no topology initialized\n");
+		free(word);
+		return;
+	}		
+	if (!GetArg(in, "file", word))
+	{
+		free(word);
+		return;
+	}
+	WriteTriangles(word, &(C->T));
 	return;	
 }

@@ -281,3 +281,104 @@ void SolarPos(char *in)
 		free(zen.D);
 	}	
 }
+
+// PARSEFLAG export_sky ExportSky "C=<config-variable> t=<array-variable> GHI=<array-variable> DHI=<array-variable> index=<index-str> file=<filename-str>"
+void ExportSky(char *in)
+{
+	int j; 
+	char *word;
+	simulation_config *C;
+	array *t, *GH, *DH;
+	word=malloc((strlen(in)+1)*sizeof(char));
+	
+	if (FetchConfig(in, "C", word, &C))
+	{
+		free(word);
+		return;
+	}		
+	if (!C->sky_init)
+	{		
+		Warning("Simulation config has no sky initialized\n");
+		free(word);
+		return;
+	}	
+	if (!C->topo_init) 
+	{	
+		Warning("No topological data available, omitting horizon\n");
+		InitConfigMaskNoH(C);
+		if (ssdp_error_state)
+		{
+			ssdp_print_error_messages();
+			ssdp_reset_errors();
+			free(word);
+			return;
+		}
+	}
+	if (!C->loc_init) 
+	{	
+		Warning("Simulation config has no locations initialized\n");
+		free(word);
+		return;
+	}		
+	if (FetchArray(in, "t", word, &t))
+	{
+		free(word);
+		return;
+	}
+	if (t->N!=1)
+	{
+		Warning("Length of t array must be 1\n");
+		free(word);
+		return;
+	}	
+	if (FetchArray(in, "GHI", word, &GH))
+	{
+		free(word);
+		return;
+	}
+	if (GH->N!=1)
+	{
+		Warning("Length of GHI array must be 1\n");
+		free(word);
+		return;
+	}
+	if (FetchArray(in, "DHI", word, &DH))
+	{
+		free(word);
+		return;
+	}
+	if (DH->N!=1)
+	{
+		Warning("Length of DHI array must be 1\n");
+		free(word);
+		return;
+	}	
+	if (FetchInt(in, "index", word, &j))
+	{
+		free(word);
+		return;
+	}		
+	if (j<0)
+	{
+		Warning("index must be larger or equal to 0\n");
+		free(word);
+		return;
+	}	
+	if (j>=C->Nl)
+	{
+		Warning("index must be smaller than the number of locations (%d)\n", C->Nl);
+		free(word);
+		return;
+	}	
+	
+	if (!GetArg(in, "file", word))
+	{
+		free(word);
+		return;
+	}
+	// compute sky
+	ssdp_make_perez_all_weather_sky_coordinate(&(C->S), (time_t) t->D[0], C->lon, C->lat, GH->D[0], DH->D[0]);
+	WriteDome4D(word, &(C->S), C->L);
+	free(word);
+}
+

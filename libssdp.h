@@ -54,6 +54,7 @@ location ssdp_setup_location(sky_grid *sky, topology *T, double albedo, sky_pos 
 double ssdp_diffuse_poa(sky_grid *sky, location *l);
 double ssdp_direct_poa(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, location *l);
 double ssdp_total_poa(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, location *l);
+int ssdp_below_horizon(location *l, sky_pos p);
 
 // create a topology from a point cloud
 topology ssdp_make_topology(double *x, double *y, double *z, int N);

@@ -165,8 +165,14 @@ double ssdp_total_poa(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, location *l)
 {
 	double POA;
 	POA=ssdp_diffuse_poa(sky, l);
+	//if (sky->suni>=0) /* this is an ionaccurate solution, better treat the sun separately */
+	//	POA+=sky->sI*l->T.t[sky->suni];
 	POA+=ssdp_direct_poa(sky, pn, M, l);
 	return POA;
+}
+int ssdp_below_horizon(location *l, sky_pos p)
+{
+	return BelowHorizon(&(l->H), p);
 }
 /* topology routines */
 topology ssdp_make_topology(double *x, double *y, double *z, int N)

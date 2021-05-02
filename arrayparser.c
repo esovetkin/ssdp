@@ -497,3 +497,64 @@ void ArrayDeg2Rad(char *in)
 	return;	
 }
 
+// PARSEFLAG sin Sin "phi=<array-variable> o=<output-array-variable>"
+void Sin(char *in)
+{
+	char *word;
+	array *p, o;
+	int i;
+	word=malloc((strlen(in)+1)*sizeof(char));
+	if (FetchArray(in, "phi", word, &p))
+	{
+		free(word);
+		return;
+	}
+	o.D=malloc(p->N*sizeof(double));
+	o.N=p->N;
+	
+	for(i=0;i<p->N;i++)
+		o.D[i]=sin(p->D[i]);
+		
+	if (!GetArg(in, "o", word))
+	{
+		free(word);
+		return;
+	}	
+	if(AddArray(word, o))
+	{
+		free(o.D);	
+		free(word);
+	}
+	return;	
+}
+
+// PARSEFLAG cos Cos "phi=<array-variable> o=<output-array-variable>"
+void Cos(char *in)
+{
+	char *word;
+	array *p, o;
+	int i;
+	word=malloc((strlen(in)+1)*sizeof(char));
+	if (FetchArray(in, "phi", word, &p))
+	{
+		free(word);
+		return;
+	}
+	o.D=malloc(p->N*sizeof(double));
+	o.N=p->N;
+	
+	for(i=0;i<p->N;i++)
+		o.D[i]=cos(p->D[i]);
+		
+	if (!GetArg(in, "o", word))
+	{
+		free(word);
+		return;
+	}	
+	if(AddArray(word, o))
+	{
+		free(o.D);	
+		free(word);
+	}
+	return;	
+}
