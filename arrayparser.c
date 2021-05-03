@@ -16,6 +16,7 @@
 typedef enum arrayops{ARR_PLUS,ARR_MINUS,ARR_MULT,ARR_DIV} arrayops;
 /*
 BEGIN_DESCRIPTION
+SECTION Array
 PARSEFLAG array_eval array_comp "a=<in-array> op=<operator:+,-,*,/> b=<in-array> c=<out-array>"
 DESCRIPTION Basic operations on array variables: c = a <op> b. Works both for element wise array-array operations aswell as for scalar-array operations.
 ARGUMENT a input array
@@ -159,6 +160,7 @@ int GetNumOption(char *in, char *opt, int i, char *word)
 }
 /*
 BEGIN_DESCRIPTION
+SECTION Array
 PARSEFLAG read_array ReadArraysFromFile "file=<file-str> a0=<out-array> a1=<out-array> .. aN=<out-array>"
 DESCRIPTION Reads columns from a file and stores them in arrays. The i-th column is stored in the i-th output array. Note that you cannot skip columns!
 ARGUMENT file input filename
@@ -232,6 +234,7 @@ void ReadArraysFromFile(char *in)
 }
 /*
 BEGIN_DESCRIPTION
+SECTION Array
 PARSEFLAG write_array WriteArraysToFile "a0=<in-array> a1=<in-array> .. aN=<in-array> file=<file-str>"
 DESCRIPTION Writes arrays in columns of a file. The i-th array is written to the i-th column in the file. Note that you cannot skip columns!
 ARGUMENT ai the i-th input array
@@ -298,6 +301,7 @@ void WriteArraysToFile(char *in)
 }
 /*
 BEGIN_DESCRIPTION
+SECTION Array
 PARSEFLAG make_array MakeArray "x=<out-array> x1=<float> x2=<float> Nx=<int>"
 DESCRIPTION Creates an array with Nx+1 elements ranging from x1 to and including x2.
 ARGUMENT x1 Start float value
@@ -362,6 +366,7 @@ void MakeArray(char *in)
 
 /*
 BEGIN_DESCRIPTION
+SECTION Array
 PARSEFLAG make_grid MakeGrid "x=<out-array> y=<out-array> x1=<float> x2=<float> y1=<float> y2=<float> Nx=<int> Ny=<int>"
 DESCRIPTION Creates two arrays with a regular grid with (Nx+1)*(Ny+1) elements.
 ARGUMENT x1 Start float x value
@@ -472,6 +477,7 @@ void MakeGrid(char *in)
 
 /*
 BEGIN_DESCRIPTION
+SECTION Array
 PARSEFLAG make_scalar MakeScalar "x=<out-array> val=<float>"
 DESCRIPTION Creates an array with length 1 (simply a shorter way to create a 1 valued array than using the make_array command)
 ARGUMENT val float value
@@ -515,6 +521,7 @@ void MakeScalar(char *in)
 
 /*
 BEGIN_DESCRIPTION
+SECTION Array
 PARSEFLAG rad2deg ArrayRad2Deg "x=<in/out-array>"
 DESCRIPTION Converts radians to degrees. The conversion is in-place (i.e. input and output are the same array).
 ARGUMENT x input array
@@ -539,6 +546,7 @@ void ArrayRad2Deg(char *in)
 }
 /*
 BEGIN_DESCRIPTION
+SECTION Array
 PARSEFLAG deg2rad ArrayDeg2Rad "x=<in/out-array>"
 DESCRIPTION Converts degrees to radians. The conversion is in-place (i.e. input and output are the same array).
 ARGUMENT x input array
@@ -564,6 +572,7 @@ void ArrayDeg2Rad(char *in)
 
 /*
 BEGIN_DESCRIPTION
+SECTION Array
 PARSEFLAG sin Sin "phi=<in-array> o=<out-array>"
 DESCRIPTION Computes the sine function.
 ARGUMENT phi input array with angle
@@ -602,6 +611,7 @@ void Sin(char *in)
 
 /*
 BEGIN_DESCRIPTION
+SECTION Array
 PARSEFLAG cos Cos "phi=<in-array> o=<out-array>"
 DESCRIPTION Computes the cosine function.
 ARGUMENT phi input array with angle

@@ -14,6 +14,7 @@
 
 /*
 BEGIN_DESCRIPTION
+SECTION Simulation Configuration
 PARSEFLAG init_sim_config InitConfig "C=<out-config>"
 DESCRIPTION Create a configuration variable.
 OUTPUT C output configuration variable
@@ -37,6 +38,7 @@ void InitConfig(char *in)
 }
 /*
 BEGIN_DESCRIPTION
+SECTION Simulation Configuration
 PARSEFLAG config_coord ConfigCoord "C=<out-config> lat=<float> lon=<float>"
 DESCRIPTION Setup the coordinate in the configuration variable.
 ARGUMENT lat latitude
@@ -83,6 +85,7 @@ void ConfigCoord (char *in)
 
 /*
 BEGIN_DESCRIPTION
+SECTION Simulation Configuration
 PARSEFLAG config_aoi ConfigAOI "C=<out-config> model=<none/front-cover/anti-reflect/user> [nf=<in-float> [nar=<in-float>]] [file=<in-file>]"
 DESCRIPTION Setup the Angle of Incidence model to model angular dependent relection. The model can be one of "none" (no angularly dependent reflection), "front-cover" (simple refractive index), "anti-relect" (two layer front), and "user" (tabular data).
 ARGUMENT model string to identify which model to use
@@ -260,9 +263,10 @@ void InitConfigMaskNoH(simulation_config *C) // same as above but without horizo
 
 /*
 BEGIN_DESCRIPTION
+SECTION Simulation Configuration
 PARSEFLAG config_sky ConfigSKY "C=<out-config> N=<int>"
 DESCRIPTION Setup the sky. This commands allocates space and initializes the sky data.
-ARGUMENT N The number of zenith discretizations. The total number of sky patches equals Ntotal=3*N*(N-1)+1, e.g. with Ntotal(7)=127
+ARGUMENT N The number of zenith discretizations. The total number of sky patches equals Ntotal(N)=3N(N-1)+1, e.g. with Ntotal(7)=127
 OUTPUT C configuration variable
 END_DESCRIPTION
 */
@@ -308,6 +312,7 @@ void ConfigSKY(char *in)
 }
 /*
 BEGIN_DESCRIPTION
+SECTION Simulation Configuration
 PARSEFLAG config_topology ConfigTOPO "C=<out-config> x=<in-array> y=<in-array> z=<in-array>"
 DESCRIPTION Setup the topography. Load the x, y, and z data of the unstructured topography mesh into the configuration data.
 ARGUMENT x x coordinates
@@ -378,6 +383,7 @@ void ConfigTOPO (char *in)
 }
 /*
 BEGIN_DESCRIPTION
+SECTION Simulation Configuration
 PARSEFLAG config_locations ConfigLoc "C=<out-config> x=<in-array> y=<in-array> z=<in-array> azimuth=<in-array> zenith=<in-array> [albedo=<in-float>]"
 PARSEFLAG config_topology ConfigTOPO "C=<out-config> x=<in-array> y=<in-array> z=<in-array>"
 DESCRIPTION Setup the topography. Load the x, y, and z data of the unstructured topography mesh into the configuration data.

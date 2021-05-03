@@ -15,6 +15,7 @@
 
 /*
 BEGIN_DESCRIPTION
+SECTION Topography
 PARSEFLAG sample_topo SampleTopography "C=<in-config>  x=<in-array> y=<in-array> z=<out-array> azimuth=<out-array> zenith=<out-array>"
 DESCRIPTION Samples a topography to obtain the local height and surface normal
 ARGUMENT C config-variable
@@ -120,6 +121,7 @@ void SampleTopography(char *in)
 }
 /*
 BEGIN_DESCRIPTION
+SECTION Topography
 PARSEFLAG offset_topo OffsetTopography "C=<in-config>  o=<float> x=<in-array> y=<in-array> xoff=<out-array> yoff=<out-array> zoff=<out-array>"
 DESCRIPTION Computes a topography offset in the direction of the surface normal
 ARGUMENT C config-variable
@@ -234,6 +236,7 @@ void OffsetTopography(char *in)
 }
 /*
 BEGIN_DESCRIPTION
+SECTION Topography
 PARSEFLAG rotate_POA_to_surface RotatePOA "poa_a=<in-array>  poa_z=<in-array> surf_a=<in-array> surf_z=<in-array> out_a=<out-array> out_z=<out-array>"
 DESCRIPTION Rotate the plane of array (tilted surface) along the surface normal, e.g. a surface on a vehicle changes its tilt an orientation depending on the sufrace nomal.
 ARGUMENT poa_a azimuth angle of the tilted surface (for a horizonal surface)
@@ -345,6 +348,7 @@ void RotatePOA(char *in)
 
 /*
 BEGIN_DESCRIPTION
+SECTION Topography
 PARSEFLAG bearing Bearing "x=<in-array> y=<in-array> azimuth=<out-array>" 
 DESCRIPTION Compute the bearing from the waypoints of a route.
 ARGUMENT x x coordinates of the waypoints
@@ -398,6 +402,7 @@ void Bearing(char *in)
 
 /*
 BEGIN_DESCRIPTION
+SECTION Topography
 PARSEFLAG export_topo ExportTopo "C=<in-config> file=<file-str>"
 DESCRIPTION Export a topography.
 ARGUMENT C Configuration variable
@@ -432,6 +437,7 @@ void ExportTopo(char *in)
 
 /*
 BEGIN_DESCRIPTION
+SECTION Topography
 PARSEFLAG export_triangles ExportTriangles "C=<in-config> file=<file-str>"
 DESCRIPTION Export a triangulation.
 ARGUMENT C Configuration variable

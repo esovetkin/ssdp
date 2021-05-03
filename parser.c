@@ -230,9 +230,21 @@ int FetchInt(const char *in, const char *pat, char *str, int *a)
 	return 1;
 }
 
-
+/* 
+ * To automate the documentation process a bit every parser gets a 
+ * description in the source which is automatically added to the ssdp 
+ * man page. The format is as follows:
+ * In comments use the BEGIN_DESCRIPTION/END_DESCRIPTION flahs to mark the beginning
+ * and end of a man page entry.
+ * The parseflag was already used to generate the parsedef.h data and is also used here
+ * I like to put them together.
+ * the DESCRIPTION flag is followed by a description of the command (one line!)
+ * The ARGUMENT flag described one argument
+ * The OUTPUT flag describes an output of the function
+ */
 /*
 BEGIN_DESCRIPTION
+SECTION General
 PARSEFLAG list_vars VarLister ""
 DESCRIPTION List all variables
 END_DESCRIPTION
@@ -244,6 +256,7 @@ void VarLister(char *in)
 
 /*
 BEGIN_DESCRIPTION
+SECTION General
 PARSEFLAG help Help "[-l/command]"
 DESCRIPTION Print basic help. If no arguments or the -l argument is given this will list all availablke help data. You can also request help on a specific command.
 END_DESCRIPTION

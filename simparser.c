@@ -16,6 +16,7 @@
 
 /*
 BEGIN_DESCRIPTION
+SECTION Simulation
 PARSEFLAG sim_static SimStatic "C=<in-config> t=<in-array> GHI=<in-array> DHI=<in-array> POA=<out-array>"
 DESCRIPTION Computes the POA irradiance for all configured locations.
 ARGUMENT C Simulation config variable
@@ -124,6 +125,7 @@ void SimStatic(char *in)
 }
 /*
 BEGIN_DESCRIPTION
+SECTION Simulation
 PARSEFLAG sim_route SimRoute "C=<in-config> t=<in-array> GHI=<in-array> DHI=<in-array> POA=<out-array>"
 DESCRIPTION Computes the POA irradiance along a route along all configured locations.
 ARGUMENT C Simulation config variable
@@ -234,8 +236,9 @@ void SimRoute(char *in)
 
 /*
 BEGIN_DESCRIPTION
+SECTION Simulation
 PARSEFLAG solpos SolarPos "t=<in-array> lon=<in-float> lat=<in-float> azimuth=<out-array> zenith=<out-array>"
-DESCRIPTION Computes the solar position according to the PSA algorithm. See: Blanco-Muriel, Manuel, et al. "Computing the solar vector." Solar energy 70.5 (2001): 431-441
+DESCRIPTION Computes the solar position according to the PSA algorithm [2].
 ARGUMENT t unix time array
 ARGUMENT lon longitude float
 ARGUMENT lat latitude float
@@ -314,6 +317,7 @@ void SolarPos(char *in)
 
 /*
 BEGIN_DESCRIPTION
+SECTION Simulation
 PARSEFLAG export_sky ExportSky "C=<in-config> t=<in-array> GHI=<in-array> DHI=<in-array> index=<in-int> file=<in-string>"
 DESCRIPTION Exports a 3D polar plot of a sky. It only expoits one location. You need to specify the index of the location (starting at index 0).
 ARGUMENT C config-variable

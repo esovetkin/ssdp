@@ -6,7 +6,7 @@
 #
 # it generates a table with keywords and functions in parsedef.h"
 FILE="ssdp.man"
-echo ".TH ssdp 1 \"- simple sky dome projector\"" >  $FILE
+echo ".TH ssdp 1 \"simple sky dome projector\"" >  $FILE
 echo ".SH NAME" >>  $FILE
 echo "ssdp - simple sky dome projector" >>  $FILE
 echo ".SH SYNOPSIS" >>  $FILE
@@ -19,6 +19,9 @@ echo "and can project this sky on a tilted surface." >>  $FILE
 echo "In addition it can process topological data and compute a horizon" >>  $FILE
 echo "and thus take into account shading. The ssdp program implements a " >>  $FILE
 echo "basic syntax to compute stuff. " >>  $FILE
+echo ".P " >>  $FILE
+echo ".B [1] " >>  $FILE
+echo "R. Perez, et al. \"All-Weather Model for Sky Luminance Distribution -- Preliminary Configuration and Validation\", Solar Energy Vol. 50, No, 3, pp. 235-245, 1993" >> $FILE
 echo ".SS Options" >>  $FILE
 echo ".TP" >>  $FILE
 echo ".B [command]" >>  $FILE
@@ -53,16 +56,26 @@ do
 	awk '/BEGIN_DESCRIPTION/{flag=1;next}/END_DESCRIPTION/{flag=0}flag' $s >>  descriptions
 done
 
-echo ".SS Commands" >>  $FILE
 sect=0
+section=""
 while read -r line
 do 
+	m=$(expr match "$line" "SECTION")
+	if [ "$m" -gt 0 ]
+	then
+		sec=$(echo $line |awk '/SECTION/{$1="";print $0}')
+		if [ "$sec" != "$section" ]
+		then
+			section=$sec;
+			echo ".SS \"$section Commands\"" >>  $FILE
+		fi
+	fi
+	
 	m=$(expr match "$line" "PARSEFLAG")
 	if [ "$m" -gt 0 ]
 	then
 		comm=$(echo $line |awk '/PARSEFLAG/{print $2}')
-		echo >>$FILE 
-		echo .SH $comm >>$FILE
+		#echo .SS $comm >>$FILE
 		args=$(echo $line |awk '/PARSEFLAG/{$1=$2=$3="";print $0}'|sed 's/"//g')
 		echo .B $comm >>$FILE
 		echo $args >>$FILE
@@ -81,7 +94,7 @@ do
 		then
 			if [ "$sect" -eq 0 ]
 			then
-				echo .B input: >>$FILE
+				echo .I input: >>$FILE
 				sect=1;
 			fi			
 			arg=$(echo $line |awk '/ARGUMENT/{print $2}'|sed 's/"//g')
@@ -96,7 +109,7 @@ do
 		then
 			if [ "$sect" -lt 2 ]
 			then
-				echo .B output: >>$FILE
+				echo .I output: >>$FILE
 				sect=2;
 			fi			
 			arg=$(echo $line |awk '/OUTPUT/{print $2}'|sed 's/"//g')
@@ -113,3 +126,10 @@ echo ".SH AUTHOR" >>  $FILE
 echo "ssdp was developed by Bart E. Pieters at the Forschungszentrum Juelich GmbH" >>  $FILE
 echo ".SH BUGS" >>  $FILE
 echo "probably many, let me know." >>  $FILE
+echo ".SH REFERENCES" >>  $FILE
+echo ".TP " >>  $FILE
+echo ".B [1] " >>  $FILE
+echo "R. Perez, et al. \"All-Weather Model for Sky Luminance Distribution -- Preliminary Configuration and Validation.\" Solar Energy 50.3 (1993): 235-245" >> $FILE
+echo ".TP " >>  $FILE
+echo ".B [2] " >>  $FILE
+echo "Blanco-Muriel, Manuel, et al. \"Computing the solar vector.\" Solar energy 70.5 (2001): 431-441" >>  $FILE
