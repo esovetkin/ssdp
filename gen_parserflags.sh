@@ -15,11 +15,11 @@ echo "#define PARSEDEF_H" >>  $FILE
 for s in $@
 do
 	echo Collecting parsing flags from $s
-	egrep -o '^// PARSEFLAG.*' $s | sort | uniq >>tmpflags
+	egrep -o 'PARSEFLAG.*' $s | sort | uniq >>tmpflags
 done
 
 # create the parse flag defines
-awk '{print "void "$4"(char *in);"}' tmpflags | sort | uniq>>$FILE
+awk '{print "void "$3"(char *in);"}' tmpflags | sort | uniq>>$FILE
 
 echo "typedef void (*ParserFun)(char *in);">>$FILE
 echo "typedef struct {">>$FILE
@@ -28,13 +28,13 @@ echo "	ParserFun fun;">>$FILE
 echo "} KeyWord;">>$FILE
 
 echo "const KeyWord KeyTable[] = {">>$FILE
-awk '{print "\t{\""$3"\", &"$4"},"}' tmpflags>>$FILE
+awk '{print "\t{\""$2"\", &"$3"},"}' tmpflags>>$FILE
 echo "	{NULL, NULL}">>$FILE
 echo "};">>$FILE
 
 
 echo "char *Usage[] = {"  >>  $FILE
-sed -n 's/\/\/ PARSEFLAG.*\(\".*\"\)/\t\1,/gp' tmpflags>> $FILE
+sed -n 's/.*PARSEFLAG.*\(\".*\"\)/\t\1,/gp' tmpflags>> $FILE
 echo "	NULL"  >>  $FILE
 echo "};"   >>  $FILE
 

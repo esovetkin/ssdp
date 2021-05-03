@@ -86,12 +86,35 @@ void ParseFile(char *fn)
 	free(line);
 	fclose(f);
 }
+
+void PrintHeader()
+{
+	printf("               |       \n");
+	printf("  __|  __|  _` | __ \\  \n");
+	printf("\\__ \\\\__ \\ (   | |   | \n");
+	printf("____/____/\\__,_| .__/  \n");
+	printf("                _|     \n");
+	printf("linked libssdp: ");
+	ssdp_print_version();
+	printf("compile date  :  %s\n",__DATE__);
+}
+
 int main(int argc, char **argv)
 {
-	int i;
+	int i=1;
 	InitVars();
-	
-	for (i=1;i<argc;i++)
+	if (argc>1)
+	{
+		if (strncmp("-q", argv[1], 3)==0)
+			i++;
+		else
+			PrintHeader();
+	}
+	else 
+		PrintHeader();
+	if (i>=argc)
+		shell();
+	for (;i<argc;i++)
 	{
 		if (argv[i][0]=='-')
 		{
@@ -112,12 +135,9 @@ int main(int argc, char **argv)
 			}
 		}
 		else
-		
-		if (ParseComm(argv[i]))
-			break;
+			if (ParseComm(argv[i]))
+				break;
 	}
-	if (argc==1)
-		shell();
 	ClearVars();
 	return 0;
 }

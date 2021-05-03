@@ -28,6 +28,7 @@ extern int ssdp_error_state;	/* signals error occurred, if 0 everything is OK */
 void ssdp_print_error_messages();
 void ssdp_reset_errors();
 
+void ssdp_print_version(void);
 /* locate the sky patch enclosing a certain point */
 int ssdp_find_skypatch(sky_grid *sky, sky_pos p);
 /* initialize a sky mesh */

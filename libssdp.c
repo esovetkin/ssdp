@@ -30,7 +30,12 @@
 #include "print.h"
 #include "error.h"
 #include "sunpos.h"
+#include <config.h>
 /* libssdp entry points */
+void ssdp_print_version(void)
+{
+	printf("%s\n", PACKAGE_STRING);
+}
 void ssdp_print_error_messages()
 {
 	E_Messages();

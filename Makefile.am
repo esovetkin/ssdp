@@ -25,5 +25,4 @@ libssdp_structs.h: collect_datastructs.sh vector.h sky_dome.h delaunay.h trace.h
 	cd ${top_srcdir} && ${SHELL} collect_datastructs.sh vector.h sky_dome.h delaunay.h trace.h ground.h project.h libssdp.c
 ssdp.man: gen_ssdpdoc.sh parser.c configparser.c arrayparser.c topoparser.c simparser.c
 	cd ${top_srcdir} && ${SHELL} gen_ssdpdoc.sh parser.c configparser.c arrayparser.c topoparser.c simparser.c
-	
 
