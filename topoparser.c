@@ -13,7 +13,18 @@
 #include "parserutils.h"
 
 
-// PARSEFLAG sample_topo SampleTopography "C=<config-variable>  x=<x-array-variable> y=<y-array-variable> z=<z-output-array> azimuth=<azimuth-output-array> zenith=<zenith-output-array>"
+/*
+BEGIN_DESCRIPTION
+PARSEFLAG sample_topo SampleTopography "C=<in-config>  x=<in-array> y=<in-array> z=<out-array> azimuth=<out-array> zenith=<out-array>"
+DESCRIPTION Samples a topography to obtain the local height and surface normal
+ARGUMENT C config-variable
+ARGUMENT x x coordinate
+ARGUMENT y y coordinate
+OUTPUT z z coordinate
+OUTPUT azimuth surface normal azimuth
+OUTPUT zenith surface normal zenith
+END_DESCRIPTION
+*/
 void SampleTopography(char *in)
 {
 	int i;
@@ -107,7 +118,19 @@ void SampleTopography(char *in)
 	if (word)
 		free(word);
 }
-// PARSEFLAG offset_topo OffsetTopography "C=<config-variable>  o=<offset-value> x=<x-array-variable> y=<y-array-variable> xoff=<offset-x-output-array> yoff=<offset-x-output-array> zoff=<offset-z-output-array>"
+/*
+BEGIN_DESCRIPTION
+PARSEFLAG offset_topo OffsetTopography "C=<in-config>  o=<float> x=<in-array> y=<in-array> xoff=<out-array> yoff=<out-array> zoff=<out-array>"
+DESCRIPTION Computes a topography offset in the direction of the surface normal
+ARGUMENT C config-variable
+ARGUMENT o offset value
+ARGUMENT x x coordinate
+ARGUMENT y y coordinate
+OUTPUT xoff x coordinate
+OUTPUT yoff y coordinate
+OUTPUT zoff z coordinate
+END_DESCRIPTION
+*/
 void OffsetTopography(char *in)
 {
 	int i;
@@ -209,7 +232,18 @@ void OffsetTopography(char *in)
 	if (word)
 		free(word);
 }
-// PARSEFLAG rotate_POAto_surface RotatePOA "poa_a=<azimuth-array>  poa_z=<zenith-array> surf_a=<azimuth-array> surf_z=<zenith-array> out_a=<azimuth-output-array> out_z=<zenith-output-array>"
+/*
+BEGIN_DESCRIPTION
+PARSEFLAG rotate_POA_to_surface RotatePOA "poa_a=<in-array>  poa_z=<in-array> surf_a=<in-array> surf_z=<in-array> out_a=<out-array> out_z=<out-array>"
+DESCRIPTION Rotate the plane of array (tilted surface) along the surface normal, e.g. a surface on a vehicle changes its tilt an orientation depending on the sufrace nomal.
+ARGUMENT poa_a azimuth angle of the tilted surface (for a horizonal surface)
+ARGUMENT poa_z zenith angle of the tilted surface (for a horizonal surface)
+ARGUMENT surf_a azimuth angle of the surface normal
+ARGUMENT surf_z zenith angle of the surface normal
+OUTPUT out_a azimuth angle of the tilted surface rotated along the surface normal
+OUTPUT out_z zenith angle of the tilted surface rotated along the surface normal
+END_DESCRIPTION
+*/
 void RotatePOA(char *in)
 {
 	int i;
@@ -309,7 +343,15 @@ void RotatePOA(char *in)
 		free(word);
 }
 
-// PARSEFLAG bearing Bearing "x=<array-variable> y=<array-variable> azimuth=<azimuth-output-array>" 
+/*
+BEGIN_DESCRIPTION
+PARSEFLAG bearing Bearing "x=<in-array> y=<in-array> azimuth=<out-array>" 
+DESCRIPTION Compute the bearing from the waypoints of a route.
+ARGUMENT x x coordinates of the waypoints
+ARGUMENT y y coordinates of the waypoints
+OUTPUT azimuth bearing azimuth angle
+END_DESCRIPTION
+*/
 void Bearing(char *in)
 {
 	char *word;
@@ -354,7 +396,14 @@ void Bearing(char *in)
 	return;	
 }
 
-// PARSEFLAG export_topo ExportTopo "C=<config-variable> file=<file-str>"
+/*
+BEGIN_DESCRIPTION
+PARSEFLAG export_topo ExportTopo "C=<in-config> file=<file-str>"
+DESCRIPTION Export a topography.
+ARGUMENT C Configuration variable
+OUTPUT file File with x,y,z columns
+END_DESCRIPTION
+*/
 void ExportTopo(char *in)
 {
 	char *word;
@@ -381,7 +430,14 @@ void ExportTopo(char *in)
 	return;	
 }
 
-// PARSEFLAG export_triangles ExportTriangles "C=<config-variable> file=<file-str>"
+/*
+BEGIN_DESCRIPTION
+PARSEFLAG export_triangles ExportTriangles "C=<in-config> file=<file-str>"
+DESCRIPTION Export a triangulation.
+ARGUMENT C Configuration variable
+OUTPUT file File with x,y,z columns and one block per triangle with the triangle vertices in right winding order.
+END_DESCRIPTION
+*/
 void ExportTriangles(char *in)
 {
 	char *word;

@@ -12,7 +12,13 @@
 #include "parser.h"
 #include "parserutils.h"
 
-// PARSEFLAG init_sim_config InitConfig "C=<config-variable>"
+/*
+BEGIN_DESCRIPTION
+PARSEFLAG init_sim_config InitConfig "C=<out-config>"
+DESCRIPTION Create a configuration variable.
+OUTPUT C output configuration variable
+END_DESCRIPTION
+*/
 void InitConfig(char *in)
 {
 	simulation_config C;
@@ -29,7 +35,15 @@ void InitConfig(char *in)
 	}
 	free(word);
 }
-// PARSEFLAG config_coord ConfigCoord "C=<config-variable> lat=<latitude> lon=<longitude>"
+/*
+BEGIN_DESCRIPTION
+PARSEFLAG config_coord ConfigCoord "C=<out-config> lat=<float> lon=<float>"
+DESCRIPTION Setup the coordinate in the configuration variable.
+ARGUMENT lat latitude
+ARGUMENT lon longitude
+OUTPUT C configuration variable
+END_DESCRIPTION
+*/
 void ConfigCoord (char *in)
 {
 	simulation_config *C;
@@ -67,7 +81,17 @@ void ConfigCoord (char *in)
 	C->lat=l->D[0];
 }
 
-// PARSEFLAG config_aoi ConfigAOI "C=<config-variable> model=<none/front-cover/anti-reflect/user> [nf=<front-cover-refractive-index> [nar=<antireflection-refractive-index>]] [file=<user-defined-aoi>]"
+/*
+BEGIN_DESCRIPTION
+PARSEFLAG config_aoi ConfigAOI "C=<out-config> model=<none/front-cover/anti-reflect/user> [nf=<in-float> [nar=<in-float>]] [file=<in-file>]"
+DESCRIPTION Setup the Angle of Incidence model to model angular dependent relection. The model can be one of "none" (no angularly dependent reflection), "front-cover" (simple refractive index), "anti-relect" (two layer front), and "user" (tabular data).
+ARGUMENT model string to identify which model to use
+ARGUMENT nf front-cover refractive index
+ARGUMENT nar refective index of an antireflection coating on the front cover
+ARGUMENT file load tabular data of angular dependent reflection (do not use, it is half implemented)
+OUTPUT C configuration variable
+END_DESCRIPTION
+*/
 void ConfigAOI(char *in)
 {
 	simulation_config *C;
@@ -234,7 +258,14 @@ void InitConfigMaskNoH(simulation_config *C) // same as above but without horizo
 }
 
 
-// PARSEFLAG config_sky ConfigSKY "C=<config-variable> N=<zenith-steps>"
+/*
+BEGIN_DESCRIPTION
+PARSEFLAG config_sky ConfigSKY "C=<out-config> N=<int>"
+DESCRIPTION Setup the sky. This commands allocates space and initializes the sky data.
+ARGUMENT N The number of zenith discretizations. The total number of sky patches equals Ntotal=3*N*(N-1)+1, e.g. with Ntotal(7)=127
+OUTPUT C configuration variable
+END_DESCRIPTION
+*/
 void ConfigSKY(char *in)
 {
 	simulation_config *C;
@@ -275,7 +306,16 @@ void ConfigSKY(char *in)
 	free(word);
 	return;
 }
-// PARSEFLAG config_topology ConfigTOPO "C=<config-variable> x=<x-array-variable> y=<y-array-variable> z=<z-array-variable>"
+/*
+BEGIN_DESCRIPTION
+PARSEFLAG config_topology ConfigTOPO "C=<out-config> x=<in-array> y=<in-array> z=<in-array>"
+DESCRIPTION Setup the topography. Load the x, y, and z data of the unstructured topography mesh into the configuration data.
+ARGUMENT x x coordinates
+ARGUMENT y y coordinates
+ARGUMENT z z coordinates
+OUTPUT C configuration variable
+END_DESCRIPTION
+*/
 void ConfigTOPO (char *in)
 {
 	simulation_config *C;
@@ -336,8 +376,20 @@ void ConfigTOPO (char *in)
 	}
 	return;
 }
-// add albedo to this routine I suppose (i.e. enable locally varying albedo values)
-// PARSEFLAG config_locations ConfigLoc "C=<config-variable> x=<x-array-variable> y=<y-array-variable> z=<z-array-variable> azimuth=<azimuth-array-variable> zenith=zenith-array-variable>"
+/*
+BEGIN_DESCRIPTION
+PARSEFLAG config_locations ConfigLoc "C=<out-config> x=<in-array> y=<in-array> z=<in-array> azimuth=<in-array> zenith=<in-array> [albedo=<in-float>]"
+PARSEFLAG config_topology ConfigTOPO "C=<out-config> x=<in-array> y=<in-array> z=<in-array>"
+DESCRIPTION Setup the topography. Load the x, y, and z data of the unstructured topography mesh into the configuration data.
+ARGUMENT x x coordinates
+ARGUMENT y y coordinates
+ARGUMENT z z coordinates
+ARGUMENT azimuth azimuth angle of tilted surface
+ARGUMENT zenith zenith angle of tilted surface
+ARGUMENT albedo optionally provide an albedo valuyes between 0-1
+OUTPUT C configuration variable
+END_DESCRIPTION
+*/
 void ConfigLoc (char *in)
 {
 	simulation_config *C;

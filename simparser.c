@@ -14,7 +14,17 @@
 
 
 
-// PARSEFLAG sim_static SimStatic "C=<config-variable> t=<array-variable> GHI=<array-variable> DHI=<array-variable> POA=<out-array>"
+/*
+BEGIN_DESCRIPTION
+PARSEFLAG sim_static SimStatic "C=<in-config> t=<in-array> GHI=<in-array> DHI=<in-array> POA=<out-array>"
+DESCRIPTION Computes the POA irradiance for all configured locations.
+ARGUMENT C Simulation config variable
+ARGUMENT t unix time array.
+ARGUMENT GHI global horizontal irradiance as a function of time
+ARGUMENT DHI diffuse horizontal irradiance as a function of time
+OUTPUT POA plane of array irradiance as a function of time and location (with n time values and m locations the array contains n times m values)
+END_DESCRIPTION
+*/
 void SimStatic(char *in)
 {
 	int i, j; // loop through space and time
@@ -112,7 +122,17 @@ void SimStatic(char *in)
 		free(out.D);
 	}	
 }
-// PARSEFLAG sim_route SimRoute "C=<config-variable> t=<array-variable> GHI=<array-variable> DHI=<array-variable> POA=<out-array>"
+/*
+BEGIN_DESCRIPTION
+PARSEFLAG sim_route SimRoute "C=<in-config> t=<in-array> GHI=<in-array> DHI=<in-array> POA=<out-array>"
+DESCRIPTION Computes the POA irradiance along a route along all configured locations.
+ARGUMENT C Simulation config variable
+ARGUMENT t unix time array. As t progresses from t0-tn we move through locations l0-lm
+ARGUMENT GHI global horizontal irradiance as a function of time
+ARGUMENT DHI diffuse horizontal irradiance as a function of time
+OUTPUT POA plane of array irradiance as a function of time
+END_DESCRIPTION
+*/
 void SimRoute(char *in)
 {
 	int i, j; // loop through space and time
@@ -212,7 +232,17 @@ void SimRoute(char *in)
 	}	
 }
 
-// PARSEFLAG solpos SolarPos "t=<array-variable> lon=<longitude> lat=<latitude> azimuth=<output-array> zenith=<output-array>"
+/*
+BEGIN_DESCRIPTION
+PARSEFLAG solpos SolarPos "t=<in-array> lon=<in-float> lat=<in-float> azimuth=<out-array> zenith=<out-array>"
+DESCRIPTION Computes the solar position according to the PSA algorithm. See: Blanco-Muriel, Manuel, et al. "Computing the solar vector." Solar energy 70.5 (2001): 431-441
+ARGUMENT t unix time array
+ARGUMENT lon longitude float
+ARGUMENT lat latitude float
+OUTPUT azimuth sun azimuth (radians)
+OUTPUT zenith sun zenith (radians)
+END_DESCRIPTION
+*/
 void SolarPos(char *in)
 {
 	int i;
@@ -282,7 +312,19 @@ void SolarPos(char *in)
 	}	
 }
 
-// PARSEFLAG export_sky ExportSky "C=<config-variable> t=<array-variable> GHI=<array-variable> DHI=<array-variable> index=<index-str> file=<filename-str>"
+/*
+BEGIN_DESCRIPTION
+PARSEFLAG export_sky ExportSky "C=<in-config> t=<in-array> GHI=<in-array> DHI=<in-array> index=<in-int> file=<in-string>"
+DESCRIPTION Exports a 3D polar plot of a sky. It only expoits one location. You need to specify the index of the location (starting at index 0).
+ARGUMENT C config-variable
+ARGUMENT t single value unix time
+ARGUMENT GHI single value global horizontal irradiance
+ARGUMENT DHI single value diffuse horizontal irradiance
+ARGUMENT index index of the location
+ARGUMENT file filename
+OUTPUT file A file with sky intensities. Organized in 4 columns: x y z I[W/sr]
+END_DESCRIPTION
+*/
 void ExportSky(char *in)
 {
 	int j; 

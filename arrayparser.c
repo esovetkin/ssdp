@@ -14,7 +14,16 @@
 
 
 typedef enum arrayops{ARR_PLUS,ARR_MINUS,ARR_MULT,ARR_DIV} arrayops;
-// PARSEFLAG array_eval array_comp "a=<a-array-variable> op=<operator:+,-,*,/> b=<b-array-variable> c=<c-output-array>"
+/*
+BEGIN_DESCRIPTION
+PARSEFLAG array_eval array_comp "a=<in-array> op=<operator:+,-,*,/> b=<in-array> c=<out-array>"
+DESCRIPTION Basic operations on array variables: c = a <op> b. Works both for element wise array-array operations aswell as for scalar-array operations.
+ARGUMENT a input array
+ARGUMENT op Operatator character (+,-,*,/)
+ARGUMENT b input array
+OUTPUT c output array
+END_DESCRIPTION
+*/
 void array_comp(char *in)
 {
 	int i;
@@ -148,7 +157,14 @@ int GetNumOption(char *in, char *opt, int i, char *word)
 	free(opti);	
 	return 1;
 }
-// PARSEFLAG read_array ReadArraysFromFile "a0=<array0> a1=<array1> .. aN=<arrayN> file=<file-str>"
+/*
+BEGIN_DESCRIPTION
+PARSEFLAG read_array ReadArraysFromFile "file=<file-str> a0=<out-array> a1=<out-array> .. aN=<out-array>"
+DESCRIPTION Reads columns from a file and stores them in arrays. The i-th column is stored in the i-th output array. Note that you cannot skip columns!
+ARGUMENT file input filename
+OUTPUT ai the i-th output array
+END_DESCRIPTION
+*/
 void ReadArraysFromFile(char *in)
 {
 	char **names;
@@ -214,7 +230,14 @@ void ReadArraysFromFile(char *in)
 	free(names);
 	free(data);
 }
-// PARSEFLAG write_array WriteArraysToFile "a0=<array0> a1=<array1> .. aN=<arrayN> file=<file-str>"
+/*
+BEGIN_DESCRIPTION
+PARSEFLAG write_array WriteArraysToFile "a0=<in-array> a1=<in-array> .. aN=<in-array> file=<file-str>"
+DESCRIPTION Writes arrays in columns of a file. The i-th array is written to the i-th column in the file. Note that you cannot skip columns!
+ARGUMENT ai the i-th input array
+OUTPUT file output filename
+END_DESCRIPTION
+*/
 void WriteArraysToFile(char *in)
 {
 	char *word;
@@ -273,7 +296,16 @@ void WriteArraysToFile(char *in)
 	free(file);
 	free(data);
 }
-// PARSEFLAG make_array MakeArray "x=<array-variable> x1=<startval-str> x2=<endval-str> Nx=<x-steps-str>"
+/*
+BEGIN_DESCRIPTION
+PARSEFLAG make_array MakeArray "x=<out-array> x1=<float> x2=<float> Nx=<int>"
+DESCRIPTION Creates an array with Nx+1 elements ranging from x1 to and including x2.
+ARGUMENT x1 Start float value
+ARGUMENT x2 End float value
+ARGUMENT Nx Number of steps (i.e. number of elements is Nx+1)
+OUTPUT x output array
+END_DESCRIPTION
+*/
 void MakeArray(char *in)
 {
 	char *word;
@@ -328,7 +360,19 @@ void MakeArray(char *in)
 	return;	
 }
 
-// PARSEFLAG make_grid MakeGrid "x=<array-variable> y=<array-variable> x1=<start-x-str> x2=<end-x-str> y1=<start-y-str> y2=<end--stry> Nx=<x-steps-str> Ny=<y-steps-str>"
+/*
+BEGIN_DESCRIPTION
+PARSEFLAG make_grid MakeGrid "x=<out-array> y=<out-array> x1=<float> x2=<float> y1=<float> y2=<float> Nx=<int> Ny=<int>"
+DESCRIPTION Creates two arrays with a regular grid with (Nx+1)*(Ny+1) elements.
+ARGUMENT x1 Start float x value
+ARGUMENT x2 End float x value
+ARGUMENT y1 Start float y value
+ARGUMENT y2 End float y value
+ARGUMENT Nx Number of x-steps
+ARGUMENT Ny Number of y-steps
+OUTPUT x output array
+END_DESCRIPTION
+*/
 void MakeGrid(char *in)
 {
 	char *word;
@@ -426,7 +470,14 @@ void MakeGrid(char *in)
 	return;	
 }
 
-// PARSEFLAG make_scalar MakeScalar "x=<array-variable> val=<value-str>"
+/*
+BEGIN_DESCRIPTION
+PARSEFLAG make_scalar MakeScalar "x=<out-array> val=<float>"
+DESCRIPTION Creates an array with length 1 (simply a shorter way to create a 1 valued array than using the make_array command)
+ARGUMENT val float value
+OUTPUT x output array
+END_DESCRIPTION
+*/
 void MakeScalar(char *in)
 {
 	char *word;
@@ -462,7 +513,14 @@ void MakeScalar(char *in)
 	return;	
 }
 
-// PARSEFLAG rad2deg ArrayRad2Deg "x=<array-variable>"
+/*
+BEGIN_DESCRIPTION
+PARSEFLAG rad2deg ArrayRad2Deg "x=<in/out-array>"
+DESCRIPTION Converts radians to degrees. The conversion is in-place (i.e. input and output are the same array).
+ARGUMENT x input array
+OUTPUT x output array
+END_DESCRIPTION
+*/
 void ArrayRad2Deg(char *in)
 {
 	char *word;
@@ -479,7 +537,14 @@ void ArrayRad2Deg(char *in)
 		x->D[i]=rad2deg(x->D[i]);
 	return;	
 }
-// PARSEFLAG deg2rad ArrayDeg2Rad "x=<array-variable>"
+/*
+BEGIN_DESCRIPTION
+PARSEFLAG deg2rad ArrayDeg2Rad "x=<in/out-array>"
+DESCRIPTION Converts degrees to radians. The conversion is in-place (i.e. input and output are the same array).
+ARGUMENT x input array
+OUTPUT x output array
+END_DESCRIPTION
+*/
 void ArrayDeg2Rad(char *in)
 {
 	char *word;
@@ -497,7 +562,14 @@ void ArrayDeg2Rad(char *in)
 	return;	
 }
 
-// PARSEFLAG sin Sin "phi=<array-variable> o=<output-array-variable>"
+/*
+BEGIN_DESCRIPTION
+PARSEFLAG sin Sin "phi=<in-array> o=<out-array>"
+DESCRIPTION Computes the sine function.
+ARGUMENT phi input array with angle
+OUTPUT o output array win sin(phi)
+END_DESCRIPTION
+*/
 void Sin(char *in)
 {
 	char *word;
@@ -528,7 +600,14 @@ void Sin(char *in)
 	return;	
 }
 
-// PARSEFLAG cos Cos "phi=<array-variable> o=<output-array-variable>"
+/*
+BEGIN_DESCRIPTION
+PARSEFLAG cos Cos "phi=<in-array> o=<out-array>"
+DESCRIPTION Computes the cosine function.
+ARGUMENT phi input array with angle
+OUTPUT o output array win cos(phi)
+END_DESCRIPTION
+*/
 void Cos(char *in)
 {
 	char *word;

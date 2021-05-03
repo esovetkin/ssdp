@@ -231,13 +231,23 @@ int FetchInt(const char *in, const char *pat, char *str, int *a)
 }
 
 
-
-// PARSEFLAG list_vars VarLister ""
+/*
+BEGIN_DESCRIPTION
+PARSEFLAG list_vars VarLister ""
+DESCRIPTION List all variables
+END_DESCRIPTION
+*/
 void VarLister(char *in)
 {
 	ListVars();
 }
-// PARSEFLAG help Help "[-l/command]"
+
+/*
+BEGIN_DESCRIPTION
+PARSEFLAG help Help "[-l/command]"
+DESCRIPTION Print basic help. If no arguments or the -l argument is given this will list all availablke help data. You can also request help on a specific command.
+END_DESCRIPTION
+*/
 void Help(char *in)
 {
 	int i=0;
@@ -249,9 +259,12 @@ void Help(char *in)
 	{
 		while(Usage[i])
 		{
-			printf("Command %s:\n",KeyTable[i].key);
-			SplitWords(Usage[i], "\t");
-			printf("\n");
+			if (KeyTable[i].key)
+			{
+				printf("Command %s:\n",KeyTable[i].key);
+				SplitWords(Usage[i], "\t");
+				printf("\n");
+			}
 			i++;
 		}
 		return;
