@@ -10,7 +10,7 @@
 #include "util.h"
 #include "variables.h"
 #include "parser.h"
-#include "parserutils.h"
+#include "parserutil.h"
 
 
 typedef enum arrayops{ARR_PLUS,ARR_MINUS,ARR_MULT,ARR_DIV} arrayops;
