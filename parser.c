@@ -14,6 +14,10 @@
 #include "parserutils.h"
 
 clock_t tic;
+
+int ParseLineNr=0;
+char *ParseFileStr=NULL;
+
 /* core parsing routines */
 /* LookupComm finds takes a keyword and retuns a pointer to the corresponding parser routine */
 ParserFun LookupComm(char *key)
@@ -53,6 +57,7 @@ int ParseComm(char *in)
 	}
 	if (!(*in))
 		return 0;
+		
 	key=malloc((strlen(in)+1)*sizeof(char));
 	arg=GetWord(in, key);
 	if (strncmp(key, "exit", 5)==0)
@@ -191,7 +196,7 @@ int FetchConfig(const char *in, const char *pat, char *str, simulation_config **
 	{
 		if (!LookupSimConf(str, a))
 		{
-			Warning("Simulation config %s is not available\n",str);
+			Warning("Input config %s=%s, %s is not available\n",pat,str, str);
 			return 1;
 		}
 		return 0;
@@ -204,7 +209,7 @@ int FetchArray(const char *in, const char *pat, char *str, array **a)
 	{
 		if (!LookupArray(str, a))
 		{
-			Warning("array %s is not available\n",pat);
+			Warning("Input array %s=%s, %s is not available\n",pat, str, str);
 			return 1;
 		}
 		return 0;
@@ -218,6 +223,7 @@ int FetchFloat(const char *in, const char *pat, char *str, double *a)
 		(*a)=atof(str);
 		return 0;
 	}
+	Warning("Input float %s is not specified\n",pat);
 	return 1;
 }
 int FetchInt(const char *in, const char *pat, char *str, int *a)
@@ -227,6 +233,7 @@ int FetchInt(const char *in, const char *pat, char *str, int *a)
 		(*a)=atoi(str);
 		return 0;
 	}
+	Warning("Input int %s is not specified\n",pat);
 	return 1;
 }
 

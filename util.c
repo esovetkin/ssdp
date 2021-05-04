@@ -23,6 +23,7 @@
 #include <stdarg.h>
 #include <ctype.h>
 #include "util.h"
+#include "parser.h"
 void Fatal( const char *format_str, ...)
 {
 	va_list ap;
@@ -36,6 +37,9 @@ void Warning( const char *format_str, ...)
 {
 	va_list ap;
 	va_start (ap, format_str);
+	
+	if ((ParseLineNr>0)&&(ParseFileStr))
+		fprintf(stderr, "WARNING: (%s:%d)\n", ParseFileStr,ParseLineNr);
 	vfprintf(stderr,format_str, ap); 
 }
 

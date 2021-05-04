@@ -101,6 +101,7 @@ void SimStatic(char *in)
 		return;
 	}	
 	out.N=t->N*C->Nl;	
+	printf("doing static simulation of %d locations at %d instances\n",C->Nl, t->N);
 	for (j=0;j<t->N;j++)
 	{
 		// compute sky at evert time instance
@@ -117,6 +118,7 @@ void SimStatic(char *in)
 	ttpoa=(double)tpoa/CLOCKS_PER_SEC;
 	printf("Computed %d skies in %g s (%g s/sky)\n", t->N, ttsky, ttsky/((double)t->N));
 	printf("Computed %d POA Irradiances in %g s (%g s/POA)\n", t->N*C->Nl, ttpoa, ttpoa/((double)(t->N*C->Nl)));
+	printf("Creating array %s\n",word);
 	if(AddArray(word, out))
 	{
 		free(word); // failed to make array
@@ -208,6 +210,7 @@ void SimRoute(char *in)
 		return;
 	}	
 	out.N=t->N;	
+	printf("doing route simulation along %d locations at %d instances\n",C->Nl, t->N);
 	for (j=0;j<t->N;j++)
 	{
 		// compute sky at evert time instance
@@ -227,6 +230,7 @@ void SimRoute(char *in)
 	ttpoa=(double)tpoa/CLOCKS_PER_SEC;
 	printf("Computed %d skies in %g s (%g s/sky)\n", t->N, ttsky, ttsky/((double)t->N));
 	printf("Computed %d POA Irradiances in %g s (%g s/POA)\n", t->N, ttpoa, ttpoa/((double)(t->N)));
+	printf("Creating array %s\n",word);
 	if(AddArray(word, out))
 	{
 		free(word); // failed to make array
@@ -275,6 +279,7 @@ void SolarPos(char *in)
 	azi.D=malloc(t->N*sizeof(double));
 	if (azi.D==NULL)
 	{
+		Warning("Could not allocate memory for the solar azimuth\n");
 		free(word);
 		return;
 	}	
@@ -282,10 +287,12 @@ void SolarPos(char *in)
 	zen.D=malloc(t->N*sizeof(double));
 	if (zen.D==NULL)
 	{
+		Warning("Could not allocate memory for the solar zenith\n");
 		free(word);
 		return;
 	}	
 	zen.N=t->N;
+	printf("Computing the solar position at %d instances\n",t->N);
 	for (i=0;i<t->N;i++)
 	{
 		s=ssdp_sunpos((time_t)t->D[i], lat, lon);
@@ -297,6 +304,7 @@ void SolarPos(char *in)
 		free(word);
 		return;
 	}
+	printf("Creating array %s\n",word);
 	if(AddArray(word, azi))
 	{
 		free(word); // failed to make array
@@ -308,6 +316,7 @@ void SolarPos(char *in)
 		free(word);
 		return;
 	}
+	printf("Creating array %s\n",word);
 	if(AddArray(word, zen))
 	{
 		free(word); // failed to make array
@@ -423,8 +432,9 @@ void ExportSky(char *in)
 		return;
 	}
 	// compute sky
+	printf("Writing the sky to file %s as seen from location %d\n",word, j);
 	ssdp_make_perez_all_weather_sky_coordinate(&(C->S), (time_t) t->D[0], C->lon, C->lat, GH->D[0], DH->D[0]);
-	WriteDome4D(word, &(C->S), C->L);
+	WriteDome4D(word, &(C->S), C->L+j);
 	free(word);
 }
 

@@ -1,0 +1,56 @@
+#################################################
+# initialize a simulation configuration variable
+init_sim_config C=C
+
+
+#################################################
+# set the coordinates in the configuration variable 
+# (default coordinates are 50.902996388,6.407165038 FZ Juelich)
+make_scalar x=lon val=9.717
+make_scalar x=lat val=48.533
+
+# ssdp works with radians, we need to convert
+deg2rad x=lon
+deg2rad x=lat
+
+# put the coordinates in the configuration variable
+config_coord C=C lat=lat lon=lon
+
+#################################################
+# configure the sky N indicates the number of zenith discretizations
+# The number of sky patches equals 3*N*(N-1)+1, e.g. with N=7 we have
+# 127 patches of sky. Note the sun lives outside the patches (is more 
+# accurate for low N values)
+config_sky N=15 C=C
+
+#################################################
+# Setup locations. In this case we omit a topography
+# so we only set up one x,y,z coordinate to compute
+make_scalar x=X val=0
+make_scalar x=Y val=0
+make_scalar x=Z val=0
+# orientation and tilt
+# north is at 0, east at 90 degrees
+make_scalar x=azi val=180
+make_scalar x=zen val=40
+# convert to radians
+deg2rad x=azi
+deg2rad x=zen
+# put the data in the configuration variable
+config_locations C=C x=X y=Y z=Z albedo=0.0 azimuth=azi zenith=zen
+
+#################################################
+# For the simulation we will simulate one year with cams data
+# the read_array command reads can read columns from an ascii file.
+# it takes a variable number of arguments a0 .. an to read the 
+# first n columns of a file (you cannot skip columns).
+# Here we fetch time, GHI and DHI from a file.
+# The time must be unix time.
+read_array file=transposition.dat a0=t a1=GHI a2=DHI
+
+#################################################
+# simulate the POA irradiance from the loaded GHI and DHI
+sim_static C=C t=t GHI=GHI DHI=DHI POA=P
+
+# the write array command is the reciprocal of the read_array command 
+write_array a0=t a1=GHI a2=DHI a3=P file=transposition_out.dat

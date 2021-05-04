@@ -81,7 +81,7 @@ void array_comp(char *in)
 	if ((a->N!=b->N)&&(a->N!=1)&&(b->N!=1))
 	{
 		free(word);
-		Warning("Cannot Add Arrays, arrays not of same length");
+		Warning("Array lengths so not match in array_eval");
 		return;
 	}
 	if (a->N==1)
@@ -122,7 +122,7 @@ void array_comp(char *in)
 		free(word);
 		return;
 	}
-	printf("creating array %s\n", word);
+	printf("array_eval: creating array %s\n", word);
 	if(AddArray(word, c))
 	{
 		free(word); // failed to make array
@@ -295,6 +295,7 @@ void WriteArraysToFile(char *in)
 		free(file);
 		return;
 	}
+	printf("writing arrays to file %s\n", file);
 	WriteArrays(file,data,i,N);
 	free(file);
 	free(data);
@@ -456,6 +457,7 @@ void MakeGrid(char *in)
 		free(word);
 		return;
 	}	
+	printf("Creating array %s\n",word);
 	if(AddArray(word, a))
 	{
 		free(a.D);	
@@ -467,6 +469,7 @@ void MakeGrid(char *in)
 		free(word);
 		return;
 	}	
+	printf("Creating array %s\n",word);
 	if(AddArray(word, b))
 	{
 		free(b.D);
@@ -511,6 +514,7 @@ void MakeScalar(char *in)
 	a.N=1;
 	a.D[0]=v;
 	
+	printf("Creating scalar %s\n",word);
 	if(AddArray(word, a))
 	{
 		free(a.D);	
@@ -540,6 +544,7 @@ void ArrayRad2Deg(char *in)
 		return;
 	}
 	
+	printf("converting %s to degrees\n",word);
 	for(i=0;i<x->N;i++)
 		x->D[i]=rad2deg(x->D[i]);
 	return;	
@@ -565,6 +570,7 @@ void ArrayDeg2Rad(char *in)
 		return;
 	}
 	
+	printf("converting %s to radians\n",word);
 	for(i=0;i<x->N;i++)
 		x->D[i]=deg2rad(x->D[i]);
 	return;	
@@ -601,6 +607,7 @@ void Sin(char *in)
 		free(word);
 		return;
 	}	
+	printf("Creating array %s\n",word);
 	if(AddArray(word, o))
 	{
 		free(o.D);	
@@ -640,6 +647,7 @@ void Cos(char *in)
 		free(word);
 		return;
 	}	
+	printf("Creating array %s\n",word);
 	if(AddArray(word, o))
 	{
 		free(o.D);	

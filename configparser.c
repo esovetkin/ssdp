@@ -64,11 +64,12 @@ void ConfigCoord (char *in)
 	}
 	if (l->N!=1)
 	{
-		Warning("config_coord expects a scalar value as longitude\n");
+		Warning("config_coord expects a scalar value (array length 1) as longitude\n");
 		free(word);
 		return;
 	}
 	C->lon=l->D[0];
+	printf("set longitude to %e degrees (%e rad)\n", rad2deg(C->lon), C->lon);
 	if (FetchArray(in, "lat", word, &l))
 	{
 		free(word);
@@ -76,11 +77,12 @@ void ConfigCoord (char *in)
 	}
 	if (l->N!=1)
 	{
-		Warning("config_coord expects a scalar value as lastitude\n");
+		Warning("config_coord expects a scalar value (array length 1) as latitude\n");
 		free(word);
 		return;
 	}
 	C->lat=l->D[0];
+	printf("set latitude to %e degrees (%e rad)\n", rad2deg(C->lat), C->lat);
 }
 
 /*
@@ -214,6 +216,12 @@ void InitConfigMask(simulation_config *C)
 		int pco=0;
 		FreeConfigMask(C); // make sure we are clear to allocate new memory
 		C->L=malloc(C->Nl*sizeof(location));
+		if (C->L==NULL)
+		{
+			Warning("Could not allocate memory for locations\n");
+			return;
+		}
+		printf("Tracing %d locations\n", C->Nl);
 		TIC();
 		for (i=0;i<C->Nl;i++)
 		{ 
@@ -223,7 +231,6 @@ void InitConfigMask(simulation_config *C)
 			pco=ProgressBar((100*(i+1))/C->Nl, pco, ProgressLen, ProgressTics);
 		}
 		dt=TOC();
-		printf("\n");
 		if (!ssdp_error_state)
 			printf("%d locations traced in %g s (%g s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));
 		else
@@ -240,6 +247,12 @@ void InitConfigMaskNoH(simulation_config *C) // same as above but without horizo
 		int pco=0;
 		FreeConfigMask(C); // make sure we are clear to allocate new memory
 		C->L=malloc(C->Nl*sizeof(location));
+		if (C->L==NULL)
+		{
+			Warning("Could not allocate memory for locations\n");
+			return;
+		}
+		printf("Tracing %d locations\n", C->Nl);
 		TIC();
 		for (i=0;i<C->Nl;i++)
 		{
@@ -249,7 +262,6 @@ void InitConfigMaskNoH(simulation_config *C) // same as above but without horizo
 			pco=ProgressBar((100*(i+1))/C->Nl, pco, ProgressLen, ProgressTics);
 		}
 		dt=TOC();
-		printf("\n");
 		if (!ssdp_error_state)
 			printf("%d locations traced in %g s (%g s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));
 		else

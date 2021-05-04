@@ -181,6 +181,7 @@ void OffsetTopography(char *in)
 	yoff.N=x->N;
 	xoff.D=malloc(x->N*sizeof(double));
 	xoff.N=x->N;
+	printf("computing tolology offset by %e\n",o);
 	for (i=0;i<x->N;i++)
 	{
 		zoff.D[i]=ssdp_sample_topology(x->D[i], y->D[i], &(C->T),&sn)+o*cos(sn.z);
@@ -303,6 +304,7 @@ void RotatePOA(char *in)
 	azi.N=rot_a->N;
 	zen.D=malloc(rot_a->N*sizeof(double));
 	zen.N=rot_a->N;
+	printf("rotating the POA along the surface normal\n");
 	for (i=0;i<rot_a->N;i++)
 	{
 		sn.a=rot_a->D[i];
@@ -382,6 +384,7 @@ void Bearing(char *in)
 	azi.D=malloc(x->N*sizeof(double));
 	azi.N=x->N;
 		
+	printf("compute bearing\n");
 	for(i=0;i<x->N-2;i++)
 		azi.D[i+1]=atan2(x->D[i+2]-x->D[i], y->D[i+2]-y->D[i]);
 	azi.D[0]=atan2(x->D[1]-x->D[0], y->D[1]-y->D[0]);
@@ -431,6 +434,7 @@ void ExportTopo(char *in)
 		free(word);
 		return;
 	}
+	printf("writing tolography to file %s\n", word);
 	WriteTopo(word, &(C->T));
 	return;	
 }
@@ -466,6 +470,7 @@ void ExportTriangles(char *in)
 		free(word);
 		return;
 	}
+	printf("writing triangulation to file %s\n", word);
 	WriteTriangles(word, &(C->T));
 	return;	
 }

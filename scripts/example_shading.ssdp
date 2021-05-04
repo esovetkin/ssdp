@@ -1,0 +1,58 @@
+# initialize simulation config variable
+init_sim_config C=C
+
+# read a topography (x,y,z values)
+# it should be an unstructured mesh.
+# the coordinate system:
+# x axis points east at 90 degrees
+# y axis points north at 0 degrees
+# z-axis points up
+read_array a0=x a1=y a2=z file=sundial.dat
+
+# import the topography in the configuration variable
+config_topology C=C x=x y=y z=z
+
+# setup the sky
+config_sky N=20 C=C
+
+# the make grid command defines two arrays which form a regular mesh
+# otherwise it is similar to the make_array command
+make_grid x=X y=Y x1=-39 x2=39 y1=-39 y2=39 Nx=99 Ny=99
+
+# sample the topography to obtain the z values and the surface normal 
+# corresponding to our mesh coordinates
+sample_topo C=C x=X y=Y z=Z azimuth=azi zenith=zen
+
+# setup the locations in the configuration variable 
+# (note the POA is the topography surface)
+config_locations C=C x=X y=Y z=Z azimuth=azi zenith=zen
+
+# Morning
+# Wed 03 Jun 2015 06:50:00 AM CEST (@1433307000)
+# GHI 154
+# DHI 50
+make_scalar x=t val=1433307000
+make_scalar x=GHI val=154
+make_scalar x=DHI val=50
+sim_static C=C t=t GHI=GHI DHI=DHI POA=P
+write_array a0=X a1=Y a2=Z a3=P file=irrt1.dat
+
+# Around solar noon
+# Wed 03 Jun 2015 01:10:00 PM CEST (@1433329800)
+# GHI 909
+# DHI 123
+make_scalar x=t val=1433329800
+make_scalar x=GHI val=909
+make_scalar x=DHI val=123
+sim_static C=C t=t GHI=GHI DHI=DHI POA=P
+write_array a0=X a1=Y a2=Z a3=P file=irrt2.dat
+
+# evening
+# Wed 03 Jun 2015 07:30:00 PM CEST (@1433352600)
+# GHI 194
+# DHI 63
+make_scalar x=t val=1433352600
+make_scalar x=GHI val=194
+make_scalar x=DHI val=63
+sim_static C=C t=t GHI=GHI DHI=DHI POA=P
+write_array a0=X a1=Y a2=Z a3=P file=irrt3.dat

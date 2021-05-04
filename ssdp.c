@@ -74,6 +74,10 @@ void ParseFile(char *fn)
 		Warning("Cannot open input file %s for reading", fn);
 		return;
 	}
+	
+	ParseLineNr=1;
+	ParseFileStr=fn;
+	
 	line=malloc(MAXLINELEN*sizeof(char));
     fgets(line, MAXLINELEN-1, f);
 	while(feof(f)==0)
@@ -82,7 +86,10 @@ void ParseFile(char *fn)
 		if (ParseComm(line))
 			break;
 		fgets(line, MAXLINELEN-1, f);
+		ParseLineNr++;
 	}
+	ParseFileStr=NULL;
+	ParseLineNr=0;
 	free(line);
 	fclose(f);
 }
@@ -97,6 +104,7 @@ void PrintHeader()
 	printf("linked libssdp: ");
 	ssdp_print_version();
 	printf("compile date  :  %s\n",__DATE__);
+	printf("----------------------------\n");
 }
 
 int main(int argc, char **argv)
