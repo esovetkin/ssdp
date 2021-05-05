@@ -11,6 +11,7 @@ read_array a0=x a1=y a2=z file=sundial.dat
 
 # import the topography in the configuration variable
 config_topology C=C x=x y=y z=z
+export_triangles C=C file=triangulation.dat
 
 # setup the sky
 config_sky N=20 C=C

@@ -73,13 +73,13 @@ void WriteTriangles(char *fn, topology *T)
 	if ((f=fopen(fn,"w"))==NULL)
 		Fatal("Cannot open %s for writing\n", fn);
 	fprintf(f,"# topology triangle data\n");
-	fprintf(f,"# x y z)\n");
+	fprintf(f,"# x y z index)\n");
 	for (i=0;i<T->Nt;i++)
 	{
-		fprintf(f, "%e %e %d\n", T->x[T->T[i].i], T->y[T->T[i].i], i);
-		fprintf(f, "%e %e %d\n", T->x[T->T[i].j], T->y[T->T[i].j], i);
-		fprintf(f, "%e %e %d\n", T->x[T->T[i].k], T->y[T->T[i].k], i);
-		fprintf(f, "%e %e %d\n\n", T->x[T->T[i].i], T->y[T->T[i].i], i);
+		fprintf(f, "%e %e %e %d\n", T->x[T->T[i].i], T->y[T->T[i].i], T->z[T->T[i].i], i);
+		fprintf(f, "%e %e %e %d\n", T->x[T->T[i].j], T->y[T->T[i].j], T->z[T->T[i].j], i);
+		fprintf(f, "%e %e %e %d\n", T->x[T->T[i].k], T->y[T->T[i].k], T->z[T->T[i].k], i);
+		fprintf(f, "%e %e %e %d\n\n", T->x[T->T[i].i], T->y[T->T[i].i], T->z[T->T[i].i], i);
 	}
 	fclose(f);
 }
