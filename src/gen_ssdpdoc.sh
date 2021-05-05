@@ -6,6 +6,13 @@
 #
 # it generates a table with keywords and functions in parsedef.h"
 FILE="ssdp.man"
+if [ -z "$1" ]
+then
+	echo gen_ssdpdoc.sh needs arguments!
+	exit 1
+fi
+srcdir="$1"
+shift
 echo ".TH ssdp 1 \"simple sky dome projector\"" >  $FILE
 echo ".SH NAME" >>  $FILE
 echo "ssdp - simple sky dome projector" >>  $FILE
@@ -53,7 +60,7 @@ echo "however, ssdp script is only very basic and does not support tests, loops,
 for s in $@
 do
 	echo Collecting Docu flags from $s
-	awk '/BEGIN_DESCRIPTION/{flag=1;next}/END_DESCRIPTION/{flag=0}flag' $s >>  descriptions
+	awk '/BEGIN_DESCRIPTION/{flag=1;next}/END_DESCRIPTION/{flag=0}flag' "$srcdir/$s" >>  descriptions
 done
 
 sect=0

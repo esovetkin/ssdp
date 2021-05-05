@@ -12,10 +12,17 @@ NFLAGS=0;
 echo "#ifndef PARSEDEF_H" >>  $FILE
 echo "#define PARSEDEF_H" >>  $FILE
 # first collect all parsing flags in one file
+if [ -z "$1" ]
+then
+	echo gen_parseflags.sh needs arguments!
+	exit 1
+fi
+srcdir="$1"
+shift
 for s in $@
 do
 	echo Collecting parsing flags from $s
-	egrep -o 'PARSEFLAG.*' $s | sort | uniq >>tmpflags
+	egrep -o 'PARSEFLAG.*' "$srcdir/$s" | sort | uniq >>tmpflags
 done
 
 # create the parse flag defines
