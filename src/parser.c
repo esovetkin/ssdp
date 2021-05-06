@@ -190,6 +190,8 @@ char * keyword_generator(const char *text, int state)
     return NULL;
 }
 
+
+
 int FetchConfig(const char *in, const char *pat, char *str, simulation_config **a)
 {
 	if (GetArg(in, pat, str))

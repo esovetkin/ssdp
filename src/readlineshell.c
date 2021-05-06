@@ -31,10 +31,15 @@ static void sighandler (int sig)
 
 char ** keyword_completion(const char *text, int start, int end)
 {
-    rl_attempted_completion_over = 1;
-    return rl_completion_matches(text, keyword_generator);
+  char **matches;
+  matches = (char **)NULL;
+  /* If this word is at the start of the line, then it is a command
+     to complete.  Otherwise it is the name of a file in the current
+     directory. */
+  if (start == 0)
+    matches = rl_completion_matches (text, keyword_generator);
+  return (matches);
 }
-
 /* Callback function called for each line when accept-line executed, EOF
    seen, or EOF character read.  This sets a flag and returns; it could
    also call exit(3). */
