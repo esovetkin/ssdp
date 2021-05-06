@@ -6,7 +6,7 @@
 #include <math.h>
 /* local includes */
 #include "libssdp.h"
-#include "io.h"
+#include "lio.h"
 #include "util.h"
 #include "variables.h"
 #include "parser.h"

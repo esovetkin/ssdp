@@ -16,7 +16,26 @@ struct flipdata {
 double sqdist(const sh_point *p, const sh_point *q) {
 	return (p->x-q->x)*(p->x-q->x)+(p->y-q->y)*(p->y-q->y);
 }
-
+#ifdef _WIN32
+sh_point * c_for_win;
+int radialcompare(const void *a, const void *b) { 
+	double rr = sqdist((const sh_point *)a, c_for_win);
+	double ss = sqdist((const sh_point *)b, c_for_win);
+	if (rr < ss) {
+		return -1;
+	}
+	else if (rr > ss) {
+		return 1;
+	}
+	else {
+		return 0;
+	}
+} 
+void radialsort(sh_point *ps, size_t n, sh_point *q) { 
+	c_for_win=q;
+	qsort(ps, n, sizeof(sh_point), radialcompare);
+} 
+#else
 int radialcompare(const void *a, const void *b, void *c) { 
 	double rr = sqdist((const sh_point *)a, (const sh_point *)c);
 	double ss = sqdist((const sh_point *)b, (const sh_point *)c);
@@ -33,6 +52,7 @@ int radialcompare(const void *a, const void *b, void *c) {
 void radialsort(sh_point *ps, size_t n, sh_point *q) { 
 	qsort_r(ps, n, sizeof(sh_point), radialcompare, q);
 } 
+#endif /*_WIN32 */
 void swap_points(sh_point *p, sh_point *q) { 
 	sh_point tmp;
 	memcpy(&tmp, p,    sizeof(sh_point));

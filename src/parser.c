@@ -7,7 +7,7 @@
 /* local includes */
 #include "parsedef.h"
 #include "libssdp.h"
-#include "io.h"
+#include "lio.h"
 #include "util.h"
 #include "variables.h"
 #include "parser.h"

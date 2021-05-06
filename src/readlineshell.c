@@ -1,4 +1,11 @@
 #include <stdlib.h>
+#include <stdio.h>
+#ifdef _WIN32
+void shell()
+{
+	fprintf(stderr,"Sorry, no interactive shell on windows\n");
+}
+#else
 #include <string.h>
 #include <unistd.h>
 #include <locale.h>
@@ -119,3 +126,4 @@ void shell()
 			rl_callback_read_char ();
 	}
 }
+#endif /*_WIN32 */
