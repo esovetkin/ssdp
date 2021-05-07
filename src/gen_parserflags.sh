@@ -35,7 +35,7 @@ echo "	ParserFun fun;">>$FILE
 echo "} KeyWord;">>$FILE
 
 echo "const KeyWord KeyTable[] = {">>$FILE
-awk '{print "\t{\""$2"\", &"$3"},"}' tmpflags>>$FILE
+awk '{print "	{\""$2"\", &"$3"},"}' tmpflags>>$FILE
 echo "	{NULL, NULL}">>$FILE
 echo "};">>$FILE
 

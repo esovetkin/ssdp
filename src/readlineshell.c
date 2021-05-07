@@ -83,7 +83,7 @@ void shell()
 		r = isatty(STDIN_FILENO);
 		if (r != 1)
 		{
-			fprintf(stderr,"Warning: Problems reading input");
+			fprintf(stderr,"Warning: Problems reading input (%d)\n", r);
 			rl_callback_handler_remove ();
 			break;
 		}
