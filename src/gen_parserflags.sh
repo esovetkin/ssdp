@@ -35,13 +35,13 @@ echo "	ParserFun fun;">>$FILE
 echo "} KeyWord;">>$FILE
 
 echo "const KeyWord KeyTable[] = {">>$FILE
-awk '{print "	{\""$2"\", &"$3"},"}' tmpflags>>$FILE
+awk '{print "\t{\""$2"\", &"$3"},"}' tmpflags>>$FILE
 echo "	{NULL, NULL}">>$FILE
 echo "};">>$FILE
 
 
 echo "char *Usage[] = {"  >>  $FILE
-sed -n 's/.*PARSEFLAG.*\(\".*\"\)/\t\1,/gp' tmpflags>> $FILE
+sed -n 's/.*PARSEFLAG.*\(\".*\"\)/	\1,/gp' tmpflags>> $FILE
 echo "	NULL"  >>  $FILE
 echo "};"   >>  $FILE
 
