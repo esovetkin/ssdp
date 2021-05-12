@@ -7,7 +7,6 @@
 #else
 #include <unistd.h>
 #endif /*_WIN64*/
-#include <locale.h>
 #include <readline/readline.h>
 #include <readline/history.h>
 #include "parser.h"
@@ -72,7 +71,6 @@ void shell()
 {
 	int r;
     rl_attempted_completion_function = keyword_completion;
-	setlocale (LC_ALL, "");
 #ifndef _WIN64
 	signal (SIGWINCH, sighandler);
 #endif /*_WIN64*/
