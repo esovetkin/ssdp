@@ -123,7 +123,7 @@ location ssdp_setup_location(sky_grid *sky, topology *T, double albedo, sky_pos 
 		return l0;
 	}
 	if (T)
-		ComputeHorizon(&l.H, T, xoff, yoff, zoff);
+		ComputeHorizon(&l.H, T, M_PI/4.0/((double)sky->Nz), xoff, yoff, zoff);
 	AtanHorizon(&l.H);
 	if (ssdp_error_state)
 	{

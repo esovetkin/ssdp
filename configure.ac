@@ -1,4 +1,8 @@
-AC_INIT([libssdp], [1.1])
+m4_define([ssdp_major_version],    [1])
+m4_define([ssdp_minor_version],    [2])
+m4_define([ssdp_revis_version],    [1])
+m4_define([ssdp_version],[ssdp_major_version.ssdp_minor_version.ssdp_revis_version])
+AC_INIT([libssdp], [ssdp_version])
 AC_CONFIG_MACRO_DIRS([m4])
 AC_PROG_LIBTOOL()
 AC_PROG_SED()
@@ -22,7 +26,7 @@ AS_IF([test "x$enable_fastatan2" != "xno"], [
   AC_DEFINE([FAST_ATAN2], [], [fast atan2 approximation])
 ])
 
-AC_DEFINE([LIBSSDPVERSION], ["1.2"], [libssdp version string])
+AC_DEFINE([LIBSSDPVERSION], ["[ssdp_version]"], [libssdp version string])
 AC_CONFIG_FILES([
  Makefile src/Makefile
 ])

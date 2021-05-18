@@ -332,21 +332,24 @@ int TriangleAziRange(triangles T, double *x, double *y, double dz, double xoff, 
 #undef BY 
 #undef CX 
 #undef CY 
-
 // take a topology and rize the horizon accordingly
-void ComputeHorizon(horizon *H, topology *T, double xoff, double yoff, double zoff)
-// in principle one can later add a second topology to an existing horizon, is this useful? probably not.
+void ComputeHorizon(horizon *H, topology *T, double minzen, double xoff, double yoff, double zoff)
+// the minzen parameter can save alot of work
+// it specifies the minimum zenith angle to consider a triangle for the horizon
+// I would set it to 0.5 times the zenith step in the sky. Especially for large topographies it reduces the amount of work considerably as far away triangles are less likely of consequence
 {
 	int i;
 	double d;
 	double z, a1, a2;	
+	double r;
+	r=tan(minzen);// compute threshold height over distance ratio
 	for (i=0;i<T->Nt;i++)
 	{
 		// compute sky position and diameter in radians
 		
 		d=sqrt((T->T[i].ccx-xoff)*(T->T[i].ccx-xoff)+(T->T[i].ccy-yoff)*(T->T[i].ccy-yoff));
 		z=(T->z[T->T[i].i]+T->z[T->T[i].j]+T->z[T->T[i].k])/3;
-		if (z>zoff) // do not compute anything for triangle below the projection point
+		if ((z-zoff)/d>r) // do not compute anything for triangles below the zenith threshold
 			if (TriangleAziRange(T->T[i], T->x, T->y, z-zoff, xoff, yoff, &a1, &a2)) // the horizon routine is not equipped to put a roof over the PV panel...
 				RizeHorizon(H, a1, a2, d/(z-zoff));
 	}	
@@ -359,7 +362,7 @@ horizon MakeHorizon(sky_grid *sky, topology *T, double xoff, double yoff, double
 	H=InitHorizon(sky->Nz);
 	if (ssdp_error_state)
 		return H;
-	ComputeHorizon(&H, T, xoff, yoff, zoff);
+	ComputeHorizon(&H, T, M_PI/4.0/((double)sky->Nz), xoff, yoff, zoff);
 	AtanHorizon(&H);
 	return H;
 }

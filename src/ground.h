@@ -32,5 +32,5 @@ topology CreateRandomTopology(double dx, double dy, double dz, double fN, int N)
 void free_topo (topology *T);
 double SampleTopo(double x, double y, topology *T, sky_pos *sn);
 
-void ComputeHorizon(horizon *H, topology *T, double xoff, double yoff, double zoff);
+void ComputeHorizon(horizon *H, topology *T, double minzen, double xoff, double yoff, double zoff);
 horizon MakeHorizon(sky_grid *sky, topology *T, double xoff, double yoff, double zoff);
