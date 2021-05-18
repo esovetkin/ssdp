@@ -68,8 +68,14 @@ horizon InitHorizon(int Nz)
 		return H0;
 	}
 	for (i=0;i<H.N;i++)
-		H.zen[i]=M_PI/2;
+		H.zen[i]=INFINITY; // initialized at infinity, AtanHorizon must be called once after initializing
 	return H;
+}
+void AtanHorizon(horizon *H)
+{
+	int i;
+	for (i=0;i<H->N;i++)
+		H->zen[i]=atan(H->zen[i]);
 }
 void FreeHorizon(horizon *H)
 {

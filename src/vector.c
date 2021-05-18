@@ -19,6 +19,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+#include "config.h"
+#include "fatan2.h"
 #include "vector.h"
 
 
@@ -78,8 +80,8 @@ vec unit(sky_pos a)
 sky_pos vecdir(vec a)
 {
 	sky_pos r;
-	r.a=atan2(a.y,a.x);
-	r.z=atan2(sqrt(a.x*a.x+a.y*a.y), a.z);
+	r.a=ATAN2(a.y,a.x);
+	r.z=ATAN2(sqrt(a.x*a.x+a.y*a.y), a.z);
 	return r;
 }
 // projection routines

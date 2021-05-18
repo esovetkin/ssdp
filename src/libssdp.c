@@ -124,6 +124,7 @@ location ssdp_setup_location(sky_grid *sky, topology *T, double albedo, sky_pos 
 	}
 	if (T)
 		ComputeHorizon(&l.H, T, xoff, yoff, zoff);
+	AtanHorizon(&l.H);
 	if (ssdp_error_state)
 	{
 		ssdp_free_location(&l);

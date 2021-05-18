@@ -15,6 +15,13 @@ AC_CHECK_HEADERS([readline/readline.h, readline/rlconf.h], [HAVE_READLINE_H=yes]
   if test "$HAVE_READLINE_H" = "no"; then
     AC_MSG_ERROR([GNU readline development header is not installed.])
   fi
+AC_ARG_ENABLE([fastatan2],
+    AS_HELP_STRING([--disable-fastatan2], [Disable the fast atan2 approximation]))
+
+AS_IF([test "x$enable_fastatan2" != "xno"], [
+  AC_DEFINE([FAST_ATAN2], [], [fast atan2 approximation])
+])
+
 AC_DEFINE([LIBSSDPVERSION], ["1.1"], [libssdp version string])
 AC_CONFIG_FILES([
  Makefile src/Makefile

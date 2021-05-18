@@ -30,6 +30,8 @@
 #include "print.h"
 #include "print.h"
 #include "error.h"
+#include "config.h"
+#include "fatan2.h"
 
 
 topology MakeTopology(double *x, double *y, double *z, int N)
@@ -196,8 +198,10 @@ void RizeHorizon(horizon *H, double azi1, double azi2, double zen)
 	int i, j, k;
 	if (zen>M_PI/2)
 		return;
-	i=(int)(azi1/H->astep);
-	j=(int)(azi2/H->astep);
+	if (zen<0)
+		return;
+	i=(int)floor(azi1/H->astep);
+	j=(int)floor(azi2/H->astep);
 	
 	if (i<0)
 		i+=H->N;
@@ -215,14 +219,21 @@ void RizeHorizon(horizon *H, double azi1, double azi2, double zen)
 	}
 	if (j-i>=H->N/2)
 	{
-		for (k=j;k<H->N+i;k++)
+		j=j+1;
+		for (k=j;k<H->N;k++)
 		{
-			if (H->zen[k%H->N]>zen)
-				H->zen[k%H->N]=zen;
+			if (H->zen[k]>zen)
+				H->zen[k]=zen;
+		}
+		for (k=0;k<i;k++)
+		{
+			if (H->zen[k]>zen)
+				H->zen[k]=zen;
 		}
 	}
 	else
 	{	
+		i=i+1;
 		for (k=i;k<=j;k++)
 		{
 			if (H->zen[k]>zen)
@@ -251,19 +262,19 @@ void MakeHorizon2(horizon *H, topology *T, double xoff, double yoff, double zoff
 		d=sqrt((T->T[i].ccx-xoff)*(T->T[i].ccx-xoff)+(T->T[i].ccy-yoff)*(T->T[i].ccy-yoff));
 		z=(T->z[T->T[i].i]+T->z[T->T[i].j]+T->z[T->T[i].k])/3;
 		
-		a1=atan2(T->y[T->T[i].i]-yoff,T->x[T->T[i].i]-xoff);
-		a2=atan2(T->y[T->T[i].j]-yoff,T->x[T->T[i].j]-xoff);
-		a3=atan2(T->y[T->T[i].k]-yoff,T->x[T->T[i].k]-xoff);
+		a1=ATAN2(T->y[T->T[i].i]-yoff,T->x[T->T[i].i]-xoff);
+		a2=ATAN2(T->y[T->T[i].j]-yoff,T->x[T->T[i].j]-xoff);
+		a3=ATAN2(T->y[T->T[i].k]-yoff,T->x[T->T[i].k]-xoff);
 		w1=fabs(adiff(a1, a2));
 		w2=fabs(adiff(a2, a3));
 		w3=fabs(adiff(a1, a3));		
 		
 		if ((w1>w2)&&(w1>w3))
-			RizeHorizon(H, a1, a2, M_PI/2-atan2(z-zoff,d));
+			RizeHorizon(H, a1, a2, M_PI/2-ATAN2(z-zoff,d));
 		else if ((w2>w1)&&(w2>w3))
-			RizeHorizon(H, a2, a3, M_PI/2-atan2(z-zoff,d));
+			RizeHorizon(H, a2, a3, M_PI/2-ATAN2(z-zoff,d));
 		else if ((w3>w1)&&(w3>w2))
-			RizeHorizon(H, a1, a3, M_PI/2-atan2(z-zoff,d));
+			RizeHorizon(H, a1, a3, M_PI/2-ATAN2(z-zoff,d));
 	}
 	
 }
@@ -287,7 +298,6 @@ int EdgeVis(double px, double py, double ax, double ay, double bx, double by)
 #define BY y[T.j]
 #define CX x[T.k]
 #define CY y[T.k]
-
 int TriangleAziRange(triangles T, double *x, double *y, double dz, double xoff, double yoff, double *a1, double *a2)
 {
 	// assume right handed triangles
@@ -311,12 +321,12 @@ int TriangleAziRange(triangles T, double *x, double *y, double dz, double xoff, 
 		dx=AX-xoff;
 		dy=AY-yoff;
 		l=sqrt((dx*dx+dz2)/(dx*dx+dy*dy));
-		(*a1)=atan2(l*dx,l*dy); // I want north to be 0° and east
+		(*a1)=ATAN2(l*dx,l*dy); // I want north to be 0° and east
 		
 		dx=CX-xoff;
 		dy=CY-yoff;
 		l=sqrt((dx*dx+dz2)/(dx*dx+dy*dy));
-		(*a2)=atan2(l*dx,l*dy);
+		(*a2)=ATAN2(l*dx,l*dy);
 		return 1;
 	}
 	if (pcross(xoff,yoff,BX,BY,CX,CY)*(pcross(xoff,yoff,CX,CY,AX,AY))>0) // consitently left or right winding from B via C to A
@@ -325,12 +335,12 @@ int TriangleAziRange(triangles T, double *x, double *y, double dz, double xoff, 
 		dx=BX-xoff;
 		dy=BY-yoff;
 		l=sqrt((dx*dx+dz2)/(dx*dx+dy*dy));
-		(*a1)=atan2(l*dx,l*dy);
+		(*a1)=ATAN2(l*dx,l*dy);
 		
 		dx=AX-xoff;
 		dy=AY-yoff;
 		l=sqrt((dx*dx+dz2)/(dx*dx+dy*dy));
-		(*a2)=atan2(l*dx,l*dy);
+		(*a2)=ATAN2(l*dx,l*dy);
 		return 1;
 	}
 	if (pcross(xoff,yoff,CX,CY,AX,AY)*(pcross(xoff,yoff,AX,AY,BX,BY))>0) // consitently left or right winding from C via A to B
@@ -339,12 +349,12 @@ int TriangleAziRange(triangles T, double *x, double *y, double dz, double xoff, 
 		dx=CX-xoff;
 		dy=CY-yoff;
 		l=sqrt((dx*dx+dz2)/(dx*dx+dy*dy));
-		(*a1)=atan2(l*dx,l*dy);
+		(*a1)=ATAN2(l*dx,l*dy);
 		
 		dx=BX-xoff;
 		dy=BY-yoff;
 		l=sqrt((dx*dx+dz2)/(dx*dx+dy*dy));
-		(*a2)=atan2(l*dx,l*dy);
+		(*a2)=ATAN2(l*dx,l*dy);
 		
 		return 1;
 	}
@@ -354,6 +364,7 @@ int TriangleAziRange(triangles T, double *x, double *y, double dz, double xoff, 
 	(*a2)=M_PI;
 	return 0;
 }
+
 #undef AX 
 #undef AY 
 #undef BX 
@@ -374,13 +385,12 @@ void ComputeHorizon(horizon *H, topology *T, double xoff, double yoff, double zo
 		
 		d=sqrt((T->T[i].ccx-xoff)*(T->T[i].ccx-xoff)+(T->T[i].ccy-yoff)*(T->T[i].ccy-yoff));
 		z=(T->z[T->T[i].i]+T->z[T->T[i].j]+T->z[T->T[i].k])/3;
-		if (TriangleAziRange(T->T[i], T->x, T->y, z-zoff, xoff, yoff, &a1, &a2)) // the horizon routine is not equipped to put a roof over the PV panel...
-		{
-			//fprintf(stderr, "%e %e %e %e %e\n", d, z-zoff, a1, a2,  atan2(d, z-zoff));
-			RizeHorizon(H, a1, a2, atan2(d, z-zoff));
-		}
+		if (z>zoff) // do not compute anything for triangle below the projection point
+			if (TriangleAziRange(T->T[i], T->x, T->y, z-zoff, xoff, yoff, &a1, &a2)) // the horizon routine is not equipped to put a roof over the PV panel...
+				RizeHorizon(H, a1, a2, d/(z-zoff));
 	}	
 }
+
 
 horizon MakeHorizon(sky_grid *sky, topology *T, double xoff, double yoff, double zoff)
 {
@@ -389,6 +399,7 @@ horizon MakeHorizon(sky_grid *sky, topology *T, double xoff, double yoff, double
 	if (ssdp_error_state)
 		return H;
 	ComputeHorizon(&H, T, xoff, yoff, zoff);
+	AtanHorizon(&H);
 	return H;
 }
 

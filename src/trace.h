@@ -18,6 +18,7 @@ typedef struct horizon {
 void FreeSkyTransfer(sky_transfer *T);
 sky_transfer InitSkyTransfer(int Nz);
 horizon InitHorizon(int Nz);
+void AtanHorizon(horizon *H);
 void FreeHorizon(horizon *H);
 int BelowHorizon(const horizon *H, sky_pos p);
 
