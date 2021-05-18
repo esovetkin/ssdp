@@ -242,45 +242,7 @@ void RizeHorizon(horizon *H, double azi1, double azi2, double zen)
 	}
 }
 
-/* MakeHorizon2: old routine kept for reference.
- * This routine is slightly slower as it relies more on atan2 operations than the new one
- * In this code three atan2's are used to find the azimuthal range of an element
- * In the new code the edges of the triangles are analyzed to determine which two corners
- * determine the azimuthal range and we can skip one atan2 (of 4 per element).
- */ 
-
-void MakeHorizon2(horizon *H, topology *T, double xoff, double yoff, double zoff)
-{
-	int i;
-	double d;
-	double z, a1, a2, a3, w1,w2,w3;
-	
-	for (i=0;i<T->Nt;i++)
-	{
-		// compute sky position and diameter in radians
-		
-		d=sqrt((T->T[i].ccx-xoff)*(T->T[i].ccx-xoff)+(T->T[i].ccy-yoff)*(T->T[i].ccy-yoff));
-		z=(T->z[T->T[i].i]+T->z[T->T[i].j]+T->z[T->T[i].k])/3;
-		
-		a1=ATAN2(T->y[T->T[i].i]-yoff,T->x[T->T[i].i]-xoff);
-		a2=ATAN2(T->y[T->T[i].j]-yoff,T->x[T->T[i].j]-xoff);
-		a3=ATAN2(T->y[T->T[i].k]-yoff,T->x[T->T[i].k]-xoff);
-		w1=fabs(adiff(a1, a2));
-		w2=fabs(adiff(a2, a3));
-		w3=fabs(adiff(a1, a3));		
-		
-		if ((w1>w2)&&(w1>w3))
-			RizeHorizon(H, a1, a2, M_PI/2-ATAN2(z-zoff,d));
-		else if ((w2>w1)&&(w2>w3))
-			RizeHorizon(H, a2, a3, M_PI/2-ATAN2(z-zoff,d));
-		else if ((w3>w1)&&(w3>w2))
-			RizeHorizon(H, a1, a3, M_PI/2-ATAN2(z-zoff,d));
-	}
-	
-}
-// alternative MakeHorizon code relying on the triangulation producing right handed triangles
-// This code computes onl;y two atan2's to get the azimuth range of a triangle instead of three
-// speeds up the code maybe 15% or so
+// MakeHorizon relies on the triangulation producing right handed triangles
 double pcross(double ax, double ay, double bx, double by, double cx, double cy) 
 { 
 	return (bx-ax)*(cy-ay)-(by-ay)*(cx-ax);
@@ -290,7 +252,6 @@ int EdgeVis(double px, double py, double ax, double ay, double bx, double by)
 {
 	return (pcross(px,py,ax,ay,bx,by)<0);
 }
-
 
 #define AX x[T.i]
 #define AY y[T.i]

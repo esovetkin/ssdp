@@ -22,7 +22,7 @@ AS_IF([test "x$enable_fastatan2" != "xno"], [
   AC_DEFINE([FAST_ATAN2], [], [fast atan2 approximation])
 ])
 
-AC_DEFINE([LIBSSDPVERSION], ["1.1"], [libssdp version string])
+AC_DEFINE([LIBSSDPVERSION], ["1.2"], [libssdp version string])
 AC_CONFIG_FILES([
  Makefile src/Makefile
 ])

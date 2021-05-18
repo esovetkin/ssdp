@@ -27,3 +27,13 @@ double fatan2(double y, double x)
 		r=-r;
 	return (double)r;
 }
+double fatan(double x)
+{
+	float a, s, r;
+	a=(float)fabs(x);
+	s=a*a;
+	r=((-0.0464964749 * s + 0.15931422) * s - 0.327622764) * s * a + a;
+	if (x<0)
+		r=-r;
+	return (double)r;
+}

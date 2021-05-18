@@ -24,6 +24,8 @@
 #include "trace.h"
 #include "error.h"
 #include "print.h"
+#include "config.h"
+#include "fatan2.h"
 
 sky_transfer InitSkyTransfer(int N)
 {
@@ -75,7 +77,7 @@ void AtanHorizon(horizon *H)
 {
 	int i;
 	for (i=0;i<H->N;i++)
-		H->zen[i]=atan(H->zen[i]);
+		H->zen[i]=ATAN(H->zen[i]);
 }
 void FreeHorizon(horizon *H)
 {
