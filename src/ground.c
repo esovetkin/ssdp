@@ -32,7 +32,20 @@
 #include "error.h"
 #include "config.h"
 #include "fatan2.h"
+// sort triangle list by height
 
+int tcomp(const void *a, const void *b)
+{ 
+	if (((triangles *)a)->ccz<((triangles *)b)->ccz)
+		return -1;
+	if (((triangles *)a)->ccz>((triangles *)b)->ccz)
+		return 1;
+	return 0;
+} 
+void tsort(triangles *T, int Nt)
+{ 
+	qsort(T, Nt, sizeof(triangles), tcomp);
+}
 
 topology MakeTopology(double *x, double *y, double *z, int N)
 {
@@ -58,6 +71,10 @@ topology MakeTopology(double *x, double *y, double *z, int N)
 	T.T=Triangulate(T.x, T.y, T.N, &T.Nt);
 	if (ssdp_error_state)
 		return T0;
+	for (i=0;i<T.Nt;i++)
+		T.T[i].ccz=(T.z[T.T[i].i]+T.z[T.T[i].j]+T.z[T.T[i].k])/3;
+	tsort(T.T, T.Nt);
+	
 	T.P=InitTree(T.T, T.Nt, T.x, T.y, N);
 	return T;
 }
@@ -128,23 +145,28 @@ double SampleTopo(double x, double y, topology *T, sky_pos *sn)
 	}
 	return z;	
 }
-topology CreateRandomTopology(double dx, double dy, double dz, double fN, int N)
+topology CreateRandomTopology(double dx, double dy, double dz, int N1, int N2)
 {
 	double xmin, xmax, ymin, ymax, zmin, zmax;
 	double *x, *y, *z;
 	topology T;
 	topology T0={NULL,NULL,NULL,0,NULL,0,NULL};
 	int i, n;
-	fN=fabs(fN);
-	if (fN>1)
-		fN=1/fN;
-		
-	n=3+(int)round(fN*((double)N));
-	
+	if (N1>N2)
+	{
+		n=N1;
+		N1=N2;
+		N2=n;
+	}
+	if (N1<3)
+	{
+		N1=3;
+		N2+=3;
+	}
 	// ERRORFLAG MALLOCFAILRANDTOPOLOGY  "Error memory allocation failed in generating a random topology"
-	x=malloc(n*sizeof(double));
-	y=malloc(n*sizeof(double));
-	z=malloc(n*sizeof(double));
+	x=malloc(N2*sizeof(double));
+	y=malloc(N2*sizeof(double));
+	z=malloc(N2*sizeof(double));
 	if ((x==NULL)||(y==NULL)||(z==NULL))
 	{
 		AddErr(MALLOCFAILRANDTOPOLOGY);
@@ -157,24 +179,15 @@ topology CreateRandomTopology(double dx, double dy, double dz, double fN, int N)
 	ymax=dy/2;
 	zmin=-dz/2;
 	zmax=dz/2;
-	for (i=0;i<n;i++)
+	for (i=0;i<N1;i++)
 	{
 		x[i]=xmin+(xmax-xmin)*((double)rand())/RAND_MAX;
 		y[i]=ymin+(ymax-ymin)*((double)rand())/RAND_MAX;
 		z[i]=zmin+(zmax-zmin)*((double)rand())/RAND_MAX;
 	}
-	T=MakeTopology(x, y, z, n);
-	if (ssdp_error_state)
-	
-	x=realloc(x,N*sizeof(double));
-	y=realloc(y,N*sizeof(double));
-	z=realloc(z,N*sizeof(double));
-	if ((x==NULL)||(y==NULL)||(z==NULL))
-	{
-		AddErr(MALLOCFAILRANDTOPOLOGY);
-		return T0;
-	}
-	for (i=0;i<N;i++)
+	T=MakeTopology(x, y, z, N1);
+	//if (ssdp_error_state)
+	for (i=0;i<N2;i++)
 	{
 		x[i]=xmin+(xmax-xmin)*((double)rand())/RAND_MAX;
 		y[i]=ymin+(ymax-ymin)*((double)rand())/RAND_MAX;
@@ -185,7 +198,7 @@ topology CreateRandomTopology(double dx, double dy, double dz, double fN, int N)
 			z[i]=zmax;
 	}
 	free_topo (&T);
-	T=MakeTopology(x, y, z, N);
+	T=MakeTopology(x, y, z, N2);
 	free(x);
 	free(y);
 	free(z);
@@ -343,15 +356,16 @@ void ComputeHorizon(horizon *H, topology *T, double minzen, double xoff, double 
 	double z, a1, a2;	
 	double r;
 	r=tan(minzen);// compute threshold height over distance ratio
-	for (i=0;i<T->Nt;i++)
+	i=T->Nt-1;
+	while ((i>=0)&&(T->T[i].ccz>zoff))
 	{
 		// compute sky position and diameter in radians
-		
 		d=sqrt((T->T[i].ccx-xoff)*(T->T[i].ccx-xoff)+(T->T[i].ccy-yoff)*(T->T[i].ccy-yoff));
-		z=(T->z[T->T[i].i]+T->z[T->T[i].j]+T->z[T->T[i].k])/3;
-		if ((z-zoff)/d>r) // do not compute anything for triangles below the zenith threshold
-			if (TriangleAziRange(T->T[i], T->x, T->y, z-zoff, xoff, yoff, &a1, &a2)) // the horizon routine is not equipped to put a roof over the PV panel...
-				RizeHorizon(H, a1, a2, d/(z-zoff));
+		// need to sort the triangles, then we do not need this test and we do not need to go through all triangles
+		if ((T->T[i].ccz-zoff)/d>r) // do not compute anything for triangles below the zenith threshold
+			if (TriangleAziRange(T->T[i], T->x, T->y, T->T[i].ccz-zoff, xoff, yoff, &a1, &a2)) // the horizon routine is not equipped to put a roof over the PV panel...
+				RizeHorizon(H, a1, a2, d/(T->T[i].ccz-zoff));
+		i--;
 	}	
 }
 

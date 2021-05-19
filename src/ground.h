@@ -28,7 +28,7 @@ typedef struct topology {
 
 
 topology MakeTopology(double *x, double *y, double *z, int N);
-topology CreateRandomTopology(double dx, double dy, double dz, double fN, int N);
+topology CreateRandomTopology(double dx, double dy, double dz, int N1, int N2);
 void free_topo (topology *T);
 double SampleTopo(double x, double y, topology *T, sky_pos *sn);
 

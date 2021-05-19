@@ -10,7 +10,7 @@ typedef struct nodetree {
 } nodetree;
 typedef struct triangles {
 	int i, j, k;
-	double ccx, ccy;
+	double ccx, ccy, ccz;
 } triangles;
 //END_SSDP_EXPORT
 typedef enum {SHULL_OK, SHULL_ERR} SHULL_STATE;

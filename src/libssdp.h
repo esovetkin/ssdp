@@ -60,7 +60,7 @@ int ssdp_below_horizon(location *l, sky_pos p);
 // create a topology from a point cloud
 topology ssdp_make_topology(double *x, double *y, double *z, int N);
 // create random topologies for testing
-topology ssdp_make_rand_topology(double dx, double dy, double dz, double fN, int N);
+topology ssdp_make_rand_topology(double dx, double dy, double dz, int N1, int N2);
 void ssdp_free_topology(topology *T);
 // compute elevation (z) at any point x and y in the topology
 // beware: will extrapolate from closest triangle to points outside the hull without warning

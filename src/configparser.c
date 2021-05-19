@@ -232,7 +232,7 @@ void InitConfigMask(simulation_config *C)
 		}
 		dt=TOC();
 		if (!ssdp_error_state)
-			printf("%d locations traced in %g s (%g s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));
+			printf("%d locations traced in %g s (%e s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));
 		else
 			FreeConfigMask(C); // make sure we are clear to allocate new memory
 			
@@ -397,7 +397,6 @@ void ConfigTOPO (char *in)
 BEGIN_DESCRIPTION
 SECTION Simulation Configuration
 PARSEFLAG config_locations ConfigLoc "C=<out-config> x=<in-array> y=<in-array> z=<in-array> azimuth=<in-array> zenith=<in-array> [albedo=<in-float>]"
-PARSEFLAG config_topology ConfigTOPO "C=<out-config> x=<in-array> y=<in-array> z=<in-array>"
 DESCRIPTION Setup the topography. Load the x, y, and z data of the unstructured topography mesh into the configuration data.
 ARGUMENT x x coordinates
 ARGUMENT y y coordinates
@@ -538,5 +537,99 @@ void ConfigLoc (char *in)
 		ssdp_reset_errors();
 	}
 	
+	return;
+}
+
+/*
+BEGIN_DESCRIPTION
+SECTION Simulation Configuration
+PARSEFLAG rand_topology RandTOPO "C=<out-config> dx=<float-value> dy=<float-value> dz=<float-value> N1=<int-value> N2=<int-value>"
+DESCRIPTION Create a random topography in the configuration variable.
+ARGUMENT dx Range in x direction
+ARGUMENT dy Range in y-direction
+ARGUMENT dz Range in z-direction
+ARGUMENT N1 Initial random points
+ARGUMENT N2 Resampled number of points (N2>N1)
+OUTPUT C configuration variable
+END_DESCRIPTION
+*/
+void RandTOPO (char *in)
+{
+	simulation_config *C;
+	double dx, dy, dz;
+	int N1, N2;
+	char *word;
+	word=malloc((strlen(in)+1)*sizeof(char));
+	
+	if (FetchConfig(in, "C", word, &C))
+	{
+		free(word);
+		return;
+	}
+		
+	if (FetchFloat(in, "dx", word, &dx))
+	{
+		free(word);
+		return;
+	}
+		
+	if (FetchFloat(in, "dy", word, &dy))
+	{
+		free(word);
+		return;
+	}
+		
+	if (FetchFloat(in, "dz", word, &dz))
+	{
+		free(word);
+		return;
+	}
+		
+	if (FetchInt(in, "N1", word, &N1))
+	{
+		free(word);
+		return;
+	}
+	if (FetchInt(in, "N2", word, &N2))
+	{
+		free(word);
+		return;
+	}
+	free(word);
+	
+	if ((N1<3)||(N2<3))
+	{
+		Warning("N1 and N2 must be larger than 3 in rand_topology\n"); 
+		return;
+	}
+	if ((dx<1e-10)||(dy<1e-10)||(dz<1e-10))
+	{
+		Warning("Please provide valid positive ranges for the random topology\n"); 
+		return;
+	}
+	
+	if (C->topo_init)
+	{
+		ssdp_free_topology(&C->T);
+	}
+	else
+		C->topo_init=1;
+	printf("Configuring topology with %d points\n", N2);
+	C->T=ssdp_make_rand_topology(dx, dy, dz, N1, N2);
+	if (ssdp_error_state)
+	{
+		ssdp_print_error_messages();
+		ssdp_free_topology(&C->T);
+		C->topo_init=0;
+		ssdp_reset_errors();
+	}
+	InitConfigMask(C);
+	if (ssdp_error_state)
+	{
+		ssdp_print_error_messages();
+		ssdp_free_topology(&C->T);
+		C->topo_init=0;
+		ssdp_reset_errors();
+	}
 	return;
 }

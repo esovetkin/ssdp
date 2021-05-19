@@ -185,9 +185,9 @@ topology ssdp_make_topology(double *x, double *y, double *z, int N)
 {
 	return MakeTopology(x,y,z, N);
 }
-topology ssdp_make_rand_topology(double dx, double dy, double dz, double fN, int N)
+topology ssdp_make_rand_topology(double dx, double dy, double dz, int N1, int N2)
 {
-	return CreateRandomTopology(dx, dy, dz, fN, N);
+	return CreateRandomTopology(dx, dy, dz, N1, N2);
 }
 void ssdp_free_topology(topology *T)
 {
