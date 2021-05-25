@@ -5,7 +5,7 @@ AM_CFLAGS = -Wall
 lib_LTLIBRARIES = libssdp.la
 libssdp_la_SOURCES = sky_dome.c sky_model.c pv-aoi.c project.c trace.c vector.c ground.c print.c libssdp.c shull.c delaunay.c ll.c error.c sunpos.c fatan2.c sky_dome.h sky_model.h pv-aoi.h project.h trace.h vector.h ground.h print.h libssdp.h shull.h delaunay.h ll.h error.h sunpos.h fatan2.h winunistd.h libssdp.map
 CLEANFILES = errorflags.h errormessages.h parsedef.h libssdp_structs.h
-libssdp_la_LDFLAGS = -lm -Wl,--version-script=${srcdir}/libssdp.map
+libssdp_la_LDFLAGS = -lm -Wl,--version-script=${srcdir}/libssdp.map -no-undefined
 include_HEADERS = libssdp.h libssdp_structs.h
 libssdp_la_CFLAGS = $(AM_CFLAGS) -DLL_CIRCULAR -D_GNU_SOURCE
 sky_dome.$(OBJEXT): errorflags.h
