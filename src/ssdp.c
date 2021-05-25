@@ -135,6 +135,21 @@ int main(int argc, char **argv)
 					else
 						fprintf(stderr,"Error: missing file after -f option\n");
 					break;
+#ifdef OPENMP					
+				case 'n':
+					i++;
+					if (i<argc)
+					{
+						int nt=atoi(argv[i]);
+						if (nt>0)
+							omp_set_num_threads(nt);
+						else
+							fprintf(stderr,"Error: invalid number of threads (%s)\n", argv[i]);
+					}
+					else
+						fprintf(stderr,"Error: missing number of threads\n");
+					break;
+#endif // OPENMP
 				case 'i':
 					shell();
 					break;

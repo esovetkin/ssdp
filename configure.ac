@@ -25,6 +25,16 @@ AC_ARG_ENABLE([fastatan2],
 AS_IF([test "x$enable_fastatan2" != "xno"], [
   AC_DEFINE([FAST_ATAN2], [], [fast atan2 approximation])
 ])
+AC_ARG_ENABLE([openmp],
+[  --enable-openmp    enable openmp parallelization],
+[case "${enableval}" in
+  yes) openmp=true ;;
+  no)  openmp=false ;;
+  *) AC_MSG_ERROR([bad value ${enableval} for --enable-openmp]) ;;
+esac],[openmp=false])
+AM_CONDITIONAL([OPENMP], [test x$openmp = xtrue])
+
+
 
 AC_DEFINE([LIBSSDPVERSION], ["[ssdp_version]"], [libssdp version string])
 AC_CONFIG_FILES([
