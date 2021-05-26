@@ -253,8 +253,8 @@ void InitConfigMask(simulation_config *C)
 		dt=TOC();
 		if (!ssdp_error_state)
 			printf("%d locations traced in %g s (%e s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));
-		else
-			FreeConfigMask(C); // make sure we are clear to allocate new memory
+		//else
+		//	FreeConfigMask(C); // make sure we are clear to allocate new memory
 			
 	}
 }
