@@ -20,7 +20,7 @@ SECTION Array
 PARSEFLAG array_eval array_comp "a=<in-array> op=<operator:+,-,*,/> b=<in-array> c=<out-array>"
 DESCRIPTION Basic operations on array variables: c = a <op> b. Works both for element wise array-array operations aswell as for scalar-array operations.
 ARGUMENT a input array
-ARGUMENT op Operatator character (+,-,*,/)
+ARGUMENT op Operator character (+,-,*,/)
 ARGUMENT b input array
 OUTPUT c output array
 END_DESCRIPTION
@@ -389,6 +389,7 @@ ARGUMENT y2 End float y value
 ARGUMENT Nx Number of x-steps
 ARGUMENT Ny Number of y-steps
 OUTPUT x output array
+OUTPUT y output array
 END_DESCRIPTION
 */
 void MakeGrid(char *in)
@@ -672,7 +673,7 @@ void Cos(char *in)
 BEGIN_DESCRIPTION
 SECTION Array
 PARSEFLAG perturb Perturb "x=<in/out-array> [releps=<float value>] [abseps=<float value>]"
-DESCRIPTION Maked infinitesmal random changes.
+DESCRIPTION Make infinitesimal random changes.
 ARGUMENT x input array
 ARGUMENT releps relative magnitude of perturbations (default 0)
 ARGUMENT abseps absolute magnitude of perturbations (default 0)
