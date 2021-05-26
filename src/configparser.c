@@ -4,6 +4,9 @@
 #include <ctype.h>
 #include <time.h>
 #include <math.h>
+#ifdef OPENMP
+  #include <omp.h>
+#endif
 /* local includes */
 #include "libssdp.h"
 #include "lio.h"
