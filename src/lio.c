@@ -183,8 +183,8 @@ void WriteArrays(char *fn, double **data, int Narr, int N)
 	for (i=0;i<N;i++)
 	{
 		for (j=0;j<Narr-1;j++)
-			fprintf(f, "%12e\t",data[j][i]);
-		fprintf(f, "%12e\n",data[Narr-1][i]);			
+			fprintf(f, "%.12f\t",data[j][i]);
+		fprintf(f, "%.12f\n",data[Narr-1][i]);
 	}	
 	fclose(f);	
 }
