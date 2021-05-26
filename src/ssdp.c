@@ -47,6 +47,9 @@
 #include <math.h>
 #include <string.h>
 #include <time.h>
+#ifdef OPENMP
+  #include <omp.h>
+#endif
 #include "libssdp.h"
 #include "util.h"
 #include "parser.h"
