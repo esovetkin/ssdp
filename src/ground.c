@@ -331,10 +331,12 @@ int TriangleAziRange(triangles T, double *x, double *y, double dz, double xoff, 
 		
 		return 1;
 	}
+	// probably the point in question coincides with one of the triangle corners
+	return 0;
 	// ERRORFLAG TRIANGLEMESS  "Error cannot figure out the azimuth range of a triangle"
-	AddErr(TRIANGLEMESS);
-	(*a1)=-M_PI;
-	(*a2)=M_PI;
+	//AddErr(TRIANGLEMESS);
+	//(*a1)=-M_PI;
+	//(*a2)=M_PI;
 	return 0;
 }
 
