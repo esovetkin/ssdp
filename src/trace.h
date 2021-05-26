@@ -12,6 +12,11 @@ typedef struct horizon {
 	double astep;
 	double *zen;
 } horizon;
+
+typedef struct skypoly {
+	int N;
+	double *x, *y, *z;
+} skypoly;
 //END_SSDP_EXPORT
 
 

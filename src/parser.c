@@ -13,7 +13,11 @@
 #include "parser.h"
 #include "parserutil.h"
 
-clock_t tic;
+#ifdef OPENMP
+	double tic=0;
+#else // OPENMP
+	clock_t tic;
+#endif // OPENMP
 
 int ParseLineNr=0;
 char *ParseFileStr=NULL;

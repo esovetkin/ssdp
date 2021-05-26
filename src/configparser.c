@@ -223,13 +223,30 @@ void InitConfigMask(simulation_config *C)
 		}
 		printf("Tracing %d locations\n", C->Nl);
 		TIC();
-		for (i=0;i<C->Nl;i++)
-		{ 
-			C->L[i]=ssdp_setup_location(&(C->S), &(C->T), C->albedo, C->o[i], C->x[i],C->y[i],C->z[i], &(C->M));
-			if (ssdp_error_state)
-				break;
-			pco=ProgressBar((100*(i+1))/C->Nl, pco, ProgressLen, ProgressTics);
+#pragma omp parallel private(i) shared(C)
+		{
+#ifdef OPENMP
+			int nt=omp_get_num_threads();
+#endif
+#pragma omp for 
+			for (i=0;i<C->Nl;i++)
+			{ 
+				C->L[i]=ssdp_setup_location(&(C->S), &(C->T), C->albedo, C->o[i], C->x[i],C->y[i],C->z[i], &(C->M));
+#ifdef OPENMP
+				if (omp_get_thread_num()==0)
+				{
+					int pc;
+					pc=100*(nt*i+1)/C->Nl;
+					if (pc>100)
+						pc=100;
+					pco=ProgressBar(pc, pco, ProgressLen, ProgressTics);
+				}
+#else
+				pco=ProgressBar((100*(i+1))/C->Nl, pco, ProgressLen, ProgressTics);
+#endif
+			}
 		}
+		pco=ProgressBar(100, pco, ProgressLen, ProgressTics);
 		dt=TOC();
 		if (!ssdp_error_state)
 			printf("%d locations traced in %g s (%e s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));

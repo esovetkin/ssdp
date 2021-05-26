@@ -227,8 +227,9 @@ int tsearch(triangles *T, double *X, double *Y, int N, double x, double y)
  * down the tree and check every leaf on the way
  * The downside is that there are many leafs at the bottom of the tree as any triangle
  * that is cut by the any of the sub-bounding boxes will become a leaf. In practice I see
- * that I need to check a few percent of the triangles for any search (I saw 4%). I suppose
- * that should be fairly size independent, or? */
+ * that I need to check a few percent of the triangles for any search (I saw 4%). 
+ * an optimization should be to carry up any low leafs by splitting leaves (triangle) over 
+ * multiple branches and only keep leafs at top of branches */
 
 #define TINY 1e-12
 #define LEAFBLOCK 16

@@ -33,7 +33,6 @@
 #include "config.h"
 #include "fatan2.h"
 // sort triangle list by height
-
 int tcomp(const void *a, const void *b)
 { 
 	if (((triangles *)a)->ccz<((triangles *)b)->ccz)
@@ -73,7 +72,7 @@ topology MakeTopology(double *x, double *y, double *z, int N)
 		return T0;
 	for (i=0;i<T.Nt;i++)
 		T.T[i].ccz=(T.z[T.T[i].i]+T.z[T.T[i].j]+T.z[T.T[i].k])/3;
-	tsort(T.T, T.Nt);
+	tsort(T.T, T.Nt); // sorting triangles
 	
 	T.P=InitTree(T.T, T.Nt, T.x, T.y, N);
 	return T;
@@ -353,18 +352,16 @@ void ComputeHorizon(horizon *H, topology *T, double minzen, double xoff, double 
 {
 	int i;
 	double d;
-	double z, a1, a2;	
+	double a1, a2;	
 	double r;
 	r=tan(minzen);// compute threshold height over distance ratio
 	i=T->Nt-1;
-	while ((i>=0)&&(T->T[i].ccz>zoff))
+	while ((i>=0)&&(T->T[i].ccz>zoff)) // go backwards through the list till the triangles are lower than the projection point
 	{
-		// compute sky position and diameter in radians
 		d=sqrt((T->T[i].ccx-xoff)*(T->T[i].ccx-xoff)+(T->T[i].ccy-yoff)*(T->T[i].ccy-yoff));
-		// need to sort the triangles, then we do not need this test and we do not need to go through all triangles
 		if ((T->T[i].ccz-zoff)/d>r) // do not compute anything for triangles below the zenith threshold
-			if (TriangleAziRange(T->T[i], T->x, T->y, T->T[i].ccz-zoff, xoff, yoff, &a1, &a2)) // the horizon routine is not equipped to put a roof over the PV panel...
-				RizeHorizon(H, a1, a2, d/(T->T[i].ccz-zoff));
+			if (TriangleAziRange(T->T[i], T->x, T->y, T->T[i].ccz-zoff, xoff, yoff, &a1, &a2)) // compute azimuthal range
+				RizeHorizon(H, a1, a2, d/(T->T[i].ccz-zoff)); // for now store the ratio, do atan2's on the horizon array at the end
 		i--;
 	}	
 }

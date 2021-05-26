@@ -4,9 +4,17 @@
 #define DEGPRAD 5.729577951308232e+01
 #define rad2deg(r) (DEGPRAD*(r))
 #define deg2rad(d) (RADPDEG*(d))
-extern clock_t tic;
-#define TOC() ((double)(clock()-tic)/CLOCKS_PER_SEC)
-#define TIC() (tic=clock())
+
+#ifdef OPENMP
+	extern double tic;
+	double omp_get_wtime(void);
+	#define TIC() (tic=omp_get_wtime())
+	#define TOC() (omp_get_wtime()-tic)
+#else // OPENMP
+	extern clock_t tic;
+	#define TIC() (tic=clock())
+	#define TOC() ((double)(clock()-tic)/CLOCKS_PER_SEC)
+#endif // OPENMP
 
 /* utility function to write parsers */
 char * GetWord(const char *in, char *word);
