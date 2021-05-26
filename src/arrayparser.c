@@ -655,3 +655,42 @@ void Cos(char *in)
 	}
 	return;	
 }
+
+/*
+BEGIN_DESCRIPTION
+SECTION Array
+PARSEFLAG perturb Perturb "x=<in/out-array> eps=<float value>"
+DESCRIPTION Maked infinitesmal random changes.
+ARGUMENT x input array
+ARGUMENT eps relative magnitude of pertubations
+OUTPUT x output array
+END_DESCRIPTION
+*/
+void Perturb(char *in)
+{
+	char *word;
+	double v;
+	int i;
+	array *x;
+	word=malloc((strlen(in)+1)*sizeof(char));
+	if (FetchFloat(in, "eps", word, &v))
+	{
+		free(word);
+		return;
+	}
+	if (FetchArray(in, "x", word, &x))
+	{
+		free(word);
+		return;
+	}	
+	v=fabs(v);
+	
+	printf("perturbing %s by %e\n",word,v);
+	
+	srand(time(NULL));
+	for(i=0;i<x->N;i++)
+	{
+		x->D[i]*=(1.0+v*(((double)rand())/RAND_MAX-0.5));
+	}
+	return;	
+}
