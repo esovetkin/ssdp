@@ -659,38 +659,45 @@ void Cos(char *in)
 /*
 BEGIN_DESCRIPTION
 SECTION Array
-PARSEFLAG perturb Perturb "x=<in/out-array> eps=<float value>"
+PARSEFLAG perturb Perturb "x=<in/out-array> [releps=<float value>] [abseps=<float value>]"
 DESCRIPTION Maked infinitesmal random changes.
 ARGUMENT x input array
-ARGUMENT eps relative magnitude of pertubations
+ARGUMENT releps relative magnitude of perturbations (default 0)
+ARGUMENT abseps absolute magnitude of perturbations (default 0)
 OUTPUT x output array
 END_DESCRIPTION
 */
 void Perturb(char *in)
 {
 	char *word;
-	double v;
+	double releps = 0;
+	double abseps = 0;
 	int i;
 	array *x;
 	word=malloc((strlen(in)+1)*sizeof(char));
-	if (FetchFloat(in, "eps", word, &v))
+	if (GetOption(in, "releps", word))
 	{
-		free(word);
-		return;
+		releps = atof(word);
 	}
+	releps=fabs(releps);
+	if (GetOption(in, "abseps", word))
+	{
+		abseps = atof(word);
+	}
+	abseps=fabs(abseps);	
 	if (FetchArray(in, "x", word, &x))
 	{
 		free(word);
 		return;
 	}	
-	v=fabs(v);
-	
-	printf("perturbing %s by %e\n",word,v);
+	printf("perturbing %s by %e (relative) and %e (absolute)\n",
+		word,releps,abseps);
 	
 	srand(time(NULL));
 	for(i=0;i<x->N;i++)
 	{
-		x->D[i]*=(1.0+v*(((double)rand())/RAND_MAX-0.5));
+		x->D[i]*=(1.0+releps*(((double)rand())/RAND_MAX-0.5));
+		x->D[i]+=abseps*(((double)rand())/RAND_MAX-0.5);
 	}
 	return;	
 }
