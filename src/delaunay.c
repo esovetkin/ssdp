@@ -107,6 +107,12 @@ triangles * Triangulate(double *x, double *y, int N, int *Nt)
 	}
 	else
 	{
+		{
+			// ERRORFLAG TRIANGULATIONFAILED  "Error triangulation failed!"
+			AddErr(TRIANGULATIONFAILED);
+			T=NULL;
+		}
+		/*
 		// give it one more try after a random distortion of the mesh
 		Print(WARNING,"Warning triangulation failed, retry with random pertubations\n");
 		free(P);
@@ -126,7 +132,7 @@ triangles * Triangulate(double *x, double *y, int N, int *Nt)
 			// ERRORFLAG TRIANGULATIONFAILED  "Error triangulation failed!"
 			AddErr(TRIANGULATIONFAILED);
 			T=NULL;
-		}
+		}*/
 	}
 	free(P);
 	return T;

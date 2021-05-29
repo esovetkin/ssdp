@@ -244,6 +244,7 @@ int triangulate(sh_triangulation_data *td, sh_point *ps, size_t n) {
 	delaunay_restart:
 	if (p0 != 0) { 
 		if (p0 == n) {
+			printf("oo: triangulate error\n");
 			// ERRORFLAG SHULLFAIL  "Error the s-hull Delaunay triangulation failed"
 			AddErr(SHULLFAIL);
 			return false;
@@ -383,7 +384,7 @@ void *flip_if_necessary(void *a, void *b) {
 		const int d = 3 ^ a1 ^ b1;
 
 		if (a0==-1 || a1==-1 || b0==-1 || b1==-1) { 
-			AddErr(SHULLFAIL);
+			AddErr(SHULLFAIL); // we end up here before we segfault
 			return a;
 		} 
 		/* printf("---\n"); */
@@ -461,12 +462,7 @@ int make_delaunay(sh_triangulation_data *td) {
 		fd.flipped = false;
 		ll_map_r(td->internal_edges, flip_if_necessary, &fd);
 		if (ssdp_error_state)
-		{
-			ll_mapdestroy(td->triangles, free);
-			ll_mapdestroy(td->hull_edges, free);
-			ll_mapdestroy(td->internal_edges, free);
 			return -1;
-		}
 	}
 	int flipcount = 0;
 	ll_map_r(td->internal_edges, find_highest_flipcount, &flipcount);
