@@ -380,4 +380,7 @@ horizon MakeHorizon(sky_grid *sky, topology *T, double xoff, double yoff, double
 	return H;
 }
 
-
+/* we can add routines to compute the horizon on a grid which should be faster
+ * as we can use the trick by Ian Cole, we only need to compute a set of discrete
+ * angles when we have a regular grid. This can speed up the computation considerably
+ */ 

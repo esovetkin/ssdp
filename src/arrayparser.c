@@ -30,6 +30,7 @@ void array_comp(char *in)
 	int i;
 	char *word;
 	array *a, *b, c;
+	int swap=0;
 	arrayops OP;
 	word=malloc((strlen(in)+1)*sizeof(char));
 	
@@ -91,6 +92,7 @@ void array_comp(char *in)
 		d=b;
 		b=a;
 		a=d;
+		swap=1;
 	}
 	c.D=malloc(a->N*sizeof(double));
 	c.N=a->N;
@@ -102,7 +104,12 @@ void array_comp(char *in)
 			break;
 		case ARR_MINUS:
 			for (i=0;i<a->N;i++)
-				c.D[i]=a->D[i]-b->D[i%b->N];
+			{
+				if (swap)
+					c.D[i]=b->D[i%b->N]-a->D[i];
+				else
+					c.D[i]=a->D[i]-b->D[i%b->N];
+			}
 			break;
 		case ARR_MULT:
 			for (i=0;i<a->N;i++)
@@ -110,7 +117,12 @@ void array_comp(char *in)
 			break;
 		case ARR_DIV:
 			for (i=0;i<a->N;i++)
-				c.D[i]=a->D[i]/b->D[i%b->N];
+			{
+				if (swap)
+					c.D[i]=b->D[i%b->N]/a->D[i];
+				else
+					c.D[i]=a->D[i]/b->D[i%b->N];
+			}
 			break;
 		default:
 			Warning("the large Hadron collider finally did destroy the world (or is it a bug?)");
