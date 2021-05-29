@@ -44,8 +44,8 @@ BEGIN_DESCRIPTION
 SECTION Simulation Configuration
 PARSEFLAG config_coord ConfigCoord "C=<out-config> lat=<float> lon=<float>"
 DESCRIPTION Setup the coordinate in the configuration variable.
-ARGUMENT lat latitude
-ARGUMENT lon longitude
+ARGUMENT lat latitude (in radians)
+ARGUMENT lon longitude (in radians)
 OUTPUT C configuration variable
 END_DESCRIPTION
 */
@@ -423,7 +423,7 @@ ARGUMENT y y coordinates
 ARGUMENT z z coordinates
 ARGUMENT azimuth azimuth angle of tilted surface
 ARGUMENT zenith zenith angle of tilted surface
-ARGUMENT albedo optionally provide an albedo valuyes between 0-1
+ARGUMENT albedo optionally provide an albedo value between 0-1
 OUTPUT C configuration variable
 END_DESCRIPTION
 */
