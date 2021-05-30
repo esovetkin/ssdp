@@ -244,7 +244,6 @@ int triangulate(sh_triangulation_data *td, sh_point *ps, size_t n) {
 	delaunay_restart:
 	if (p0 != 0) { 
 		if (p0 == n) {
-			printf("oo: triangulate error\n");
 			// ERRORFLAG SHULLFAIL  "Error the s-hull Delaunay triangulation failed"
 			AddErr(SHULLFAIL);
 			return false;
@@ -384,7 +383,7 @@ void *flip_if_necessary(void *a, void *b) {
 		const int d = 3 ^ a1 ^ b1;
 
 		if (a0==-1 || a1==-1 || b0==-1 || b1==-1) { 
-			AddErr(SHULLFAIL); // we end up here before we segfault
+			AddErr(SHULLFAIL); 
 			return a;
 		} 
 		/* printf("---\n"); */

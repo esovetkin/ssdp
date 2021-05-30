@@ -253,8 +253,57 @@ void InitConfigMask(simulation_config *C)
 		dt=TOC();
 		if (!ssdp_error_state)
 			printf("%d locations traced in %g s (%e s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));
-		//else
-		//	FreeConfigMask(C); // make sure we are clear to allocate new memory
+		else
+			FreeConfigMask(C); // make sure we are clear to allocate new memory
+			
+	}
+}
+
+void InitConfigGridMask(simulation_config *C)
+{
+	int i;
+	if ((C->sky_init)&&(C->grid_init)&&(C->loc_init))
+	{
+		double dt;
+		int pco=0;
+		FreeConfigMask(C); // make sure we are clear to allocate new memory
+		C->L=malloc(C->Nl*sizeof(location));
+		if (C->L==NULL)
+		{
+			Warning("Could not allocate memory for locations\n");
+			return;
+		}
+		printf("Tracing %d locations\n", C->Nl);
+		TIC();
+#pragma omp parallel private(i) shared(C)
+		{
+#ifdef OPENMP
+			int nt=omp_get_num_threads();
+#endif
+#pragma omp for 
+			for (i=0;i<C->Nl;i++)
+			{ 
+				C->L[i]=ssdp_setup_grid_location(&(C->S), &(C->Tx), C->albedo, C->o[i], C->x[i],C->y[i],C->z[i], &(C->M));
+#ifdef OPENMP
+				if (omp_get_thread_num()==0)
+				{
+					int pc;
+					pc=100*(nt*i+1)/C->Nl;
+					if (pc>100)
+						pc=100;
+					pco=ProgressBar(pc, pco, ProgressLen, ProgressTics);
+				}
+#else
+				pco=ProgressBar((100*(i+1))/C->Nl, pco, ProgressLen, ProgressTics);
+#endif
+			}
+		}
+		pco=ProgressBar(100, pco, ProgressLen, ProgressTics);
+		dt=TOC();
+		if (!ssdp_error_state)
+			printf("%d locations traced in %g s (%e s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));
+		else
+			FreeConfigMask(C); // make sure we are clear to allocate new memory
 			
 	}
 }
@@ -416,11 +465,109 @@ void ConfigTOPO (char *in)
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation Configuration
-PARSEFLAG config_locations ConfigLoc "C=<out-config> x=<in-array> y=<in-array> z=<in-array> azimuth=<in-array> zenith=<in-array> [albedo=<in-float>]"
+PARSEFLAG config_topogrid ConfigTOPOGrid "C=<out-config> z=<in-array> Nx=<int-value> Ny=<int-value> x1=<float-value> y1=<float-value> x2=<float-value> y2=<float-value>"
+DESCRIPTION Setup the topogrid. Load the z data (row mayor, from the south-west corner to the north-east corner).
+ARGUMENT z z coordinates
+ARGUMENT Nx number of x steps.
+ARGUMENT Ny number of y steps.
+ARGUMENT x1 x-coordinate of the south-west corner
+ARGUMENT y1 y-coordinate of the south-west corner
+ARGUMENT x2 x-coordinate of the north-east corner
+ARGUMENT y2 y-coordinate of the north-east corner
+OUTPUT C configuration variable
+END_DESCRIPTION
+*/
+void ConfigTOPOGrid (char *in)
+{
+	simulation_config *C;
+	array *z;
+	double x1, y1, x2, y2;
+	int Nx, Ny;
+	char *word;
+	word=malloc((strlen(in)+1)*sizeof(char));
+	
+	if (FetchConfig(in, "C", word, &C))
+	{
+		free(word);
+		return;
+	}
+		
+	if (FetchFloat(in, "x1", word, &x1))
+	{
+		free(word);
+		return;
+	}
+	if (FetchFloat(in, "y1", word, &y1))
+	{
+		free(word);
+		return;
+	}
+	if (FetchFloat(in, "x2", word, &x2))
+	{
+		free(word);
+		return;
+	}
+	if (FetchFloat(in, "y2", word, &y2))
+	{
+		free(word);
+		return;
+	}
+	if (FetchInt(in, "Nx", word, &Nx))
+	{
+		free(word);
+		return;
+	}
+	if (FetchInt(in, "Ny", word, &Ny))
+	{
+		free(word);
+		return;
+	}
+	if (FetchArray(in, "z", word, &z))
+	{
+		free(word);
+		return;
+	}
+	free(word);
+	if (z->N!=Nx*Ny)
+	{
+		Warning("Number of steps in x- and y- directions do not match the number of elements in the z array (%d != %d x %d)\n", z->N, Nx, Ny); 
+		return;
+	}
+	
+	if (C->grid_init)
+	{
+		ssdp_free_topogrid(&C->Tx);
+	}
+	else
+		C->grid_init=1;
+	printf("Configuring topogrid with %d points\n", z->N);
+	C->Tx=ssdp_make_topogrid(z->D, x1, y1, x2, y2, Nx, Ny);
+	if (ssdp_error_state)
+	{
+		ssdp_print_error_messages();
+		ssdp_free_topogrid(&C->Tx);
+		C->grid_init=0;
+		ssdp_reset_errors();
+	}
+	InitConfigGridMask(C);
+	if (ssdp_error_state)
+	{
+		ssdp_print_error_messages();
+		ssdp_free_topogrid(&C->Tx);
+		C->grid_init=0;
+		ssdp_reset_errors();
+	}
+	return;
+}
+/*
+BEGIN_DESCRIPTION
+SECTION Simulation Configuration
+PARSEFLAG config_locations ConfigLoc "C=<out-config> x=<in-array> y=<in-array> z=<in-array> azimuth=<in-array> zenith=<in-array> [type=<topology/topogrid> [albedo=<in-float>]"
 DESCRIPTION Setup the topography. Load the x, y, and z data of the unstructured topography mesh into the configuration data.
 ARGUMENT x x coordinates
 ARGUMENT y y coordinates
 ARGUMENT z z coordinates
+ARGUMENT type Optional argument to select the unstructured topology mesh or the structured topogrid. Valid values are \"topology\" or \"topogrid\" (default topology unless only a topogrid is defined)
 ARGUMENT azimuth azimuth angle of tilted surface
 ARGUMENT zenith zenith angle of tilted surface
 ARGUMENT albedo optionally provide an albedo value between 0-1
@@ -432,6 +579,7 @@ void ConfigLoc (char *in)
 	simulation_config *C;
 	array *x, *y, *z, *az, *ze;
 	int i;
+	char type='t';
 	char *word;
 	word=malloc((strlen(in)+1)*sizeof(char));
 	
@@ -465,6 +613,38 @@ void ConfigLoc (char *in)
 	{
 		free(word);
 		return;
+	}
+	if (GetOption(in, "type", word))
+	{
+		if (strncmp(word,"topology",10)==0)
+		{
+			if (C->topo_init==0)
+			{ 
+				Warning("No topology available\n");
+				free(word);
+				return;
+			}
+		}
+		if (strncmp(word,"topogrid",10)==0)
+		{
+			if (C->grid_init==0)
+			{ 
+				Warning("No topogrid available\n");
+				free(word);
+				return;
+			}
+			type='g';
+		}
+	}
+	if (C->topo_init==0)
+	{
+		type='g';
+		if (C->grid_init==0)
+		{ 
+			Warning("No topology or topogrid available\n");
+			free(word);
+			return;
+		}
 	}
 	if (GetOption(in, "albedo", word))
 	{
@@ -548,7 +728,11 @@ void ConfigLoc (char *in)
 	}
 	C->loc_init=1;
 	
-	InitConfigMask(C);
+	if (type=='t')
+		InitConfigMask(C);
+	else
+		InitConfigGridMask(C);
+	
 	if (ssdp_error_state)
 	{
 		ssdp_print_error_messages();

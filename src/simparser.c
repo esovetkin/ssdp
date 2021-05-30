@@ -49,7 +49,7 @@ void SimStatic(char *in)
 		free(word);
 		return;
 	}	
-	if (!C->topo_init) 
+	if ((!C->topo_init)&&(!C->grid_init))
 	{	
 		Warning("No topological data available, omitting horizon\n");
 		InitConfigMaskNoH(C);
@@ -160,7 +160,7 @@ void SimRoute(char *in)
 		free(word);
 		return;
 	}	
-	if (!C->topo_init) 
+	if ((!C->topo_init)&&(!C->grid_init))
 	{	
 		Warning("No topological data available\n");
 		free(word);
@@ -357,7 +357,7 @@ void ExportSky(char *in)
 		free(word);
 		return;
 	}	
-	if (!C->topo_init) 
+	if ((!C->topo_init)&&(!C->grid_init))
 	{	
 		Warning("No topological data available, omitting horizon\n");
 		InitConfigMaskNoH(C);

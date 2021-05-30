@@ -32,6 +32,7 @@ simulation_config InitConf()
 	C.M.N=0;
 	C.sky_init=0;
 	C.topo_init=0;
+	C.grid_init=0;
 	C.albedo=0.0; 
 	C.lon=FZLON;
 	C.lat=FZLAT;
@@ -68,6 +69,11 @@ void FreeConf(simulation_config *C)
 	{
 		ssdp_free_topology(&C->T);
 		C->topo_init=0;
+	}
+	if (C->grid_init)
+	{
+		ssdp_free_topogrid(&C->Tx);
+		C->grid_init=0;
 	}
 	if (C->loc_init)
 	{

@@ -155,6 +155,52 @@ location ssdp_setup_location(sky_grid *sky, topology *T, double albedo, sky_pos 
 	HorizTrans(sky, &(l.H), &(l.T), &(l.T));
 	return l;
 }
+location ssdp_setup_grid_location(sky_grid *sky, topogrid *T, double albedo, sky_pos pn, double xoff, double yoff, double zoff, AOI_Model_Data *M)
+{
+	int i;
+	location l;
+	location l0={{NULL,0,0},{0,0,NULL}};
+	// setup horizon
+	l.H=InitHorizon(sky->Nz);
+	l.T=InitSkyTransfer(sky->N);
+	if (ssdp_error_state)
+	{
+		ssdp_free_location(&l);
+		return l0;
+	}
+	if (T)
+		ComputeGridHorizon(&l.H, T, M_PI/4.0/((double)sky->Nz), xoff, yoff, zoff);
+	AtanHorizon(&l.H);
+	if (ssdp_error_state)
+	{
+		ssdp_free_location(&l);
+		return l0;
+	}
+	// setup transfer
+	// sky direct
+	POA_Sky_Transfer(sky, &l.T, pn, M);
+	if (ssdp_error_state)
+	{
+		ssdp_free_location(&l);
+		return l0;
+	}
+	if (albedo>ALBEPS)
+	{
+		if (albedo>1)
+			Print(WARNING, "Warning: albedo larger than one\n");
+		l.T.g=albedo*POA_Albedo_Transfer(sky, pn, M);
+		if (ssdp_error_state)
+		{
+			ssdp_free_location(&l);
+			return l0;
+		}
+		for (i=0;i<l.T.N;i++)
+			l.T.t[i]*=(1.0+l.T.g);
+	}
+	
+	HorizTrans(sky, &(l.H), &(l.T), &(l.T));
+	return l;
+}
 double ssdp_diffuse_poa(sky_grid *sky, location *l)
 {
 	return DiffusePlaneOfArray(sky, &(l->T));
@@ -185,6 +231,10 @@ topology ssdp_make_topology(double *x, double *y, double *z, int N)
 {
 	return MakeTopology(x,y,z, N);
 }
+topogrid ssdp_make_topogrid(double *z, double x1, double y1, double x2, double y2, int Nx, int Ny)
+{
+	return MakeTopogrid(z,x1,y1,x2,y2,Nx,Ny);
+}
 topology ssdp_make_rand_topology(double dx, double dy, double dz, int N1, int N2)
 {
 	return CreateRandomTopology(dx, dy, dz, N1, N2);
@@ -193,9 +243,17 @@ void ssdp_free_topology(topology *T)
 {
 	free_topo (T);
 }
+void ssdp_free_topogrid(topogrid *T)
+{
+	free_topogrid (T);
+}
 double ssdp_sample_topology(double x, double y, topology *T, sky_pos *sn)
 {
 	return SampleTopo(x, y, T, sn);
+}
+double ssdp_sample_topogrid(double x, double y, topogrid *T, sky_pos *sn)
+{
+	return SampleTopoGrid(x, y, T, sn);
 }
 // solar position
 sky_pos ssdp_sunpos(time_t t, double lat, double lon)

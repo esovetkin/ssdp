@@ -16,11 +16,12 @@
 /*
 BEGIN_DESCRIPTION
 SECTION Topography
-PARSEFLAG sample_topo SampleTopography "C=<in-config>  x=<in-array> y=<in-array> z=<out-array> azimuth=<out-array> zenith=<out-array>"
+PARSEFLAG sample_topo SampleTopography "C=<in-config>  x=<in-array> y=<in-array> type=<topology/topogrid> z=<out-array> azimuth=<out-array> zenith=<out-array>"
 DESCRIPTION Samples a topography to obtain the local height and surface normal
 ARGUMENT C config-variable
 ARGUMENT x x coordinate
 ARGUMENT y y coordinate
+ARGUMENT type Optional argument to select the unstructured topology mesh or the structured topogrid. Valid values are \"topology\" or \"topogrid\" (default topology unless only a topogrid is defined)
 OUTPUT z z coordinate
 OUTPUT azimuth surface normal azimuth
 OUTPUT zenith surface normal zenith
@@ -32,17 +33,12 @@ void SampleTopography(char *in)
 	char *word;
 	simulation_config *C;
 	array *x, *y, z, azi, zen;
+	char type='t';
 	sky_pos sn;
 	word=malloc((strlen(in)+1)*sizeof(char));
 	
 	if (FetchConfig(in, "C", word, &C))
 	{
-		free(word);
-		return;
-	}	
-	if (!C->topo_init) // TODO: in this case just omit the horizon and compute only one location?
-	{	
-		Warning("Simulation config has no topology initialized\n");
 		free(word);
 		return;
 	}	
@@ -62,6 +58,39 @@ void SampleTopography(char *in)
 		free(word);
 		return;
 	}
+	if (GetOption(in, "type", word))
+	{
+		if (strncmp(word,"topology",10)==0)
+		{
+			if (C->topo_init==0)
+			{ 
+				Warning("No topology available\n");
+				free(word);
+				return;
+			}
+		}
+		if (strncmp(word,"topogrid",10)==0)
+		{
+			if (C->grid_init==0)
+			{ 
+				Warning("No topogrid available\n");
+				free(word);
+				return;
+			}
+			type='g';
+		}
+	}
+	if (C->topo_init==0)
+	{
+		type='g';
+		if (C->grid_init==0)
+		{ 
+			Warning("No topology or topogrid available\n");
+			free(word);
+			return;
+		}
+	}
+	
 	z.D=malloc(x->N*sizeof(double));
 	z.N=x->N;
 	azi.D=malloc(x->N*sizeof(double));
@@ -70,7 +99,10 @@ void SampleTopography(char *in)
 	zen.N=x->N;
 	for (i=0;i<x->N;i++)
 	{
-		z.D[i]=ssdp_sample_topology(x->D[i], y->D[i], &(C->T),&sn);
+		if (type=='t')
+			z.D[i]=ssdp_sample_topology(x->D[i], y->D[i], &(C->T),&sn);
+		else
+			z.D[i]=ssdp_sample_topogrid(x->D[i], y->D[i], &(C->Tx),&sn);
 		azi.D[i]=sn.a;
 		zen.D[i]=sn.z;
 	}
@@ -122,12 +154,13 @@ void SampleTopography(char *in)
 /*
 BEGIN_DESCRIPTION
 SECTION Topography
-PARSEFLAG offset_topo OffsetTopography "C=<in-config>  o=<float> x=<in-array> y=<in-array> xoff=<out-array> yoff=<out-array> zoff=<out-array>"
+PARSEFLAG offset_topo OffsetTopography "C=<in-config>  o=<float> x=<in-array> y=<in-array> type=<topology/topogrid> xoff=<out-array> yoff=<out-array> zoff=<out-array>"
 DESCRIPTION Computes a topography offset in the direction of the surface normal
 ARGUMENT C config-variable
 ARGUMENT o offset value
 ARGUMENT x x coordinate
 ARGUMENT y y coordinate
+ARGUMENT type Optional argument to select the unstructured topology mesh or the structured topogrid. Valid values are \"topology\" or \"topogrid\" (default topology unless only a topogrid is defined)
 OUTPUT xoff x coordinate
 OUTPUT yoff y coordinate
 OUTPUT zoff z coordinate
@@ -140,6 +173,7 @@ void OffsetTopography(char *in)
 	simulation_config *C;
 	array *x, *y, zoff, yoff, xoff;
 	double o;
+	char type='t';
 	sky_pos sn;
 	word=malloc((strlen(in)+1)*sizeof(char));
 	
@@ -175,6 +209,39 @@ void OffsetTopography(char *in)
 		free(word);
 		return;
 	}
+	if (GetOption(in, "type", word))
+	{
+		if (strncmp(word,"topology",10)==0)
+		{
+			if (C->topo_init==0)
+			{ 
+				Warning("No topology available\n");
+				free(word);
+				return;
+			}
+		}
+		if (strncmp(word,"topogrid",10)==0)
+		{
+			if (C->grid_init==0)
+			{ 
+				Warning("No topogrid available\n");
+				free(word);
+				return;
+			}
+			type='g';
+		}
+	}
+	if (C->topo_init==0)
+	{
+		type='g';
+		if (C->grid_init==0)
+		{ 
+			Warning("No topology or topogrid available\n");
+			free(word);
+			return;
+		}
+	}
+		
 	zoff.D=malloc(x->N*sizeof(double));
 	zoff.N=x->N;
 	yoff.D=malloc(x->N*sizeof(double));
@@ -184,7 +251,11 @@ void OffsetTopography(char *in)
 	printf("computing tolology offset by %e\n",o);
 	for (i=0;i<x->N;i++)
 	{
-		zoff.D[i]=ssdp_sample_topology(x->D[i], y->D[i], &(C->T),&sn)+o*cos(sn.z);
+		if (type=='t')
+			zoff.D[i]=ssdp_sample_topology(x->D[i], y->D[i], &(C->T),&sn)+o*cos(sn.z);
+		else
+			zoff.D[i]=ssdp_sample_topogrid(x->D[i], y->D[i], &(C->Tx),&sn)+o*cos(sn.z);
+		
 		xoff.D[i]=x->D[i]+o*sin(sn.z)*cos(sn.a);
 		yoff.D[i]=y->D[i]+o*sin(sn.z)*sin(sn.a);
 	}

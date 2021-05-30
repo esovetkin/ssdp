@@ -52,6 +52,7 @@ AOI_Model_Data ssdp_init_aoi_model(AOI_Model model,double nf, double nar,double 
 
 void ssdp_free_location(location *l);
 location ssdp_setup_location(sky_grid *sky, topology *T, double albedo, sky_pos pn, double xoff, double yoff, double zoff, AOI_Model_Data *M);
+location ssdp_setup_grid_location(sky_grid *sky, topogrid *T, double albedo, sky_pos pn, double xoff, double yoff, double zoff, AOI_Model_Data *M);
 double ssdp_diffuse_poa(sky_grid *sky, location *l);
 double ssdp_direct_poa(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, location *l);
 double ssdp_total_poa(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, location *l);
@@ -59,14 +60,17 @@ int ssdp_below_horizon(location *l, sky_pos p);
 
 // create a topology from a point cloud
 topology ssdp_make_topology(double *x, double *y, double *z, int N);
+topogrid ssdp_make_topogrid(double *z, double x1, double y1, double x2, double y2, int Nx, int Ny);
 // create random topologies for testing
 topology ssdp_make_rand_topology(double dx, double dy, double dz, int N1, int N2);
 void ssdp_free_topology(topology *T);
+void ssdp_free_topogrid(topogrid *T);
 // compute elevation (z) at any point x and y in the topology
 // beware: will extrapolate from closest triangle to points outside the hull without warning
 // Also computes the surface normal if you pass it a non NULL pointer to a sky_pos
 // you can use this to rotate the POA using ssdp_poa_to_surface_normal(...)
 double ssdp_sample_topology(double x, double y, topology *T, sky_pos *sn);
+double ssdp_sample_topogrid(double x, double y, topogrid *T, sky_pos *sn);
 
 
 sky_pos ssdp_sunpos(time_t t, double lat, double lon); // lat & lon in radians

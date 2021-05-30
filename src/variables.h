@@ -11,9 +11,10 @@ typedef struct simulation_config {
 	 */
 	AOI_Model_Data M; 		// angle of incidence effects
 	double lon, lat;		// longitude, latitude 
-	char sky_init, topo_init; // flags indicating whether the structures have been initialized or not
+	char sky_init, topo_init, grid_init; // flags indicating whether the structures have been initialized or not
 	sky_grid S; 			// sky
 	topology T; 			// topology
+	topogrid Tx; 			// topogrid
 	double albedo;			// ground albedo
 	char loc_init; 			// flags indicating whether location arrays have been initialized or not
 	double *x, *y, *z;		// locations of the module(s)

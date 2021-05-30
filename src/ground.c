@@ -69,12 +69,237 @@ topology MakeTopology(double *x, double *y, double *z, int N)
 	T.N=N;
 	T.T=Triangulate(T.x, T.y, T.N, &T.Nt);
 	if (ssdp_error_state)
+	{
+		free_topo(&T);
 		return T0;
+	}
 	for (i=0;i<T.Nt;i++)
 		T.T[i].ccz=(T.z[T.T[i].i]+T.z[T.T[i].j]+T.z[T.T[i].k])/3;
 	tsort(T.T, T.Nt); // sorting triangles
 	
 	T.P=InitTree(T.T, T.Nt, T.x, T.y, N);
+	if (ssdp_error_state)
+	{
+		free_topo(&T);
+		return T0;
+	}
+	return T;
+}
+
+// sort grid index by height
+// ERRORFLAG MALLOCFAILTOPOGRID  "Error memory allocation failed in creating a topogrid"
+#ifdef _WIN32
+double *_SortHeight;
+int gcomp(const void *a, const void *b)
+{
+	if ((double *)_SortHeight[(int *)a[0]]<(double *)_SortHeight[(int *)b[0]])
+		return -1;
+	if ((double *)_SortHeight[(int *)a[0]]>(double *)_SortHeight[(int *)b[0]])
+		return 1;
+	return 0;
+} 
+int *gsort(double *z, int N)
+{ 
+	int i;
+	int *sort;
+	sort=malloc(N*sizeof(int));
+	if (sort==NULL)
+	{
+		AddErr(MALLOCFAILTOPOGRID);
+		return NULL;
+	}
+	_SortHeight=z;
+	
+	for (i=0;i<N;i++)
+		sort[i]=i;
+	qsort(sort, N, sizeof(int), gcomp);
+	return sort;
+}
+#else
+int gcomp(const void *a, const void *b, void *c)
+{
+	if (((double *)c)[((int *)a)[0]]<((double *)c)[((int *)b)[0]]) // thats a lot of brackets...
+		return -1;
+	if (((double *)c)[((int *)a)[0]]>((double *)c)[((int *)b)[0]])
+		return 1;
+	return 0;
+} 
+int *gsort(double *z, int N)
+{ 
+	int i;
+	int *sort;
+	sort=malloc(N*sizeof(int));
+	if (sort==NULL)
+	{
+		AddErr(MALLOCFAILTOPOGRID);
+		return NULL;
+	}
+	for (i=0;i<N;i++)
+		sort[i]=i;
+	qsort_r(sort, N, sizeof(int), gcomp, z);
+	return sort;
+}
+#endif /*_WIN32 */
+
+// describes discrete angular ranges for elements in a regular grid
+// only computes fro 1/8th of the elements, the reast may be inferred
+void MakeAngles(int n, float dx, float dy, float **A1, float **A2, int *N)
+{
+	int i, j, k;
+	float d, w;
+	(*N)=(4*n*n+20*n)/8+2;
+	(*A1)=malloc((*N)*sizeof(float));
+	(*A2)=malloc((*N)*sizeof(float));
+	if (((*A1)==NULL)||((*A2)==NULL))
+	{
+		AddErr(MALLOCFAILTOPOGRID);
+		return;
+	}
+	for (i=1;i<n;i++)
+		for (j=0;j<=i;j++)
+		{
+			k=i-1;
+			k=(4*k*k+20*k)/8+j;
+			(*A1)[k]=M_PI/2-atan((dy*((float)j))/(dx*((float)i))); // base angle, swap x and y for the angle
+			d=sqrt(dx*dx*((float)(i*i))+dy*dy*((float)(j*j)));
+			w=atan(sqrt(dx*dx+dy*dy)/d)/2; // with measured against the diagonal of the element
+			(*A2)[k]=(*A1)[k]+w;
+			(*A1)[k]-=w;
+		}
+}
+
+int Arange(int dx, int dy, float *a1, float *a2, float *A1, float *A2)
+{
+	int k;
+	if ((dx==0)&&(dy==0))
+	{
+		(*a1)=0;
+		(*a2)=2*M_PI;
+		return 0;
+	}
+	if ((dx>=0)&&(dy>=0))
+	{
+		if (dx>dy)
+		{
+			// second 1/8th
+			k=dx-1;
+			k=(4*k*k+20*k)/8+dy;
+			(*a1)=A1[k];
+			(*a2)=A2[k];
+			return 1;
+		}
+		// first  1/8th
+		k=dy-1;
+		k=(4*k*k+20*k)/8+dx;
+		(*a1)=M_PI/2-A2[k];
+		(*a2)=M_PI/2-A1[k];
+		return 1;
+	}
+	if ((dx<0)&&(dy>=0))
+	{
+		dx=abs(dx);
+		if (dx>dy)
+		{
+			// seventh 1/8th
+			k=dx-1;
+			k=(4*k*k+20*k)/8+dy;
+			
+			(*a1)=7*M_PI/4-A2[k];
+			(*a2)=7*M_PI/4-A1[k];
+			return 1;
+		}
+		// eighth  1/8th
+		k=dy-1;
+		k=(4*k*k+20*k)/8+dx;
+		(*a1)=3*M_PI/2+A1[k];
+		(*a2)=3*M_PI/2+A2[k];
+		return 1;
+	}
+	if ((dx<0)&&(dy<0))
+	{
+		dx=abs(dx);
+		dy=abs(dy);
+		if (dx>dy)
+		{
+			// sixth 1/8th
+			k=dx-1;
+			k=(4*k*k+20*k)/8+dy;
+			(*a1)=M_PI+A1[k];
+			(*a2)=M_PI+A2[k];
+			return 1;
+		}
+		// fifth  1/8th
+		k=dy-1;
+		k=(4*k*k+20*k)/8+dx;
+		(*a1)=3*M_PI/2-A2[k];
+		(*a2)=3*M_PI/2-A1[k];
+		return 1;
+	}
+	if ((dx>=0)&&(dy<0))
+	{
+		dy=abs(dy);
+		if (dx>dy)
+		{
+			// third 1/8th
+			k=dx-1;
+			k=(4*k*k+20*k)/8+dy;
+			
+			(*a1)=M_PI-A2[k];
+			(*a2)=M_PI-A1[k];
+			return 1;
+		}
+		// fourth  1/8th
+		k=dy-1;
+		k=(4*k*k+20*k)/8+dx;
+		(*a1)=M_PI/2+A1[k];
+		(*a2)=M_PI/2+A2[k];
+		return 1;
+	}
+	(*a1)=0;
+	(*a2)=0;
+	return 0;
+}
+
+
+topogrid MakeTopogrid(double *z, double x1, double y1, double x2, double y2, int Nx, int Ny)
+{
+	topogrid T;
+	topogrid T0={NULL,NULL,NULL,NULL,0,0,0,0,0,1,1};
+	int i, N;
+	double dx, dy;
+	N=Nx*Ny;
+	T.z=malloc(N*sizeof(double));
+	if (T.z==NULL)
+	{
+		AddErr(MALLOCFAILTOPOGRID);
+		return T0;
+	}
+	for (i=0;i<N;i++)
+		T.z[i]=z[i];
+	T.sort=gsort(T.z, N);	
+	if (ssdp_error_state)
+	{
+		free_topogrid(&T);
+		return T0;
+	}
+	
+	dx=(x2-x1)/((double)Nx);
+	dy=(y2-y1)/((double)Nx);
+	if (Nx>Ny)
+		MakeAngles(Nx, dx, dy, &(T.A1), &(T.A2), &(T.Na));
+	else
+		MakeAngles(Ny, dx, dy, &(T.A1), &(T.A2), &(T.Na));	
+	if (ssdp_error_state)
+	{
+		free_topogrid(&T);
+		return T0;
+	}
+	T.Nx=Nx;
+	T.Ny=Ny;
+	T.x1=x1;
+	T.y1=y1;
+	T.x2=x2;
+	T.y2=y2;
 	return T;
 }
 
@@ -101,6 +326,38 @@ void free_topo (topology *T)
 			free(T->P);
 			T->P=NULL;
 		}
+	}
+}
+void free_topogrid (topogrid *T)
+{
+	if (T)
+	{
+		if (T->z)
+		{
+			free(T->z);
+			T->z=NULL;
+		}
+		if (T->A1)
+		{
+			free(T->A1);
+			T->A1=NULL;
+		}
+		if (T->A2)
+		{
+			free(T->A2);
+			T->A2=NULL;
+		}
+		if (T->sort)
+		{
+			free(T->sort);
+			T->sort=NULL;
+		}
+		T->Nx=0;
+		T->Ny=0;
+		T->x1=0;
+		T->y1=0;
+		T->x2=1;
+		T->y1=1;
 	}
 }
 
@@ -144,6 +401,104 @@ double SampleTopo(double x, double y, topology *T, sky_pos *sn)
 	}
 	return z;	
 }
+
+inline int YINDEX(int N, int Nx)
+{
+	return N/Nx;
+} 
+inline int XINDEX(int N, int Nx)
+{
+	return N%Nx;
+} 
+inline int INDEX(int x, int y, int Nx)
+{
+	return y*Nx+x;
+} 
+
+inline int IndexGridX(double x, topogrid *T)
+{
+	double dx=(T->x2-T->x1)/((double)T->Nx);
+	return (int)floor((x-T->x1)/dx);
+}
+
+inline int IndexGridY(double y, topogrid *T)
+{
+	double dy=(T->y2-T->y1)/((double)T->Ny);
+	return (int)floor((y-T->y1)/dy);
+}
+
+inline double YVALUE(int i,topogrid *T)
+{
+	double dy=(T->y2-T->y1)/((double)T->Ny);
+	return T->y1+((double)i)*dy;
+} 
+inline double XVALUE(int i,topogrid *T)
+{
+	double dx=(T->x2-T->x1)/((double)T->Nx);
+	return T->x1+((double)i)*dx;
+} 
+
+// should export norm somehow as we may want to rotate the pv panel accordingly
+double SampleTopoGrid(double x, double y, topogrid *T, sky_pos *sn)
+{ // dangerous, no check for extrapolation
+	int i, j, k, l;
+	vec nn, a, b, c, v1, v2;
+	double D,z, len;
+	i=IndexGridX(x, T);
+	j=IndexGridY(y, T);
+	if (i<0)
+		i=0;
+	if (i>=T->Nx)
+	{
+		i=T->Nx-1;
+		k=i-1;// look backward for a triangle
+	}
+	else
+		k=i+1;// look forward for a triangle
+		
+	if (j<0)
+		j=0;
+	if (j>=T->Ny)
+	{
+		j=T->Ny-1;
+		l=j-1;// look backward for a triangle
+	}
+	else
+		l=j+1;// look forward for a triangle
+	a.x=XVALUE(i,T);
+	a.y=YVALUE(j,T);
+	a.z=T->z[INDEX(i, j, T->Nx)];
+	b.x=XVALUE(k,T);
+	b.y=YVALUE(j,T);
+	b.z=T->z[INDEX(k, j, T->Nx)];
+	c.x=XVALUE(i,T);
+	c.y=YVALUE(l,T);
+	c.z=T->z[INDEX(i, l, T->Nx)];
+	
+	v1=diff(a,b);
+	v2=diff(a,c);
+	nn=cross(v2,v1);
+	len=norm(nn);
+	
+	if (nn.z<0)
+		nn=scalevec(nn,-1);
+	
+	if (nn.z<1e-10*len) // avoid div 0
+		nn.z=1e-10*len;
+	//A x + B y +C z = D
+	D=nn.x*a.x+nn.y*a.y+nn.z*a.z;
+	z=(D-nn.x*x-nn.y*y)/nn.z;
+	if (sn)
+	{
+		a=nn;
+		// in our coordinate system we go counter clockwise with 0 degrees pointing up (swap x and y)
+		nn.x=nn.y;
+		nn.y=a.x;
+		(*sn)=vecdir(nn);
+	}
+	return z;	
+}
+
 topology CreateRandomTopology(double dx, double dy, double dz, int N1, int N2)
 {
 	double xmin, xmax, ymin, ymax, zmin, zmax;
@@ -380,7 +735,38 @@ horizon MakeHorizon(sky_grid *sky, topology *T, double xoff, double yoff, double
 	return H;
 }
 
-/* we can add routines to compute the horizon on a grid which should be faster
- * as we can use the trick by Ian Cole, we only need to compute a set of discrete
- * angles when we have a regular grid. This can speed up the computation considerably
- */ 
+
+// take a topology and rize the horizon accordingly
+void ComputeGridHorizon(horizon *H, topogrid *T, double minzen, double xoff, double yoff, double zoff)
+// the minzen parameter can save alot of work
+// it specifies the minimum zenith angle to consider a triangle for the horizon
+// I would set it to 0.5 times the zenith step in the sky. Especially for large topographies it reduces the amount of work considerably as far away triangles are less likely of consequence
+{
+	int i;
+	int k,l, m, n;
+	double d;
+	double dx, dy;;
+	double Dx, Dy;
+	float a1, a2;	
+	double r;
+	r=tan(minzen);// compute threshold height over distance ratio
+	dx=(T->x2-T->x1)/T->Nx;
+	dy=(T->y2-T->y1)/T->Ny;
+	
+	k=(int)round((xoff-T->x1)/dx);
+	l=(int)round((yoff-T->y1)/dy);
+	
+	i=T->Nx*T->Ny-1;
+	while ((i>=0)&&(T->z[T->sort[i]]>zoff)) // go backwards through the list till the triangles are lower than the projection point
+	{
+		m=XINDEX(T->sort[i], T->Nx)-k;
+		n=YINDEX(T->sort[i], T->Nx)-l;
+		Dx=dx*m;
+		Dy=dy*n;		
+		d=sqrt(Dx*Dx+Dy*Dy);
+		if ((T->z[T->sort[i]]-zoff)/d>r) // do not compute anything for triangles below the zenith threshold
+			if (Arange(m, n, &a1, &a2, T->A1, T->A2)) // compute azimuthal range
+				RizeHorizon(H, (double)a1, (double)a2, d/(T->z[T->sort[i]]-zoff)); // for now store the ratio, do atan2's on the horizon array at the end
+		i--;
+	}	
+}
