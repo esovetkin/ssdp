@@ -88,13 +88,13 @@ topology MakeTopology(double *x, double *y, double *z, int N)
 
 // sort grid index by height
 // ERRORFLAG MALLOCFAILTOPOGRID  "Error memory allocation failed in creating a topogrid"
-#ifdef _WIN32
+#ifdef _WIN32 // WIN32 misses the qsort_r function, have to use a global variable
 double *_SortHeight;
 int gcomp(const void *a, const void *b)
 {
-	if ((double *)_SortHeight[(int *)a[0]]<(double *)_SortHeight[(int *)b[0]])
+	if (((double *)_SortHeight)[((int *)a)[0]]<((double *)_SortHeight)[((int *)b)[0]])
 		return -1;
-	if ((double *)_SortHeight[(int *)a[0]]>(double *)_SortHeight[(int *)b[0]])
+	if (((double *)_SortHeight)[((int *)a)[0]]>((double *)_SortHeight)[((int *)b)[0]])
 		return 1;
 	return 0;
 } 
@@ -402,17 +402,17 @@ double SampleTopo(double x, double y, topology *T, sky_pos *sn)
 	return z;	
 }
 
-inline int YINDEX(int N, int Nx)
+inline int YINDEX(int N, int Ny)
 {
-	return N/Nx;
+	return N%Ny;
 } 
-inline int XINDEX(int N, int Nx)
+inline int XINDEX(int N, int Ny)
 {
-	return N%Nx;
+	return N/Ny;
 } 
-inline int INDEX(int x, int y, int Nx)
+inline int INDEX(int x, int y, int Ny)
 {
-	return y*Nx+x;
+	return x*Ny+y;
 } 
 
 inline int IndexGridX(double x, topogrid *T)
@@ -467,13 +467,13 @@ double SampleTopoGrid(double x, double y, topogrid *T, sky_pos *sn)
 		l=j+1;// look forward for a triangle
 	a.x=XVALUE(i,T);
 	a.y=YVALUE(j,T);
-	a.z=T->z[INDEX(i, j, T->Nx)];
+	a.z=T->z[INDEX(i, j, T->Ny)];
 	b.x=XVALUE(k,T);
 	b.y=YVALUE(j,T);
-	b.z=T->z[INDEX(k, j, T->Nx)];
+	b.z=T->z[INDEX(k, j, T->Ny)];
 	c.x=XVALUE(i,T);
 	c.y=YVALUE(l,T);
-	c.z=T->z[INDEX(i, l, T->Nx)];
+	c.z=T->z[INDEX(i, l, T->Ny)];
 	
 	v1=diff(a,b);
 	v2=diff(a,c);
@@ -759,8 +759,8 @@ void ComputeGridHorizon(horizon *H, topogrid *T, double minzen, double xoff, dou
 	i=T->Nx*T->Ny-1;
 	while ((i>=0)&&(T->z[T->sort[i]]>zoff)) // go backwards through the list till the triangles are lower than the projection point
 	{
-		m=XINDEX(T->sort[i], T->Nx)-k;
-		n=YINDEX(T->sort[i], T->Nx)-l;
+		m=XINDEX(T->sort[i], T->Ny)-k;
+		n=YINDEX(T->sort[i], T->Ny)-l;
 		Dx=dx*m;
 		Dy=dy*n;		
 		d=sqrt(Dx*Dx+Dy*Dy);

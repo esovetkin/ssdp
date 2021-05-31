@@ -466,7 +466,7 @@ void ConfigTOPO (char *in)
 BEGIN_DESCRIPTION
 SECTION Simulation Configuration
 PARSEFLAG config_topogrid ConfigTOPOGrid "C=<out-config> z=<in-array> Nx=<int-value> Ny=<int-value> x1=<float-value> y1=<float-value> x2=<float-value> y2=<float-value>"
-DESCRIPTION Setup the topogrid. Load the z data (row mayor, from the south-west corner to the north-east corner).
+DESCRIPTION Setup the topogrid. Load the z data (column major, from the south-west corner to the north-east corner).
 ARGUMENT z z coordinates
 ARGUMENT Nx number of x steps.
 ARGUMENT Ny number of y steps.

@@ -149,7 +149,7 @@ void NextL(int Nz, int index, int *N) // next level
 	}
 	// from the center of the grid there are 3 axis where the hexpatches are perfectly aligned.
 	// this means that there are 6 azimuth angles that always repeat for every level
-	// this identifies whether we are on one of the 6 mayor azimuth angles
+	// this identifies whether we are on one of the 6 major azimuth angles
 	if (aoff%nz==0)
 	{
 		N[n++]=index+(NNZ(nz)-i)+aoff/nz;
@@ -183,7 +183,7 @@ void PrevL(int Nz, int index, int *N) // previous level
 	}
 	// from the center of the grid there are 3 axis where the hexpatches are perfectly aligned.
 	// this means that there are 6 azimuth angles that always repeat for every level
-	// this identifies whether we are on one of the 6 mayor azimuth angles
+	// this identifies whether we are on one of the 6 major azimuth angles
 	if (aoff%nz==0)
 	{
 		if (nz==1)

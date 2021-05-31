@@ -494,6 +494,88 @@ void MakeGrid(char *in)
 /*
 BEGIN_DESCRIPTION
 SECTION Array
+PARSEFLAG get_grid GetGrid "C=<in-config> x=<out-array> y=<out-array>"
+DESCRIPTION Extract the grid from the configured topogrid
+ARGUMENT C  Simulation config with a configures topogrid
+OUTPUT x output array
+OUTPUT y output array
+END_DESCRIPTION
+*/
+void GetGrid(char *in)
+{
+	char *word;
+	array x, y;
+	simulation_config *C;
+	int i, j;
+	double dx, dy, xx;
+	word=malloc((strlen(in)+1)*sizeof(char));
+	if (FetchConfig(in, "C", word, &C))
+	{
+		free(word);
+		return;
+	}
+	if (C->grid_init==0)
+	{
+		Warning("Simulation config does not cintain a topogrid\n");
+		free(word);
+		return;
+	}
+	x.N=(C->Tx.Nx*C->Tx.Ny);
+	x.D=malloc(x.N*sizeof(double));
+	
+	if (!x.D)
+	{
+		Warning("memory allocation failed\n");
+		free(word);
+		return;
+	}
+	y.N=x.N;
+	y.D=malloc(x.N*sizeof(double));
+	if (!y.D)
+	{
+		Warning("memory allocation failed\n");
+		free(word);
+		return;
+	}
+	dx=(C->Tx.x2-C->Tx.x1)/C->Tx.Nx;
+	dy=(C->Tx.y2-C->Tx.y1)/C->Tx.Ny;
+	for (i=0;i<C->Tx.Nx;i++)
+	{
+		xx=C->Tx.x1+i*dx;
+		for (j=0;j<C->Tx.Ny;j++)
+		{
+			x.D[i*C->Tx.Ny+j]=xx;
+			y.D[i*C->Tx.Ny+j]=C->Tx.y1+j*dy;
+		}
+	}	
+	if (!GetArg(in, "x", word))
+	{
+		free(word);
+		return;
+	}	
+	printf("Creating array %s\n",word);
+	if(AddArray(word, x))
+	{
+		free(x.D);	
+		free(word);
+	}
+	word=malloc((strlen(in)+1)*sizeof(char)); // allocate new, word is swallowed into the variable list by AddArray
+	if (!GetArg(in, "y", word))
+	{
+		free(word);
+		return;
+	}	
+	printf("Creating array %s\n",word);
+	if(AddArray(word, y))
+	{
+		free(y.D);
+		free(word);
+	}
+	return;	
+}
+/*
+BEGIN_DESCRIPTION
+SECTION Array
 PARSEFLAG make_scalar MakeScalar "x=<out-array> val=<float>"
 DESCRIPTION Creates an array with length 1 (simply a shorter way to create a 1 valued array than using the make_array command)
 ARGUMENT val float value
