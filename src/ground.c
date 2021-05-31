@@ -415,16 +415,34 @@ inline int INDEX(int x, int y, int Ny)
 	return x*Ny+y;
 } 
 
-inline int IndexGridX(double x, topogrid *T)
+inline int IndexGridX(double x, topogrid *T, int *o)
 {
 	double dx=(T->x2-T->x1)/((double)T->Nx);
-	return (int)floor((x-T->x1)/dx);
+	double nx;
+	nx=round((x-T->x1)/dx);
+	if (o)
+	{
+		if (nx*dx>x)
+			(*o)=(int)nx-1;
+		else
+			(*o)=(int)nx+1;
+	}
+	return (int)nx;
 }
 
-inline int IndexGridY(double y, topogrid *T)
+inline int IndexGridY(double y, topogrid *T, int *o)
 {
 	double dy=(T->y2-T->y1)/((double)T->Ny);
-	return (int)floor((y-T->y1)/dy);
+	double ny;
+	ny=round((y-T->y1)/dy);
+	if (o)
+	{
+		if (ny*dy>y)
+			(*o)=(int)ny -1;
+		else
+			(*o)=(int)ny +1;
+	}
+	return (int)ny;
 }
 
 inline double YVALUE(int i,topogrid *T)
@@ -444,27 +462,30 @@ double SampleTopoGrid(double x, double y, topogrid *T, sky_pos *sn)
 	int i, j, k, l;
 	vec nn, a, b, c, v1, v2;
 	double D,z, len;
-	i=IndexGridX(x, T);
-	j=IndexGridY(y, T);
+	i=IndexGridX(x, T, &k);
+	j=IndexGridY(y, T, &l);
 	if (i<0)
+	{
 		i=0;
+		k=1;
+	}
 	if (i>=T->Nx)
 	{
 		i=T->Nx-1;
 		k=i-1;// look backward for a triangle
 	}
-	else
-		k=i+1;// look forward for a triangle
 		
 	if (j<0)
+	{
 		j=0;
+		l=1;
+	}
 	if (j>=T->Ny)
 	{
 		j=T->Ny-1;
 		l=j-1;// look backward for a triangle
 	}
-	else
-		l=j+1;// look forward for a triangle
+	
 	a.x=XVALUE(i,T);
 	a.y=YVALUE(j,T);
 	a.z=T->z[INDEX(i, j, T->Ny)];
