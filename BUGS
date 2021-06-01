@@ -1,2 +1,4 @@
 The shull code is fragile and somewhat buggy. If you experience 
 problems you will have to resort to using regular grids
+
+Reconfiguring locations seems to segfault

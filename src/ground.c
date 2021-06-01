@@ -584,12 +584,10 @@ topology CreateRandomTopology(double dx, double dy, double dz, int N1, int N2)
 void RizeHorizon(horizon *H, double azi1, double azi2, double zen)
 {
 	int i, j, k;
-	if (zen>M_PI/2)
-		return;
 	if (zen<0)
 		return;
-	i=(int)floor(azi1/H->astep);
-	j=(int)floor(azi2/H->astep);
+	i=(int)round(azi1/H->astep);
+	j=(int)round(azi2/H->astep);
 	
 	if (i<0)
 		i+=H->N;
@@ -607,13 +605,12 @@ void RizeHorizon(horizon *H, double azi1, double azi2, double zen)
 	}
 	if (j-i>=H->N/2)
 	{
-		j=j+1;
 		for (k=j;k<H->N;k++)
 		{
 			if (H->zen[k]>zen)
 				H->zen[k]=zen;
 		}
-		for (k=0;k<i;k++)
+		for (k=0;k<=i;k++)
 		{
 			if (H->zen[k]>zen)
 				H->zen[k]=zen;
@@ -621,7 +618,6 @@ void RizeHorizon(horizon *H, double azi1, double azi2, double zen)
 	}
 	else
 	{	
-		i=i+1;
 		for (k=i;k<=j;k++)
 		{
 			if (H->zen[k]>zen)
@@ -782,8 +778,8 @@ void ComputeGridHorizon(horizon *H, topogrid *T, double minzen, double xoff, dou
 	{
 		m=XINDEX(T->sort[i], T->Ny)-k;
 		n=YINDEX(T->sort[i], T->Ny)-l;
-		Dx=dx*m;
-		Dy=dy*n;		
+		Dx=dx*(double)m;
+		Dy=dy*(double)n;		
 		d=sqrt(Dx*Dx+Dy*Dy);
 		if ((T->z[T->sort[i]]-zoff)/d>r) // do not compute anything for triangles below the zenith threshold
 			if (Arange(m, n, &a1, &a2, T->A1, T->A2)) // compute azimuthal range

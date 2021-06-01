@@ -127,9 +127,9 @@ int BelowHorizon(const horizon *H, sky_pos p)
 			i=H->N-1;
 	}
 	j=(i+1)%H->N;
-	a1=adiff(p.a, ((double)i)*H->astep);
-	a2=adiff(((double)j)*H->astep, p.a);
-	return (p.z>(H->zen[i]*a2+H->zen[j]*a1)/(a1+a2));
+	a1=fabs(adiff(p.a, ((double)i)*H->astep));
+	a2=H->astep-a1;
+	return (p.z>(H->zen[i]*a2+H->zen[j]*a1)/(H->astep));
 }
 
 

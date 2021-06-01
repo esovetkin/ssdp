@@ -438,3 +438,67 @@ void ExportSky(char *in)
 	free(word);
 }
 
+
+/*
+BEGIN_DESCRIPTION
+SECTION Simulation
+PARSEFLAG export_horizon ExportHorizon "C=<in-config> index=<in-int> file=<in-string>"
+DESCRIPTION Exports the horizon at a certain location.
+ARGUMENT C config-variable
+ARGUMENT index index of the location
+ARGUMENT file filename
+OUTPUT file A file with the horizon. Organized in 2 columns: azimuth [rad] zenioth[rad]
+END_DESCRIPTION
+*/
+void ExportHorizon(char *in)
+{
+	int j; 
+	char *word;
+	simulation_config *C;
+	word=malloc((strlen(in)+1)*sizeof(char));
+	
+	if (FetchConfig(in, "C", word, &C))
+	{
+		free(word);
+		return;
+	}	
+	if ((!C->topo_init)&&(!C->grid_init))
+	{	
+		Warning("A topology must be defined defined to export a horizon\n");
+		free(word);
+		return;
+	}
+	if (!C->loc_init) 
+	{	
+		Warning("Simulation config has no locations initialized\n");
+		free(word);
+		return;
+	}
+	if (FetchInt(in, "index", word, &j))
+	{
+		free(word);
+		return;
+	}		
+	if (j<0)
+	{
+		Warning("index must be larger or equal to 0\n");
+		free(word);
+		return;
+	}	
+	if (j>=C->Nl)
+	{
+		Warning("index must be smaller than the number of locations (%d)\n", C->Nl);
+		free(word);
+		return;
+	}	
+	
+	if (!GetArg(in, "file", word))
+	{
+		free(word);
+		return;
+	}
+	// export horizon
+	printf("Writing the horizon to file %s as seen from location %d\n",word, j); 
+	WriteHorizon(word, C->L+j);
+	free(word);
+}

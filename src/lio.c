@@ -191,4 +191,21 @@ void WriteArrays(char *fn, double **data, int Narr, int N)
 
 
 
+void WriteHorizon(char *fn, location *l)
+{
+	FILE *f;
+	int i;
+	if ((f=fopen(fn,"w"))==NULL)
+	{
+		fprintf(stderr,"Cannot open %s for writing\n", fn);
+		exit(1);
+	}
+	fprintf(f,"# Hirizon Plot\n");
+	fprintf(f,"# azimuth[rad]\tzenith[rad]\n");
+	
+	for (i=0;i<l->H.N;i++)
+		fprintf(f,"%e %e\n",i*l->H.astep, l->H.zen[i]);
+	fclose(f);	
+}
+
 
