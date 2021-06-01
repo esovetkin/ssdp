@@ -47,5 +47,5 @@ typedef enum CIE_SKY_TYPE {
 
 void UniformSky(sky_grid *sky, sky_pos sun, double GHI, double DHI);
 void PerezSky(sky_grid * sky, sky_pos sun, double GHI, double DHI, double dayofyear);
-void CumulativePerezSky(sky_grid * sky, sky_pos *sun, double *GHI, double *DHI, double *dayofyear, int N);
+void CumulativePerezSky(sky_grid * sky, sky_pos *sun, double *t, double *GHI, double *DHI, double *dayofyear, int N);
 #endif

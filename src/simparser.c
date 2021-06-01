@@ -147,13 +147,11 @@ END_DESCRIPTION
 */
 void SimStaticInt(char *in)
 {
-	int i, j; // loop through space and time
+	int i; // loop through space
 	char *word;
 	simulation_config *C;
 	array *t, *GH, *DH, out;
 	double tsky, tpoa;
-	int pco=0;
-	double dt;
 	word=malloc((strlen(in)+1)*sizeof(char));
 	
 	if (FetchConfig(in, "C", word, &C))
@@ -220,35 +218,21 @@ void SimStaticInt(char *in)
 	}	
 	out.N=C->Nl;	
 	printf("doing static integral simulation of %d locations at %d instances\n",C->Nl, t->N);
-	if (t->N==1)
-		dt=1.0;
-	for (j=0;j<t->N;j++)
-	{
-		// compute sky at evert time instance
-		TIC();
-		ssdp_make_perez_all_weather_sky_coordinate(&(C->S), (time_t) t->D[j], C->lon, C->lat, GH->D[j], DH->D[j]);
-		tsky+=TOC();
-		TIC();
-		if (t->N>1)
-		{
-			if (j>0)
-				dt=(t->D[j]-t->D[j-1])/2;
-			else
-				dt=0;
-			if (j<t->N-1)
-				dt+=(t->D[j+1]-t->D[j])/2;
-		}
+	
+	TIC();
+	ssdp_make_perez_cumulative_sky_coordinate(&(C->S),t->D, C->lon, C->lat, GH->D, DH->D, t->N);
+	tsky=TOC();
+	printf("Integrated %d skies in %g s (%g s/sky)\n", t->N, tsky, tsky/((double)t->N));
+	
+	TIC();
 #pragma omp parallel private(i) shared(C)
-		{
+	{
 #pragma omp for 
-			for (i=0;i<C->Nl;i++)
-				out.D[i]+=ssdp_total_poa(&(C->S), C->o[i], &(C->M), C->L+i)*dt;
-		}
-		pco=ProgressBar((100*(j+1))/(t->N), pco, ProgressLen, ProgressTics);
-		tpoa+=TOC();
+		for (i=0;i<C->Nl;i++)
+			out.D[i]+=ssdp_total_poa(&(C->S), C->o[i], &(C->M), C->L+i);
 	}
-	printf("Computed %d skies in %g s (%g s/sky)\n", t->N, tsky, tsky/((double)t->N));
-	printf("Computed %d POA Irradiances in %g s (%g s/POA)\n", t->N*C->Nl, tpoa, tpoa/((double)(t->N*C->Nl)));
+	tpoa=TOC();
+	printf("Computed %d POA Irradiances in %g s (%g s/POA)\n", C->Nl, tpoa, tpoa/((double)(C->Nl)));
 	printf("Creating array %s\n",word);
 	if(AddArray(word, out))
 	{

@@ -83,7 +83,32 @@ void ssdp_make_perez_all_weather_sky_coordinate(sky_grid * sky, time_t t, double
 		return;
 	}
 	sun=sunpos(t, lat, lon);
-	PerezSky(sky, sun, GHI, DHI, ut->tm_yday);
+	PerezSky(sky, sun, GHI, DHI, (double)ut->tm_yday);
+}
+void ssdp_make_perez_cumulative_sky_coordinate(sky_grid * sky, double *t, double lon, double lat, double *GHI, double *DHI, int N)
+{
+	int i, j;
+	sky_pos *sun;
+	double *dayofyear;
+	time_t tt;
+	struct tm * ut;
+	sun=malloc(N*sizeof(sky_pos));
+	dayofyear=malloc(N*sizeof(double));
+	for (i=0;i<N;i++)
+	{
+		tt=(time_t)t[i];
+		ut=gmtime(&tt);
+		if (!ut)
+		{
+			AddErr(GMTIMENULL); //GMTIMENULL initialized in sunpos.c
+			return;
+		}
+		sun[i]=sunpos(tt, lat, lon);
+		dayofyear[i]=(double)ut->tm_yday;
+	}
+	CumulativePerezSky(sky, sun, t, GHI, DHI, dayofyear, N);
+	free(sun);
+	free(dayofyear);
 }
 // todo add cumulative sky routine
 /* project routines */

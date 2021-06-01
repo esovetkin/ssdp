@@ -304,14 +304,15 @@ void PerezSky(sky_grid * sky, sky_pos sun, double GHI, double DHI, double dayofy
 		sky->suni=-1;
 }
 // compute an average sky
-void CumulativePerezSky(sky_grid * sky, sky_pos *sun, double *GHI, double *DHI, double *dayofyear, int N)
+void CumulativePerezSky(sky_grid * sky, sky_pos *sun, double *t, double *GHI, double *DHI, double *dayofyear, int N)
 {
 	sky_pos s0={0,0};
 	double dhi0, dir, g;
+	double dt;
 	int i, j;
 	double a, b, c, d, e;
 	double eps, delta, *I;
-	// rest sky
+	// reset sky
 	for (i=0;i<sky->N;i++)
 		sky->P[i].I=0;
 	sky->sp=s0;
@@ -325,12 +326,24 @@ void CumulativePerezSky(sky_grid * sky, sky_pos *sun, double *GHI, double *DHI, 
 		AddErr(MALLOCFAILSKYMODEL);
 		return;
 	}
-	
+	if (N==1)
+		dt=1.0;
+		
 	for (j=0;j<N;j++)
 	{
 		double dhi;
+		
+		if (N>1)
+		{
+			if (j>0)
+				dt=(t[j]-t[j-1])/2;
+			else
+				dt=0;
+			if (j<N-1)
+				dt+=(t[j+1]-t[j])/2;
+		}	
 		if (GHI[j]<=1e-10)
-			break;
+			continue;
 		if (DHI[j]<0)
 		{
 			Print(VVERBOSE, "Warning: black sky\n");
@@ -355,17 +368,17 @@ void CumulativePerezSky(sky_grid * sky, sky_pos *sun, double *GHI, double *DHI, 
 		{
 			Print(VERBOSE, "Warning: fall back to uniform sky, Perez gives unreasonable results\n");
 			// perez gives unphysical values, fall back to a uniform sky
-			dhi0=dhi/sky->icosz;
+			dhi0=dt*dhi/sky->icosz;
 			for (i=0;i<sky->N;i++)
 				sky->P[i].I+=dhi0;
 		}
 		else
 		{
-			dhi0=dhi/dhi0;// correction factor		
+			dhi0=dt*dhi/dhi0;// correction factor		
 			for (i=0;i<sky->N;i++)
 				sky->P[i].I+=I[i]*dhi0;
 		}
-		dir=GHI[j]-dhi; // direct contribution
+		dir=dt*(GHI[j]-dhi); // direct contribution
 		if (dir<0)
 		{
 			Print(VVERBOSE, "Warning: black hole sun\n");// it finally came, RIP Chris
