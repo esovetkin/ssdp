@@ -8,35 +8,26 @@
  * Then I fix the number of terms and maximum order and simply try all 
  * combinations and select the best precision
 */
-float subatan_ref(float a)
+// 2 terms order 4
+inline double subatan_2_4(double a) // 3 digits
 {
-	float s;
-	// my reference: approx with 3 terms, max order 6 Emax: 0.0001401683 
-	s=a*a;	
-	return ((-0.095375152306*a+0.212415310139)*s -0.331782140628)*s*a+a;
+	return (0.152578515549353*a -0.366840729424806)*a*a*a+a;
 }
 
-float subatan_4_9(float a)
+inline double subatan_5_9(double a) // 6 digits
 {
-	float s2, s3;
-	// 4 terms, max order 9 Emax: 0.0000035196 (Erel: 0.025110 trel: 1.17)
-	s2=a*a;
-	s3=s2*a;
-	return (((0.006304618756*s3 -0.120631272109)*a + 0.234063762657)*s2 -0.334335841774)*s3+a;
+	return ((((-0.033340276431366*a+0.140924407553154)*a -0.191655659596189)*a*a + 0.202922388831609)*a*a -0.333452613665954)*a*a*a+a;
 }
 
-float subatan_5_9(float a)
+inline double subatan_9_10(double a) // 8 digits
 {
-	float s;
-	// 5 terms, max order 9 Emax: 0.0000003907 (Erel: 0.002787 trel: 1.28)
-	s=a*a;
-	return ((((-0.033340276431*a+0.140924407553)*a -0.191655659596)*s + 0.202922388832)*s -0.333452613666)*s*a+a;
+	return ((((((((0.021320677603614*a -0.130029802390657)*a + 0.321042974564416)*a -0.368370428974842)*a + 0.096998715843775)*a + 0.173898218191358)*a + 0.004227037834855)*a -0.333702137561143)*a + 0.000012909580497)*a*a+a;
 }
 
 #define subatan subatan_5_9
 double fatan2(double y, double x)
 {
-	float fx, fy, a, r;
+	double fx, fy, a, r;
 	if ((y==0)&&(x>=0))
 		return 0;
 	if ((y==0)&&(x<0))
@@ -45,8 +36,8 @@ double fatan2(double y, double x)
 		return M_PI/2;
 	if ((x==0)&&(y<0))
 		return 3*M_PI/2;		
-	fx=fabs((float)x);
-	fy=fabs((float)y);
+	fx=fabs(x);
+	fy=fabs(y);
 	if (fx<fy)
 		a=fx/fy;
 	else
@@ -58,17 +49,17 @@ double fatan2(double y, double x)
 		r=M_PI-r;
 	if (y<0)
 		r=-r;
-	return (double)r;
+	return r;
 }
 double fatan(double x)
 {
-	float fx, a, r;
+	double fx, a, r;
 	if (x>FLT_MAX)
 		return M_PI/2;
 	if (x<-FLT_MAX)
 		return -M_PI/2;		
 		
-	fx=(float)fabs(x);
+	fx=fabs(x);
 	if (fx>1.0)
 		a=1.0/x;
 	else
@@ -78,5 +69,5 @@ double fatan(double x)
 		r=M_PI/2-r;
 	if (x<0)
 		r=M_PI-r;
-	return (double)r;
+	return r;
 }

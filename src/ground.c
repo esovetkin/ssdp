@@ -162,7 +162,7 @@ void MakeAngles(int n, float dx, float dy, float **A1, float **A2, int *N)
 			k=(4*k*k+20*k)/8+j;
 			(*A1)[k]=M_PI/2-atan((dy*((float)j))/(dx*((float)i))); // base angle, swap x and y for the angle
 			d=sqrt(dx*dx*((float)(i*i))+dy*dy*((float)(j*j)));
-			w=atan(sqrt(dx*dx+dy*dy)/d)/2; // with measured against the diagonal of the element
+			w=ATAN(sqrt(dx*dx+dy*dy)/d)/2; // with measured against the diagonal of the element
 			(*A2)[k]=(*A1)[k]+w;
 			(*A1)[k]-=w;
 		}
