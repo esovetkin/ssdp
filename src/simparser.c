@@ -302,6 +302,8 @@ void SimRoute(char *in)
 		free(word);
 		return;
 	}	
+	
+	
 	if ((t->N!=GH->N)||(t->N!=DH->N))
 	{
 		Warning("Length of t-, GHI-, and DHI-arrays do not match\n");

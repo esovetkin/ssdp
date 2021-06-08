@@ -87,7 +87,7 @@ void ssdp_make_perez_all_weather_sky_coordinate(sky_grid * sky, time_t t, double
 }
 void ssdp_make_perez_cumulative_sky_coordinate(sky_grid * sky, double *t, double lon, double lat, double *GHI, double *DHI, int N)
 {
-	int i, j;
+	int i;
 	sky_pos *sun;
 	double *dayofyear;
 	time_t tt;
@@ -128,17 +128,21 @@ typedef struct location {
 	horizon H;
 } location;
 //END_SSDP_EXPORT
+
 void ssdp_free_location(location *l)
 {
-	FreeSkyTransfer(&(l->T));
-	FreeHorizon(&(l->H));
+	if (l)
+	{
+		FreeSkyTransfer(&(l->T));
+		FreeHorizon(&(l->H));
+	}
 }
 #define ALBEPS 1e-10
 location ssdp_setup_location(sky_grid *sky, topology *T, double albedo, sky_pos pn, double xoff, double yoff, double zoff, AOI_Model_Data *M)
 {
 	int i;
 	location l;
-	location l0={{NULL,0,0},{0,0,NULL}};
+	location l0={{NULL,0.0,0},{0,0.0,NULL}};
 	// setup horizon
 	l.H=InitHorizon(sky->Nz);
 	l.T=InitSkyTransfer(sky->N);
@@ -178,6 +182,10 @@ location ssdp_setup_location(sky_grid *sky, topology *T, double albedo, sky_pos 
 	}
 	
 	HorizTrans(sky, &(l.H), &(l.T), &(l.T));
+	{
+		ssdp_free_location(&l);
+		return l0;
+	}
 	return l;
 }
 location ssdp_setup_grid_location(sky_grid *sky, topogrid *T, double albedo, sky_pos pn, double xoff, double yoff, double zoff, AOI_Model_Data *M)

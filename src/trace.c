@@ -51,6 +51,7 @@ void FreeSkyTransfer(sky_transfer *T)
 	if (T->t)
 		free(T->t);
 	T->t=NULL;
+	T->g=0.0;
 	T->N=0;
 }
 

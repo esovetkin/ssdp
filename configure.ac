@@ -1,6 +1,6 @@
 m4_define([ssdp_major_version],    [2])
 m4_define([ssdp_minor_version],    [2])
-m4_define([ssdp_revis_version],    [2])
+m4_define([ssdp_revis_version],    [3])
 m4_define([ssdp_version],[ssdp_major_version.ssdp_minor_version.ssdp_revis_version])
 AC_INIT([libssdp], [ssdp_version])
 AC_CONFIG_MACRO_DIRS([m4])

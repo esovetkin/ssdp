@@ -185,10 +185,10 @@ void FreeConfigMask(simulation_config *C)
 	int i;
 	if (C->L)
 	{
-		for (i=0;C->Nl;i++)
-			ssdp_free_location(C->L+i);
+		for (i=0;i<C->Nl;i++)
+			ssdp_free_location(&(C->L[i]));
+		free(C->L);
 	}
-	free(C->L);
 	C->L=NULL;
 }
 
@@ -218,7 +218,7 @@ void InitConfigMask(simulation_config *C)
 		double dt;
 		int pco=0;
 		FreeConfigMask(C); // make sure we are clear to allocate new memory
-		C->L=malloc(C->Nl*sizeof(location));
+		C->L=calloc(C->Nl,sizeof(location));
 		if (C->L==NULL)
 		{
 			Warning("Could not allocate memory for locations\n");
