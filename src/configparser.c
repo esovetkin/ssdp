@@ -78,10 +78,10 @@ void ConfigCoord (char *in)
 		free(word);
 		return;
 	}
+	free(word);
 	if (l->N!=1)
 	{
 		Warning("config_coord expects a scalar value (array length 1) as latitude\n");
-		free(word);
 		return;
 	}
 	C->lat=l->D[0];

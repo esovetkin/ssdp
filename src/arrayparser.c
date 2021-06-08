@@ -666,6 +666,7 @@ void ArrayDeg2Rad(char *in)
 	}
 	
 	printf("converting %s to radians\n",word);
+	free(word);
 	for(i=0;i<x->N;i++)
 		x->D[i]=deg2rad(x->D[i]);
 	return;	

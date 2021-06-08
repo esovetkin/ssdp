@@ -27,7 +27,7 @@ typedef struct topology {
 typedef struct topogrid {
 	double *z;  // z coordinate in column-major format
 	int *sort;  // sorted indexing with increasing height
-	float *A1, *A2; // pre computed discrete angles
+	double *A1, *A2; // pre computed discrete angles
 	int Na;		// number of discrete angles in A1 and A2 arrays
 	int Nx,Ny;	// number of points
 	double x1, y1; // lower left corner

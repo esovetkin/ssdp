@@ -143,13 +143,13 @@ int *gsort(double *z, int N)
 
 // describes discrete angular ranges for elements in a regular grid
 // only computes fro 1/8th of the elements, the reast may be inferred
-void MakeAngles(int n, float dx, float dy, float **A1, float **A2, int *N)
+void MakeAngles(int n, double dx, double dy, double **A1, double **A2, int *N)
 {
 	int i, j, k;
-	float d, w;
+	double d, w;
 	(*N)=(4*n*n+20*n)/8+2;
-	(*A1)=malloc((*N)*sizeof(float));
-	(*A2)=malloc((*N)*sizeof(float));
+	(*A1)=malloc((*N)*sizeof(double));
+	(*A2)=malloc((*N)*sizeof(double));
 	if (((*A1)==NULL)||((*A2)==NULL))
 	{
 		AddErr(MALLOCFAILTOPOGRID);
@@ -160,15 +160,15 @@ void MakeAngles(int n, float dx, float dy, float **A1, float **A2, int *N)
 		{
 			k=i-1;
 			k=(4*k*k+20*k)/8+j;
-			(*A1)[k]=M_PI/2-atan((dy*((float)j))/(dx*((float)i))); // base angle, swap x and y for the angle
-			d=sqrt(dx*dx*((float)(i*i))+dy*dy*((float)(j*j)));
+			(*A1)[k]=M_PI/2-ATAN((dy*((double)j))/(dx*((double)i))); // base angle, swap x and y for the angle
+			d=sqrt(dx*dx*((double)(i*i))+dy*dy*((double)(j*j)));
 			w=ATAN(sqrt(dx*dx+dy*dy)/d)/2; // with measured against the diagonal of the element
 			(*A2)[k]=(*A1)[k]+w;
 			(*A1)[k]-=w;
 		}
 }
 
-int Arange(int dx, int dy, float *a1, float *a2, float *A1, float *A2)
+int Arange(int dx, int dy, double *a1, double *a2, double *A1, double *A2)
 {
 	int k;
 	if ((dx==0)&&(dy==0))
@@ -243,7 +243,7 @@ int Arange(int dx, int dy, float *a1, float *a2, float *A1, float *A2)
 			// third 1/8th
 			k=dx-1;
 			k=(4*k*k+20*k)/8+dy;
-			
+		
 			(*a1)=M_PI-A2[k];
 			(*a2)=M_PI-A1[k];
 			return 1;
@@ -764,7 +764,7 @@ void ComputeGridHorizon(horizon *H, topogrid *T, double minzen, double xoff, dou
 	double d;
 	double dx, dy;;
 	double Dx, Dy;
-	float a1, a2;	
+	double a1, a2;	
 	double r;
 	r=tan(minzen);// compute threshold height over distance ratio
 	dx=(T->x2-T->x1)/T->Nx;
@@ -773,6 +773,44 @@ void ComputeGridHorizon(horizon *H, topogrid *T, double minzen, double xoff, dou
 	k=(int)round((xoff-T->x1)/dx);
 	l=(int)round((yoff-T->y1)/dy);
 	
+	if (k<0)
+	{
+		if (k<-1)
+		{
+			// ERRORFLAG LOCNOTINTOPO  "Error: location outside topography"
+			//AddErr(LOCNOTINTOPO);
+			return;
+		}	
+		k=0;
+		
+	}
+	if (k>=T->Nx)
+	{
+		if (k>T->Nx)
+		{
+			//AddErr(LOCNOTINTOPO);
+			return;
+		}
+		k=T->Nx-1;
+	}
+	if (l<0)
+	{
+		if (l<-1)
+		{
+			//AddErr(LOCNOTINTOPO);
+			return;
+		}	
+		l=0;
+	}
+	if (l>=T->Ny)
+	{
+		if (l>T->Ny)
+		{
+			//AddErr(LOCNOTINTOPO);
+			return;
+		}
+		l=T->Ny-1;
+	}
 	i=T->Nx*T->Ny-1;
 	while ((i>=0)&&(T->z[T->sort[i]]>zoff)) // go backwards through the list till the triangles are lower than the projection point
 	{
