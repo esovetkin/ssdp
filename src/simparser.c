@@ -35,7 +35,7 @@ void SimStatic(char *in)
 	char *word;
 	simulation_config *C;
 	array *t, *GH, *DH, out;
-	double tsky, tpoa;
+	double tsky=0, tpoa=0;
 	int pco=0;
 	word=malloc((strlen(in)+1)*sizeof(char));
 	

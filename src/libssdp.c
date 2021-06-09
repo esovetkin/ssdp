@@ -44,6 +44,7 @@ void ssdp_reset_errors()
 {
 	ResetErrors();
 }
+	
 /* skydome routines */
 int ssdp_find_skypatch(sky_grid *sky, sky_pos p)
 {
