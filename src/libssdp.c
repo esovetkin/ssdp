@@ -183,6 +183,7 @@ location ssdp_setup_location(sky_grid *sky, topology *T, double albedo, sky_pos 
 	}
 	
 	HorizTrans(sky, &(l.H), &(l.T), &(l.T));
+	if (ssdp_error_state)
 	{
 		ssdp_free_location(&l);
 		return l0;
@@ -233,6 +234,11 @@ location ssdp_setup_grid_location(sky_grid *sky, topogrid *T, double albedo, sky
 	}
 	
 	HorizTrans(sky, &(l.H), &(l.T), &(l.T));
+	if (ssdp_error_state)
+	{
+		ssdp_free_location(&l);
+		return l0;
+	}
 	return l;
 }
 double ssdp_diffuse_poa(sky_grid *sky, location *l)
