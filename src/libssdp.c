@@ -300,3 +300,8 @@ sky_pos ssdp_sunpos(time_t t, double lat, double lon)
 {
 	return sunpos(t, lat, lon);
 }
+
+void ssdp_solartimes(time_t t, double lat, double lon, time_t * trise, time_t *tnoon, time_t *tset, sky_pos *prise, sky_pos *pnoon, sky_pos *pset)
+{
+	SolarTimes(t, lat, lon, trise, tnoon, tset, prise, pnoon, pset);
+}
