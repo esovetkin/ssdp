@@ -136,7 +136,7 @@ double DiffusePlaneOfArray(sky_grid *sky, sky_transfer *T)
 	double POA=0;
 	int i;
 	for (i=0;i<sky->N;i++)                            
-			POA+=sky->P[i].I*T->t[i];
+		POA+=sky->P[i].I*T->t[i];
 	return POA;
 }
 
