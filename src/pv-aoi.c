@@ -34,6 +34,6 @@ double Transmission_ar(double n1,double n2,double n3, double theta_i)
 	theta_2=snellius(theta_i, n1, n2); // angle with in AR 	
 	// reflection at n2/n3 interface
 	r1=fresnell(n2,n3,theta_2);
-	r=r1*fresnell(n2,n3,theta_2);/* fraction intensity remaining after one back-forth bounce */
+	r=r1*fresnell(n2,n1,theta_2);/* fraction intensity remaining after one back-forth bounce */
 	return I0*(1-r1)/(1-r); // total transmission
 }

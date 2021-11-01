@@ -183,10 +183,6 @@ location ssdp_setup_location(sky_grid *sky, topology *T, double albedo, sky_pos 
 	}
 	
 	HorizTrans(sky, &(l.H), &(l.T), &(l.T));
-	{
-		ssdp_free_location(&l);
-		return l0;
-	}
 	return l;
 }
 location ssdp_setup_grid_location(sky_grid *sky, topogrid *T, double albedo, sky_pos pn, double xoff, double yoff, double zoff, AOI_Model_Data *M)

@@ -543,5 +543,6 @@ void ExportTriangles(char *in)
 	}
 	printf("writing triangulation to file %s\n", word);
 	WriteTriangles(word, &(C->T));
+	free(word);
 	return;	
 }
