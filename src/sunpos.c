@@ -218,14 +218,15 @@ time_t sunrise(time_t tnoon, double lat, double lon, sky_pos *P)
 	tmax=tnoon;
 	tmin=tmax-60*60*12;
 	
+	t=(tmin+tmax)/2;
 	while(tmax-tmin>1)
 	{
-		t=(tmin+tmax)/2;
 		p=sunpos(t, lat, lon);
 		if (fabs(p.z)<M_PI/2)
 			tmax=t;
 		else
 			tmin=t;
+		t=(tmin+tmax)/2;
 	}
 	if (P)
 		(*P)=p;

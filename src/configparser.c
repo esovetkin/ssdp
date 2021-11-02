@@ -740,9 +740,9 @@ void ConfigLoc (char *in)
 	}
 	C->loc_init=1;
 	
-	if ((C->topo_init==0)&&(type=='t'))
+	if ((C->topo_init==1)&&(type=='t'))
 		InitConfigMask(C);
-	if ((C->grid_init==0)&&(type=='g'))
+	if ((C->grid_init==1)&&(type=='g'))
 		InitConfigGridMask(C);
 	
 	if (ssdp_error_state)
