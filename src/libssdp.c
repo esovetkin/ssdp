@@ -185,6 +185,7 @@ location ssdp_setup_location(sky_grid *sky, topology *T, double albedo, sky_pos 
 	HorizTrans(sky, &(l.H), &(l.T), &(l.T));
 	if (ssdp_error_state)
 	{
+			Print(WARNING, "Warning: aargs\n");
 		ssdp_free_location(&l);
 		return l0;
 	}
