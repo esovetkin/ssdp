@@ -769,57 +769,58 @@ void ComputeGridHorizon(horizon *H, topogrid *T, double minzen, double xoff, dou
 	r=tan(minzen);// compute threshold height over distance ratio
 	dx=(T->x2-T->x1)/T->Nx;
 	dy=(T->y2-T->y1)/T->Ny;
-	
 	k=(int)round((xoff-T->x1)/dx);
 	l=(int)round((yoff-T->y1)/dy);
-	
+	/*
 	if (k<0)
 	{
-		/*
+		
 		if (k<-1)
 		{
 			// ERRORFLAG LOCNOTINTOPO  "Error: location outside topography"
 			AddErr(LOCNOTINTOPO);
 			return;
-		}	*/
+		}	
 		k=0;
 		
 	}
 	if (k>=T->Nx)
 	{
-		/*
 		if (k>T->Nx)
 		{
 			AddErr(LOCNOTINTOPO);
 			return;
-		}	*/
+		}
 		k=T->Nx-1;
 	}
 	if (l<0)
 	{
-		/*
 		if (l<-1)
 		{
 			AddErr(LOCNOTINTOPO);
 			return;
-		}	*/
+		}	
 		l=0;
 	}
 	if (l>=T->Ny)
 	{
-		/*
 		if (l>T->Ny)
 		{
 			AddErr(LOCNOTINTOPO);
 			return;
-		}	*/
+		}
 		l=T->Ny-1;
-	}
+	}*/
 	i=T->Nx*T->Ny-1;
 	while ((i>=0)&&(T->z[T->sort[i]]>zoff)) // go backwards through the list till the triangles are lower than the projection point
 	{
 		m=XINDEX(T->sort[i], T->Ny)-k;
 		n=YINDEX(T->sort[i], T->Ny)-l;
+		if ((abs(m)>=T->Nx)||(abs(n)>=T->Ny))
+		{
+			i--;
+			continue;
+		}
 		Dx=dx*(double)m;
 		Dy=dy*(double)n;		
 		d=sqrt(Dx*Dx+Dy*Dy);
