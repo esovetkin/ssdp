@@ -775,40 +775,44 @@ void ComputeGridHorizon(horizon *H, topogrid *T, double minzen, double xoff, dou
 	
 	if (k<0)
 	{
+		/*
 		if (k<-1)
 		{
 			// ERRORFLAG LOCNOTINTOPO  "Error: location outside topography"
 			AddErr(LOCNOTINTOPO);
 			return;
-		}	
+		}	*/
 		k=0;
 		
 	}
 	if (k>=T->Nx)
 	{
+		/*
 		if (k>T->Nx)
 		{
 			AddErr(LOCNOTINTOPO);
 			return;
-		}
+		}	*/
 		k=T->Nx-1;
 	}
 	if (l<0)
 	{
+		/*
 		if (l<-1)
 		{
 			AddErr(LOCNOTINTOPO);
 			return;
-		}	
+		}	*/
 		l=0;
 	}
 	if (l>=T->Ny)
 	{
+		/*
 		if (l>T->Ny)
 		{
 			AddErr(LOCNOTINTOPO);
 			return;
-		}
+		}	*/
 		l=T->Ny-1;
 	}
 	i=T->Nx*T->Ny-1;
