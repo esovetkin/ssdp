@@ -182,9 +182,9 @@ void OffsetTopography(char *in)
 		free(word);
 		return;
 	}	
-	if (!C->topo_init)
+	if ((!C->topo_init)&&(!C->grid_init))
 	{	
-		Warning("Simulation config has no topology initialized\n");
+		Warning("Simulation config has no topology or topogrid initialized\n");
 		free(word);
 		return;
 	}	
