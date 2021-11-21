@@ -464,23 +464,23 @@ double SampleTopoGrid(double x, double y, topogrid *T, sky_pos *sn)
 	double D,z, len;
 	i=IndexGridX(x, T, &k);
 	j=IndexGridY(y, T, &l);
-	if (i<0)
+	if (i<=0)
 	{
 		i=0;
 		k=1;
 	}
-	if (i>=T->Nx)
+	if (i>=T->Nx-1)
 	{
 		i=T->Nx-1;
 		k=i-1;// look backward for a triangle
 	}
 		
-	if (j<0)
+	if (j<=0)
 	{
 		j=0;
 		l=1;
 	}
-	if (j>=T->Ny)
+	if (j>=T->Ny-1)
 	{
 		j=T->Ny-1;
 		l=j-1;// look backward for a triangle

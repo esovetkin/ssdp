@@ -112,8 +112,8 @@ void POA_Sky_Transfer(sky_grid *sky, sky_transfer *T, sky_pos pn, AOI_Model_Data
 		rot=0;
 	else
 	{
-		axis.a=pn.a+M_PI/2;// rotation axis points perpendicular in azimuth
-		axis.z=M_PI/2;// rotation axis in ground plane
+		axis.z=M_PI/2;
+		axis.a=pn.a+M_PI/2;
 	}
 	
 	for (i=0;i<sky->N;i++)
@@ -155,8 +155,8 @@ double DirectPlaneOfArray(sky_grid *sky, horizon *H, sky_pos pn, AOI_Model_Data 
 		rot=0;
 	else
 	{
-		axis.a=pn.a+M_PI/2;// rotation axis points perpendicular in azimuth
-		axis.z=M_PI/2;// rotation axis in ground plane
+		axis.z=M_PI/2;
+		axis.a=pn.a+M_PI/2;
 	}
 	
 	if (rot)
@@ -204,10 +204,22 @@ double POA_Albedo_Transfer(sky_grid *sky, sky_pos pn, AOI_Model_Data *M)
 void POA_to_SurfaceNormal(sky_pos *pn, sky_pos sn)
 {
 	sky_pos axis;
-	
-	axis.z=M_PI/2;
-	axis.a=pn->a-M_PI/2;
-	(*pn)=rrf(sn, axis, -pn->z);	// which way to rotate?
+	if (sn.z<0)
+	{
+		sn.z=fabs(sn.z);
+		sn.a+=M_PI;
+	}
+	if (fmod(sn.z,M_PI)<ZENEPS)
+	{
+		axis.a=pn->a+M_PI/2;
+		axis.z=M_PI/2;
+	}	
+	else
+	{
+		axis.a=sn.a+M_PI/2;
+		axis.z=M_PI/2;
+	}
+	(*pn)=rrf(*pn, axis, sn.z);	// which way to rotate?
 }
 	
 	
