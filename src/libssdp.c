@@ -258,9 +258,7 @@ double ssdp_total_poa(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, location *l)
 {
 	double POA;
 	POA=ssdp_diffuse_poa(sky, l);
-	printf("diffuse %e, ", POA);
 	POA+=ssdp_direct_poa(sky, pn, M, l);
-	printf("total %e\n", POA);
 	fflush(stdout);
 	return POA;
 }
