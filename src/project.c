@@ -115,13 +115,13 @@ void POA_Sky_Transfer(sky_grid *sky, sky_transfer *T, sky_pos pn, AOI_Model_Data
 		axis.z=M_PI/2;
 		axis.a=pn.a+M_PI/2;
 	}
-	
+
 	for (i=0;i<sky->N;i++)
 	{
 		if (rot)
 		{
 			r=rrf(sky->P[i].p, axis, -pn.z);  
-			if ((r.z>=-M_PI/2)&&(r.z<=M_PI/2))                                        
+			if ((r.z>-M_PI/2)&&(r.z<M_PI/2))                                        
 				T->t[i]=T->t[i]*cos(r.z)*EffectiveT(M, r.z, R0);
 			else
 				T->t[i]=0;
@@ -162,7 +162,7 @@ double DirectPlaneOfArray(sky_grid *sky, horizon *H, sky_pos pn, AOI_Model_Data 
 	if (rot)
 	{
 		r=rrf(sky->sp, axis, -pn.z);    
-		if ((r.z>=-M_PI/2)&&(r.z<=M_PI/2))                                 
+		if ((r.z>-M_PI/2)&&(r.z<M_PI/2))                                 
 			return sky->sI*cos(r.z)*EffectiveT(M, r.z, R0);
 		else
 			return 0;

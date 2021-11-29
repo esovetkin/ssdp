@@ -258,9 +258,10 @@ double ssdp_total_poa(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, location *l)
 {
 	double POA;
 	POA=ssdp_diffuse_poa(sky, l);
-	//if (sky->suni>=0) /* this is an ionaccurate solution, better treat the sun separately */
-	//	POA+=sky->sI*l->T.t[sky->suni];
+	printf("diffuse %e, ", POA);
 	POA+=ssdp_direct_poa(sky, pn, M, l);
+	printf("total %e\n", POA);
+	fflush(stdout);
 	return POA;
 }
 int ssdp_below_horizon(location *l, sky_pos p)

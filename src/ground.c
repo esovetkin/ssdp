@@ -162,7 +162,7 @@ void MakeAngles(int n, double dx, double dy, double **A1, double **A2, int *N)
 			k=(4*k*k+20*k)/8+j;
 			(*A1)[k]=M_PI/2-ATAN((dy*((double)j))/(dx*((double)i))); // base angle, swap x and y for the angle
 			d=sqrt(dx*dx*((double)(i*i))+dy*dy*((double)(j*j)));
-			w=ATAN(sqrt(dx*dx+dy*dy)/d)/2; // with measured against the diagonal of the element
+			w=ATAN(sqrt(dx*dx+dy*dy)/d)/2; // width measured against the diagonal of the element
 			(*A2)[k]=(*A1)[k]+w;
 			(*A1)[k]-=w;
 		}
@@ -177,7 +177,7 @@ int Arange(int dx, int dy, double *a1, double *a2, double *A1, double *A2)
 		(*a2)=2*M_PI;
 		return 0;
 	}
-	if ((dx>=0)&&(dy>=0))
+	if ((dx>=0)&&(dy>0)) // note that north (x=0, y>0) is 0 rad and east (x=1, y=0) is pi/2 rad! 
 	{
 		if (dx>dy)
 		{
@@ -204,8 +204,8 @@ int Arange(int dx, int dy, double *a1, double *a2, double *A1, double *A2)
 			k=dx-1;
 			k=(4*k*k+20*k)/8+dy;
 			
-			(*a1)=7*M_PI/4-A2[k];
-			(*a2)=7*M_PI/4-A1[k];
+			(*a1)=2*M_PI-A2[k];
+			(*a2)=2*M_PI-A1[k];
 			return 1;
 		}
 		// eighth  1/8th
@@ -215,7 +215,7 @@ int Arange(int dx, int dy, double *a1, double *a2, double *A1, double *A2)
 		(*a2)=3*M_PI/2+A2[k];
 		return 1;
 	}
-	if ((dx<0)&&(dy<0))
+	if ((dx<=0)&&(dy<0))
 	{
 		dx=abs(dx);
 		dy=abs(dy);
@@ -235,7 +235,7 @@ int Arange(int dx, int dy, double *a1, double *a2, double *A1, double *A2)
 		(*a2)=3*M_PI/2-A1[k];
 		return 1;
 	}
-	if ((dx>=0)&&(dy<0))
+	if ((dx>0)&&(dy<=0))
 	{
 		dy=abs(dy);
 		if (dx>dy)
@@ -826,7 +826,9 @@ void ComputeGridHorizon(horizon *H, topogrid *T, double minzen, double xoff, dou
 		d=sqrt(Dx*Dx+Dy*Dy);
 		if ((T->z[T->sort[i]]-zoff)/d>r) // do not compute anything for triangles below the zenith threshold
 			if (Arange(m, n, &a1, &a2, T->A1, T->A2)) // compute azimuthal range
+			{
 				RizeHorizon(H, (double)a1, (double)a2, d/(T->z[T->sort[i]]-zoff)); // for now store the ratio, do atan2's on the horizon array at the end
+			}
 		i--;
 	}	
 }
