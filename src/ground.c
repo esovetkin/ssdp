@@ -162,7 +162,7 @@ void MakeAngles(int n, double dx, double dy, double **A1, double **A2, int *N)
 			k=(4*k*k+20*k)/8+j;
 			(*A1)[k]=M_PI/2-ATAN((dy*((double)j))/(dx*((double)i))); // base angle, swap x and y for the angle
 			d=sqrt(dx*dx*((double)(i*i))+dy*dy*((double)(j*j)));
-			w=ATAN(sqrt(dx*dx+dy*dy)/d)/2; // with measured against the diagonal of the element
+			w=ATAN(sqrt(dx*dx+dy*dy)/d)/2; // width measured against the diagonal of the element
 			(*A2)[k]=(*A1)[k]+w;
 			(*A1)[k]-=w;
 		}
@@ -177,7 +177,7 @@ int Arange(int dx, int dy, double *a1, double *a2, double *A1, double *A2)
 		(*a2)=2*M_PI;
 		return 0;
 	}
-	if ((dx>=0)&&(dy>=0))
+	if ((dx>=0)&&(dy>0)) // note that north (x=0, y>0) is 0 rad and east (x=1, y=0) is pi/2 rad! 
 	{
 		if (dx>dy)
 		{
@@ -204,8 +204,8 @@ int Arange(int dx, int dy, double *a1, double *a2, double *A1, double *A2)
 			k=dx-1;
 			k=(4*k*k+20*k)/8+dy;
 			
-			(*a1)=7*M_PI/4-A2[k];
-			(*a2)=7*M_PI/4-A1[k];
+			(*a1)=2*M_PI-A2[k];
+			(*a2)=2*M_PI-A1[k];
 			return 1;
 		}
 		// eighth  1/8th
@@ -215,7 +215,7 @@ int Arange(int dx, int dy, double *a1, double *a2, double *A1, double *A2)
 		(*a2)=3*M_PI/2+A2[k];
 		return 1;
 	}
-	if ((dx<0)&&(dy<0))
+	if ((dx<=0)&&(dy<0))
 	{
 		dx=abs(dx);
 		dy=abs(dy);
@@ -235,7 +235,7 @@ int Arange(int dx, int dy, double *a1, double *a2, double *A1, double *A2)
 		(*a2)=3*M_PI/2-A1[k];
 		return 1;
 	}
-	if ((dx>=0)&&(dy<0))
+	if ((dx>0)&&(dy<=0))
 	{
 		dy=abs(dy);
 		if (dx>dy)
@@ -464,23 +464,23 @@ double SampleTopoGrid(double x, double y, topogrid *T, sky_pos *sn)
 	double D,z, len;
 	i=IndexGridX(x, T, &k);
 	j=IndexGridY(y, T, &l);
-	if (i<0)
+	if (i<=0)
 	{
 		i=0;
 		k=1;
 	}
-	if (i>=T->Nx)
+	if (i>=T->Nx-1)
 	{
 		i=T->Nx-1;
 		k=i-1;// look backward for a triangle
 	}
 		
-	if (j<0)
+	if (j<=0)
 	{
 		j=0;
 		l=1;
 	}
-	if (j>=T->Ny)
+	if (j>=T->Ny-1)
 	{
 		j=T->Ny-1;
 		l=j-1;// look backward for a triangle
@@ -769,12 +769,12 @@ void ComputeGridHorizon(horizon *H, topogrid *T, double minzen, double xoff, dou
 	r=tan(minzen);// compute threshold height over distance ratio
 	dx=(T->x2-T->x1)/T->Nx;
 	dy=(T->y2-T->y1)/T->Ny;
-	
 	k=(int)round((xoff-T->x1)/dx);
 	l=(int)round((yoff-T->y1)/dy);
-	
+	/*
 	if (k<0)
 	{
+		
 		if (k<-1)
 		{
 			// ERRORFLAG LOCNOTINTOPO  "Error: location outside topography"
@@ -810,18 +810,25 @@ void ComputeGridHorizon(horizon *H, topogrid *T, double minzen, double xoff, dou
 			return;
 		}
 		l=T->Ny-1;
-	}
+	}*/
 	i=T->Nx*T->Ny-1;
 	while ((i>=0)&&(T->z[T->sort[i]]>zoff)) // go backwards through the list till the triangles are lower than the projection point
 	{
 		m=XINDEX(T->sort[i], T->Ny)-k;
 		n=YINDEX(T->sort[i], T->Ny)-l;
+		if ((abs(m)>=T->Nx)||(abs(n)>=T->Ny))
+		{
+			i--;
+			continue;
+		}
 		Dx=dx*(double)m;
 		Dy=dy*(double)n;		
 		d=sqrt(Dx*Dx+Dy*Dy);
 		if ((T->z[T->sort[i]]-zoff)/d>r) // do not compute anything for triangles below the zenith threshold
 			if (Arange(m, n, &a1, &a2, T->A1, T->A2)) // compute azimuthal range
+			{
 				RizeHorizon(H, (double)a1, (double)a2, d/(T->z[T->sort[i]]-zoff)); // for now store the ratio, do atan2's on the horizon array at the end
+			}
 		i--;
 	}	
 }

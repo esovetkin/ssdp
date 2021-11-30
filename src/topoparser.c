@@ -182,9 +182,9 @@ void OffsetTopography(char *in)
 		free(word);
 		return;
 	}	
-	if (!C->topo_init)
+	if ((!C->topo_init)&&(!C->grid_init))
 	{	
-		Warning("Simulation config has no topology initialized\n");
+		Warning("Simulation config has no topology or topogrid initialized\n");
 		free(word);
 		return;
 	}	
@@ -256,8 +256,8 @@ void OffsetTopography(char *in)
 		else
 			zoff.D[i]=ssdp_sample_topogrid(x->D[i], y->D[i], &(C->Tx),&sn)+o*cos(sn.z);
 		
-		xoff.D[i]=x->D[i]+o*sin(sn.z)*cos(sn.a);
-		yoff.D[i]=y->D[i]+o*sin(sn.z)*sin(sn.a);
+		xoff.D[i]=x->D[i]+o*sin(sn.z)*sin(sn.a);
+		yoff.D[i]=y->D[i]+o*sin(sn.z)*cos(sn.a);
 	}
 	
 	

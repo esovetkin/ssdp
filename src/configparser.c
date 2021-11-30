@@ -307,6 +307,7 @@ void InitConfigGridMask(simulation_config *C)
 			
 	}
 }
+
 void InitConfigMaskNoH(simulation_config *C) // same as above but without horizon calculation
 {
 	int i;
@@ -315,7 +316,7 @@ void InitConfigMaskNoH(simulation_config *C) // same as above but without horizo
 		double dt;
 		int pco=0;
 		FreeConfigMask(C); // make sure we are clear to allocate new memory
-		C->L=malloc(C->Nl*sizeof(location));
+		C->L=calloc(C->Nl,sizeof(location));
 		if (C->L==NULL)
 		{
 			Warning("Could not allocate memory for locations\n");
@@ -323,21 +324,36 @@ void InitConfigMaskNoH(simulation_config *C) // same as above but without horizo
 		}
 		printf("Tracing %d locations\n", C->Nl);
 		TIC();
-		for (i=0;i<C->Nl;i++)
+#pragma omp parallel private(i) shared(C)
 		{
-			C->L[i]=ssdp_setup_location(&(C->S), NULL, C->albedo, C->o[i], C->x[i],C->y[i],C->z[i], &(C->M));
-			if (ssdp_error_state)
-				break;
-			pco=ProgressBar((100*(i+1))/C->Nl, pco, ProgressLen, ProgressTics);
+#ifdef OPENMP
+			int nt=omp_get_num_threads();
+#endif
+#pragma omp for 
+			for (i=0;i<C->Nl;i++)
+			{ 
+				C->L[i]=ssdp_setup_location(&(C->S), NULL, C->albedo, C->o[i], C->x[i],C->y[i],C->z[i], &(C->M));
+#ifdef OPENMP
+				if (omp_get_thread_num()==0)
+				{
+					int pc;
+					pc=100*(nt*i+1)/C->Nl;
+					if (pc>100)
+						pc=100;
+					pco=ProgressBar(pc, pco, ProgressLen, ProgressTics);
+				}
+#else
+				pco=ProgressBar((100*(i+1))/C->Nl, pco, ProgressLen, ProgressTics);
+#endif
+			}
 		}
+		pco=ProgressBar(100, pco, ProgressLen, ProgressTics);
 		dt=TOC();
 		if (!ssdp_error_state)
-			printf("%d locations traced in %g s (%g s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));
+			printf("%d locations traced in %g s (%e s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));
 		else
-		{
-			ssdp_print_error_messages();
 			FreeConfigMask(C); // make sure we are clear to allocate new memory
-		}
+			
 	}
 }
 
@@ -640,11 +656,7 @@ void ConfigLoc (char *in)
 	{
 		type='g';
 		if (C->grid_init==0)
-		{ 
 			Warning("No topology or topogrid available\n");
-			free(word);
-			return;
-		}
 	}
 	if (GetOption(in, "albedo", word))
 	{
@@ -728,9 +740,9 @@ void ConfigLoc (char *in)
 	}
 	C->loc_init=1;
 	
-	if (type=='t')
+	if ((C->topo_init==1)&&(type=='t'))
 		InitConfigMask(C);
-	else
+	if ((C->grid_init==1)&&(type=='g'))
 		InitConfigGridMask(C);
 	
 	if (ssdp_error_state)

@@ -106,9 +106,6 @@ void SimStatic(char *in)
 	
 	for (j=0;j<t->N;j++)
 	{
-		// compute sky at evert time instance
-		//printf("%d\n",j);
-		fflush(stdout);
 		TIC();
 		ssdp_make_perez_all_weather_sky_coordinate(&(C->S), (time_t) t->D[j], C->lon, C->lat, GH->D[j], DH->D[j]);
 		tsky+=TOC();

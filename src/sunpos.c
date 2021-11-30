@@ -118,3 +118,131 @@ sky_pos sunpos(time_t t, double lat, double lon)
 	s.z+=sin(s.z)*EARTH_R/ASTR_UNIT; // add parallax
 	return s;
 }
+
+
+
+// bisection within a day to second accuracy is guaranteed to finish 
+// within 17 iterations
+// computes the nearest solar noon
+time_t solar_noon(time_t t, double lat, double lon, sky_pos *P)
+{
+	sky_pos pmin, pmax, po, p;
+	time_t tmin, tmax, to;
+	to=t;
+	tmin=to-60*60*12;
+	tmax=to+60*60*12;
+	pmin=sunpos(tmin, lat, lon);
+	pmax=sunpos(tmax, lat, lon);
+	po=sunpos(to, lat, lon);
+	if ((pmin.z<po.z)&&(pmin.z<pmax.z))
+	{
+		tmax=to;
+		pmax=po;
+		to=tmin;
+		po=pmin;
+		tmin-=60*60*12;
+		pmin=sunpos(tmin, lat, lon);
+	}
+	else if ((pmax.z<po.z)&&(pmax.z<pmin.z))
+	{
+		tmin=to;
+		pmin=po;
+		to=tmax;
+		po=pmax;
+		tmax+=60*60*12;
+		pmax=sunpos(tmax, lat, lon);
+	}
+	while(tmax-tmin>1)
+	{
+		t=(tmin+to)/2;
+		p=sunpos(t, lat, lon);
+		if (p.z<po.z)
+		{
+			pmax=po;
+			tmax=to;
+			po=p;
+			to=t;
+		}
+		else
+		{
+			pmin=p;
+			tmin=t;
+		}
+		t=(tmax+to)/2;
+		p=sunpos(t, lat, lon);
+		if (p.z<po.z)
+		{
+			pmin=po;
+			tmin=to;
+			po=p;
+			to=t;
+		}
+		else
+		{
+			pmax=p;
+			tmax=t;
+		}
+	}
+	if (P)
+		(*P)=po;
+	return to;
+}
+
+// computes the next sun set takes the solar noon time
+time_t sunset(time_t t, double lat, double lon, sky_pos *P)
+{
+	sky_pos  p;
+	time_t tmin, tmax;
+	tmin=t;
+	tmax=tmin+60*60*12;
+	
+	while(tmax-tmin>1)
+	{
+		t=(tmin+tmax)/2;
+		p=sunpos(t, lat, lon);
+		if (fabs(p.z)<M_PI/2)
+			tmin=t;
+		else
+			tmax=t;
+	}
+	if (P)
+		(*P)=p;
+	return t;
+}
+
+// computes the previous sun rise, takes solar noon time
+time_t sunrise(time_t tnoon, double lat, double lon, sky_pos *P)
+{
+	sky_pos p;
+	time_t tmin, tmax, t;
+	tmax=tnoon;
+	tmin=tmax-60*60*12;
+	
+	t=(tmin+tmax)/2;
+	while(tmax-tmin>1)
+	{
+		p=sunpos(t, lat, lon);
+		if (fabs(p.z)<M_PI/2)
+			tmax=t;
+		else
+			tmin=t;
+		t=(tmin+tmax)/2;
+	}
+	if (P)
+		(*P)=p;
+	return t;
+}
+// computes nearest solar noon, sunrise, and sunset
+void SolarTimes(time_t t, double lat, double lon, time_t * trise, time_t *tnoon, time_t *tset, sky_pos *prise, sky_pos *pnoon, sky_pos *pset)
+{
+	time_t tr, tn, ts;
+	tn=solar_noon(t, lat, lon, pnoon);
+	tr=sunrise(tn, lat, lon, prise);
+	ts=sunset(tn, lat, lon, pset);
+	if (tnoon)
+		(*tnoon)=tn;
+	if (trise)
+		(*trise)=tr;
+	if (tset)
+		(*tset)=ts;
+}

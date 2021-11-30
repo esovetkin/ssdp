@@ -171,7 +171,7 @@ location ssdp_setup_location(sky_grid *sky, topology *T, double albedo, sky_pos 
 	if (albedo>ALBEPS)
 	{
 		if (albedo>1)
-			Print(WARNING, "Warning: albedo larger than one\n");
+		Print(WARNING, "Warning: albedo larger than one\n");
 		l.T.g=albedo*POA_Albedo_Transfer(sky, pn, M);
 		if (ssdp_error_state)
 		{
@@ -183,6 +183,12 @@ location ssdp_setup_location(sky_grid *sky, topology *T, double albedo, sky_pos 
 	}
 	
 	HorizTrans(sky, &(l.H), &(l.T), &(l.T));
+	if (ssdp_error_state)
+	{
+		Print(WARNING, "Warning: Horizon does not match the sky\n");
+		ssdp_free_location(&l);
+		return l0;
+	}
 	return l;
 }
 location ssdp_setup_grid_location(sky_grid *sky, topogrid *T, double albedo, sky_pos pn, double xoff, double yoff, double zoff, AOI_Model_Data *M)
@@ -229,6 +235,11 @@ location ssdp_setup_grid_location(sky_grid *sky, topogrid *T, double albedo, sky
 	}
 	
 	HorizTrans(sky, &(l.H), &(l.T), &(l.T));
+	if (ssdp_error_state)
+	{
+		ssdp_free_location(&l);
+		return l0;
+	}
 	return l;
 }
 double ssdp_diffuse_poa(sky_grid *sky, location *l)
@@ -247,9 +258,8 @@ double ssdp_total_poa(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, location *l)
 {
 	double POA;
 	POA=ssdp_diffuse_poa(sky, l);
-	//if (sky->suni>=0) /* this is an ionaccurate solution, better treat the sun separately */
-	//	POA+=sky->sI*l->T.t[sky->suni];
 	POA+=ssdp_direct_poa(sky, pn, M, l);
+	fflush(stdout);
 	return POA;
 }
 int ssdp_below_horizon(location *l, sky_pos p)
@@ -289,4 +299,9 @@ double ssdp_sample_topogrid(double x, double y, topogrid *T, sky_pos *sn)
 sky_pos ssdp_sunpos(time_t t, double lat, double lon)
 {
 	return sunpos(t, lat, lon);
+}
+
+void ssdp_solartimes(time_t t, double lat, double lon, time_t * trise, time_t *tnoon, time_t *tset, sky_pos *prise, sky_pos *pnoon, sky_pos *pset)
+{
+	SolarTimes(t, lat, lon, trise, tnoon, tset, prise, pnoon, pset);
 }
