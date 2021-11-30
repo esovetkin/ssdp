@@ -4,12 +4,12 @@
 
 The [Simple/Slick/Stupid/Smart/../Slimy/Sexy] Sky Dome Projector (SSDP)
 (have not decided yet which adjective fits best, there is just so many) 
-is a library for modeling irradiance taking into accound the local 
+is a library for modeling irradiance taking into account the local 
 topography. It implements a hexagonal mesh for the sky and the Perez 
 all weather sky model. For the topography it works with a point cloud 
 of x,y,z coordinates or a regular grid. It can compute the horizon as 
 seen from a specific location in the topography and can project the 
-modelled sky dome onto a surface with a specified tilt and orientation. 
+modeled sky dome onto a surface with a specified tilt and orientation. 
 The surface location and orientation may be adapted to the topography 
 (e.g. specify height above the surface and adapt the orientation to the 
 surface normal).
@@ -17,12 +17,12 @@ surface normal).
 ## Features
 * Implements a uniform sky and the Perez all weather sky model [1]
 	* variable size hexagonal sky-dome mesh
-	* sun taken seperrately as a point source a alleviate sky-mesh 
+	* sun taken separately as a point source a alleviate sky-mesh 
 	resolution requirements
 * Computes solar position given the latitude and lonitude and the 
 UTC time (specified as Unix Time) using the PCA algorithm [2]
 	* also supports a manual specification of azimuth and zenith angles
-* Simple and Fast Irradiance computation
+* Simple and fast irradiance computation
 	* easy specification of location (x,y,z) and orientation 
 	(azimuth,zenith) of the incident plane
 	* Traces incident light
@@ -35,8 +35,8 @@ UTC time (specified as Unix Time) using the PCA algorithm [2]
 ## Examples
 In Fig. 1 we show two examples. In Fig 1a the surface irradiance is 
 computed ate some location for the 15th of june 2015 at 08:00 for a 
-Global Horizontal Irradiance of 500 W/m^2 and a Diffuse Horizontal 
-Irradiance of 200 W/m^2. In Fig. 1b we integrated the irradiance for a 
+Global Horizontal Irradiance of 500 W/m<sup>2</sup> and a Diffuse Horizontal 
+Irradiance of 200 W/m<sup>2</sup>. In Fig. 1b we integrated the irradiance for a 
 complete summer week
  
 a.![Cumputed Irradiance](park_irr.png) b.![Cumputed Irradiance](park_int.png)
@@ -45,19 +45,19 @@ _Fig. 1 a. Example irradiance computation at one particular moment. b.
 Example for the integrated irradiance over one summer week_
 
 ## Installation
-The SSDP program comes with autotools build scripts, hance the 
+The SSDP program comes with autotools build scripts, hence the 
 installation procedure follows the standard:
 
 1. `./configure`
 2. `make`
 3. `(sudo) make install` 
 
-This installs both the ssdp library and the ssdp cvommand-line program. 
+This installs both the ssdp library and the ssdp command-line program. 
 
 The configure command takes several optional arguments. Specific ssdp 
 options are:
 
-* --enable-openmp: Use openmp parallelization (disabled per default) 
+* --enable-openmp: Use openmp palatalization (disabled per default) 
 * --disable_fastatan2: Disables a fast atan2 approximation
 
 Compiler optimizations:
@@ -80,7 +80,7 @@ using the groff program e.g.:
 `groff -man -T pdf src/ssdp.man > ssdp_manual.pdf`
 
 ## References
-[1]: R. Perez, et al. "All-Weather Model for Sky Luminance Distribution 
+[1] R. Perez, et al. "All-Weather Model for Sky Luminance Distribution 
 -- Preliminary Configuration and Validation." Solar Energy  50.3  
 (1993):235-245
 
