@@ -55,6 +55,7 @@
 #include "parser.h"
 #include "readlineshell.h"
 #include "variables.h"
+#include "config.h"
 
 #define MAXLINELEN 4096
 void StripEndline(char *line)
@@ -104,9 +105,19 @@ void PrintHeader()
 	printf("\\__ \\\\__ \\ (   | |   | \n");
 	printf("____/____/\\__,_| .__/  \n");
 	printf("                _|     \n");
-	printf("linked libssdp: ");
+	printf("linked libssdp:  ");
 	ssdp_print_version();
 	printf("compile date  :  %s\n",__DATE__);
+#ifdef GENDAYLIT
+	printf("gendaylit mode:  TRUE\n");
+#else
+	printf("gendaylit mode:  FALSE\n");
+#endif
+#ifdef FAST_ATAN2
+	printf("fast atan2    :  TRUE\n");
+#else
+	printf("fast atan2    :  FALSE\n");
+#endif
 	printf("----------------------------\n");
 }
 

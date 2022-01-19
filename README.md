@@ -33,16 +33,16 @@ UTC time (specified as Unix Time) using the PCA algorithm [2]
 	* Supports both unstructured and regular meshes for the topography
 
 ## Examples
-In Fig. 1 we show two examples. In Fig 1a the surface irradiance is 
+In Fig. 1 we show two examples. In Fig 1 (left) the surface irradiance is 
 computed ate some location for the 15th of june 2015 at 08:00 for a 
 Global Horizontal Irradiance of 500 W/m<sup>2</sup> and a Diffuse Horizontal 
-Irradiance of 200 W/m<sup>2</sup>. In Fig. 1b we integrated the irradiance for a 
-complete summer week
+Irradiance of 200 W/m<sup>2</sup>. In Fig. 1 (right) we integrated the 
+irradiance for a complete summer week
  
-a.![Cumputed Irradiance](park_irr.png) b.![Cumputed Irradiance](park_int.png)
+![Cumputed Irradiance](park_irr.png) ![Cumputed Irradiance](park_int.png)
 
-_Fig. 1 a. Example irradiance computation at one particular moment. b. 
-Example for the integrated irradiance over one summer week_
+_Fig. 1 (left) Example irradiance computation at one particular moment. 
+(right) Example for the integrated irradiance over one summer week_
 
 ## Installation
 The SSDP program comes with autotools build scripts, hence the 
@@ -69,15 +69,17 @@ Do not use unsafe math optimizations. With gcc/clang I would recommend
 
 ## Documentation
 
-The ssdp program comes with man pages. If you have the man program 
-installed you can do:
+The ssdp program comes with man pages. If you have the man program and
+ssdp installed you can do
 
 `man ssdp` 
 
 to read the documentation. Otherwise you can produce a readable manual 
-using the groff program e.g.:
+using the groff program and the ssdp.man file, e.g.:
 
 `groff -man -T pdf src/ssdp.man > ssdp_manual.pdf`
+
+(assuming your working directory is the root source directory of ssdp)
 
 ## References
 [1] R. Perez, et al. "All-Weather Model for Sky Luminance Distribution 

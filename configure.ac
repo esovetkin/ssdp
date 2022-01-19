@@ -34,6 +34,16 @@ AC_ARG_ENABLE([openmp],
 esac],[openmp=false])
 AM_CONDITIONAL([OPENMP], [test x$openmp = xtrue])
 
+AC_ARG_ENABLE([gendaylit],
+[  --enable-gendaylit    enable gendaylit-like Perez model implementation],
+[case "${enableval}" in
+  yes) gendaylit=true ;;
+  no)  gendaylit=false ;;
+  *) AC_MSG_ERROR([bad value ${enableval} for --enable-gendaylit]) ;;
+esac],[gendaylit=false])
+AS_IF([test "x$gendaylit" == "xtrue"], [
+  AC_DEFINE([GENDAYLIT], [], [Use the gendaylit Perez model flavor])
+])
 
 
 AC_DEFINE([LIBSSDPVERSION], ["[ssdp_version]"], [libssdp version string])

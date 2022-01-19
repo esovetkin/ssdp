@@ -94,14 +94,25 @@ double ExtraSolPower(double dayofyear)
 	return E0*solconst;
 }
 
+/* there are some undocumented but clearly deliberate deviations in 
+ * gendaylit from the vanilla Perez model. The GENDAYLIT define enables
+ * the gendaylit Perez model mode. It can be enabled at compile time
+ * GENDAYLIT mode which we can turn on or off.
+ */
+#define GDL_MINDELTA 0.01
+#define GDL_MAXDELTA 0.6
 
 /* Perez sky's brightness */
 double sky_brightness(sky_pos sun, double DHI, double dayofyear)
 {
 	double delta;	
 	delta=DHI*air_mass(sun)/ExtraSolPower(dayofyear);
-	if (delta<0.01)
-		delta=0.01;
+#ifdef GENDAYLIT
+	if (delta<GDL_MINDELTA) 
+		delta=GDL_MINDELTA;
+	if (delta>GDL_MAXDELTA) 
+		delta=GDL_MAXDELTA;
+#endif
 	return delta;
 }
 
@@ -111,6 +122,18 @@ double sky_clearness(sky_pos sun, double DHI, double GHI)
 {
 	double eps;	
 	eps=((DHI+(GHI-DHI)/cos(sun.z))/DHI+kappa*sun.z*sun.z*sun.z)/(1+kappa*sun.z*sun.z*sun.z);
+	/* in gendaylit the clearness is limited like so
+	 * if (eps<1)
+	 * 	eps=1
+	 * if (eps>12.01)
+	 * 	eps=-0.001
+	 * Note that an eps below 1 implies DHI>GHI
+	 * It is unclear to me where the 12.01 comes from.
+	 * 
+	 * In any case, appying these bounds has no effect on the model.
+	 * The clearness coefficient is only used to determine the clearbin 
+	 * (see the ClearBin routine).  
+	 */
 	return eps;
 }
 
@@ -204,9 +227,15 @@ void ParamPerez(double eps, double delta, sky_pos sun, double *a, double *b, dou
 	int clearbin;
 	
 	clearbin=ClearBin(eps);
-	if ((eps > 1.065)&&(eps < 2.8))
+#ifdef GENDAYLIT
+ /* in gendaylit this is commented with:
+  * "correction de modele de Perez solar energy ..."
+  * cool, that must be correct then...
+  */
+	if ((eps > 1.065)&&(eps < 2.8)) 
 		if (delta < 0.2)
 			delta = 0.2;
+#endif
 
 	if (clearbin != 0)
 	{
