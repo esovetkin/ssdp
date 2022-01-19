@@ -24,6 +24,9 @@
 #include "sky_model.h"
 #include "error.h"
 #include "print.h"
+
+
+
 	
 void UniformSky(sky_grid *sky, sky_pos sun, double GHI, double DHI)
 {
@@ -38,7 +41,7 @@ void UniformSky(sky_grid *sky, sky_pos sun, double GHI, double DHI)
 		DHI=0; // black sky
 	dhi0=DHI/sky->icosz;
 	for (i=0;i<sky->N;i++)
-		sky->P[i].I=dhi0;
+		sky->P[i].I=sky->sa[i]*dhi0;
 	dir=GHI-DHI;
 	if (dir<0)
 	{
@@ -294,7 +297,7 @@ void PerezSky(sky_grid * sky, sky_pos sun, double GHI, double DHI, double dayofy
 	for (i=0;i<sky->N;i++)
 	{
 		g=SolarAngle(sky->P[i].p.z,sun.z, sky->P[i].p.a, sun.a);   
-		sky->P[i].I=Fperez(sky->P[i].p.z,g, a, b, c, d, e);  
+		sky->P[i].I=sky->sa[i]*Fperez(sky->P[i].p.z,g, a, b, c, d, e);  
 		if (sky->P[i].I<0) // unphysical values...
 			sky->P[i].I=0;
 		else
@@ -319,7 +322,7 @@ void PerezSky(sky_grid * sky, sky_pos sun, double GHI, double DHI, double dayofy
 	dir=GHI-DHI; // direct contribution
 	if (dir<0)
 	{
-		Print(VVERBOSE, "Warning: black hole sun\n");// it finally came, RIP Chris
+		Print(VVERBOSE, "Warning: black hole sun\n");// it finally came
 		dir=0;
 	}
 	sky->sp=sun;
@@ -388,7 +391,7 @@ void CumulativePerezSky(sky_grid * sky, sky_pos *sun, double *t, double *GHI, do
 		for (i=0;i<sky->N;i++)
 		{
 			g=SolarAngle(sky->P[i].p.z,sun[j].z, sky->P[i].p.a, sun[j].a);   
-			I[i]=Fperez(sky->P[i].p.z,g, a, b, c, d, e);  
+			I[i]=sky->sa[i]*Fperez(sky->P[i].p.z,g, a, b, c, d, e);  
 			if ((I[i]<0)||(!isfinite(I[i])))
 				I[i]=0;			
 			dhi0+=I[i]*sky->cosz[i];
@@ -452,7 +455,7 @@ void CIE_Sky(sky_grid * sky, sky_pos sun, double GHI, double DHI, CIE_SKY_TYPE T
 	for (i=0;i<sky->N;i++)
 	{
 		g=SolarAngle(sky->P[i].p.z,sun.z, sky->P[i].p.a, sun.a);   
-		sky->P[i].I=Fperez(sky->P[i].p.z,g, a, b, c, d, e);                                                   
+		sky->P[i].I=sky->sa[i]*Fperez(sky->P[i].p.z,g, a, b, c, d, e);                                                   
 		dhi0+=sky->P[i].I*sky->cosz[i];
 	}
 	dhi0=DHI/dhi0;// correction factor

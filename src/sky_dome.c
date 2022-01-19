@@ -310,15 +310,63 @@ int FindPatch(sky_grid *sky, sky_pos p)
 	return rmin;	
 }
 
+
+double SolidAngle(int Nz, int i)
+{
+	int nz;
+	double z1,z2, dz;
+	/* correction factor for the solid angle of a hexpatch
+	 * The zenith step is:
+	 *  
+	 * dθ=π/(2Nz)
+	 * 
+	 * The solid angle of the complete band of patches at one particular 
+	 * zenith angle θ equals:
+	 * 
+	 * Ω=2π(cos(θ-dθ/2)-cos(θ+dθ/2))
+	 * 
+	 * This solid angle is the solid angle of 6 nz hexpatches, i.e.
+	 * the hexpatches have a solid angle of 
+	 * 
+	 * Ω=π(cos(θ-dθ/2)-cos(θ+dθ/2))/(3 nz),
+	 * 
+	 * where
+	 * 
+	 * θ=nz π/(2Nz)
+	 * 
+	 * For the patch at nz=0 we get
+	 * 
+	 * Ω=2π(1-cos(dθ/2))
+	 * 
+	 */ 
+	// obviously not efficient to recompute every time
+	// however, we do not need to initialize skies so often
+	if (i>NNZ(Nz))
+		return 0;
+	nz=NZN(i);
+	dz=M_PI/2/Nz;
+	if (nz==0)
+		return 2*M_PI*(1-cos(dz/2));
+	if (nz==Nz)
+	{
+		z1=M_PI/2-dz/2;
+		return M_PI*cos(z1)/3/Nz;
+	}
+	
+	z1=((double)nz-0.5)*dz;
+	z2=z1+dz;
+	return M_PI*(cos(z1)-cos(z2))/3/nz;
+}
+
 // as the number of elements rises quadratically we better set a
 // practical limit on the Nz values
 // if you ever change the 1 Mio below you should consider modifying 
 // ZENEPS in project.c.
 #define MAXNZ NZN(1000000)
-
 sky_grid InitSky(int Nz)
 {
 	sky_grid sky;
+	//double Sa=0;
 	sky_pos sun={0,0};// default sun, straight above
 	int i;
 	if (Nz>MAXNZ)
@@ -348,6 +396,15 @@ sky_grid InitSky(int Nz)
 		sky.N=0;
 		return sky;
 	}
+	if ((sky.sa=malloc((sky.N+1)*sizeof(double)))==NULL)
+	{
+		free(sky.P);
+		sky.P=NULL;
+		AddErr(MALLOCFAILSKYDOME);
+		sky.Nz=0;
+		sky.N=0;
+		return sky;
+	}
 	sky.icosz=0;
 	for (i=0;i<sky.N;i++)
 	{
@@ -358,8 +415,11 @@ sky_grid InitSky(int Nz)
 		sky.P[i].NI=NextIsoL(Nz, i);
 		sky.P[i].PI=PrevIsoL(Nz, i);
 		sky.cosz[i]=cos(sky.P[i].p.z);
-		sky.icosz+=sky.cosz[i];
+		sky.sa[i]=SolidAngle(Nz, i);
+		//Sa+=sky.sa[i];
+		sky.icosz+=sky.cosz[i]*sky.sa[i];
 	}
+	//printf("%e %e\n", Sa, Sa/M_PI);
 	return sky;
 }
 
@@ -371,6 +431,9 @@ void free_sky_grid(sky_grid *sky)
 	if (sky->cosz)
 		free(sky->cosz);
 	sky->cosz=NULL;	
+	if (sky->sa)
+		free(sky->sa);
+	sky->sa=NULL;	
 	sky->Nz=0;
 	sky->N=0;
 }
