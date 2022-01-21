@@ -38,6 +38,8 @@ int NNZ(int n)	// number of elements in a mesh given a number of levels (zenith 
 }
 int NZN(int n)	// inverse of above, i.e. give it a index and it returns the level (zenith) index
 {
+	if (n==0)
+		return 0;
 	return (1+(i_sqrt(12*(n-1)+9)-3)/6);
 }
 
@@ -61,7 +63,9 @@ sky_pos GridPos(int Nz, int i)
 	}
 	nz=NZN(i);
 	Na=nz*6;
-	r.z=((double)nz)*M_PI/2.0/((double)Nz);
+	r.z=((double)nz)*M_PI/2.0/((double)Nz+0.5);
+	//if (nz==Nz)
+	//	r.z-=M_PI/8.0/((double)Nz);
 	r.a=fmod(2*((double)(i-NNZ(nz-1)))*M_PI/(double)Na, 2*M_PI);
 	return r;
 }
@@ -77,7 +81,7 @@ int GridIndex(int Nz, sky_pos p)
 	if (p.z>M_PI/2)
 		return NNZ(Nz)-1;
 		
-	zstep=M_PI/2.0/((double)Nz);
+	zstep=M_PI/2.0/((double)Nz+0.5);
 	nz=(int)round(p.z/zstep);
 	if (nz==0)
 		return 0;
@@ -311,7 +315,7 @@ int FindPatch(sky_grid *sky, sky_pos p)
 }
 
 
-double SolidAngle(int Nz, int i)
+double SolidAngle(int N, int Nz, int i)
 {
 	int nz;
 	double z1,z2, dz;
@@ -338,24 +342,27 @@ double SolidAngle(int Nz, int i)
 	 * 
 	 * Ω=2π(1-cos(dθ/2))
 	 * 
+	 * In this routine we return the normalized solid angle w.r.t. 
+	 * the average solid angle 2π/N with N the total number of patches
+	 * 
 	 */ 
-	// obviously not efficient to recompute every time
+	// obviously not efficient to recompute thinbs every time
 	// however, we do not need to initialize skies so often
-	if (i>NNZ(Nz))
+	if (i>N)
 		return 0;
 	nz=NZN(i);
-	dz=M_PI/2/Nz;
+	dz=M_PI/2.0/((double)Nz+0.5);
 	if (nz==0)
-		return 2*M_PI*(1-cos(dz/2));
-	if (nz==Nz)
+		return ((double)N)*(1-cos(dz/2));
+	/*if (nz==Nz)
 	{
 		z1=M_PI/2-dz/2;
-		return M_PI*cos(z1)/3/Nz;
-	}
+		return ((double)N)*cos(z1)/6.0/((double)Nz);
+	}*/
 	
 	z1=((double)nz-0.5)*dz;
 	z2=z1+dz;
-	return M_PI*(cos(z1)-cos(z2))/3/nz;
+	return ((double)N)*(cos(z1)-cos(z2))/6.0/((double)nz);
 }
 
 // as the number of elements rises quadratically we better set a
@@ -366,7 +373,6 @@ double SolidAngle(int Nz, int i)
 sky_grid InitSky(int Nz)
 {
 	sky_grid sky;
-	//double Sa=0;
 	sky_pos sun={0,0};// default sun, straight above
 	int i;
 	if (Nz>MAXNZ)
@@ -406,6 +412,7 @@ sky_grid InitSky(int Nz)
 		return sky;
 	}
 	sky.icosz=0;
+	
 	for (i=0;i<sky.N;i++)
 	{
 		sky.P[i].I=0;
@@ -415,11 +422,9 @@ sky_grid InitSky(int Nz)
 		sky.P[i].NI=NextIsoL(Nz, i);
 		sky.P[i].PI=PrevIsoL(Nz, i);
 		sky.cosz[i]=cos(sky.P[i].p.z);
-		sky.sa[i]=SolidAngle(Nz, i);
-		//Sa+=sky.sa[i];
-		sky.icosz+=sky.cosz[i]*sky.sa[i];
+		sky.sa[i]=SolidAngle(sky.N, Nz, i);
+		sky.icosz+=sky.cosz[i]*sky.sa[i]; // normalization constant
 	}
-	//printf("%e %e\n", Sa, Sa/M_PI);
 	return sky;
 }
 
