@@ -86,22 +86,39 @@ double 	air_mass(sky_pos sun)
 	return 1/(cos(sun.z)+0.50572*pow(96.07995-sun.z*180/M_PI,-1.6364));
 }
 
-#define	solconst 1367    /* solar constant W/m^2 */
+/* I take the gendaylit implementation as a reference. However
+ * there are some instances where I would rather do things differently.
+ * For this I introduce the GENDAYLIT define. If it is defined I will 
+ * copy gendaylit behavior as much as possible (I will not copy bugs if 
+ * I find them). The main reason for this is that gendaylit has some
+ * clearly deliberate but somewhat undocumented deviations from the 
+ * published models it claims to implement. 
+ */
+#ifdef GENDAYLIT 
+/* 
+ * This is a bit pedantic I suppose but the gendaylit solar constant 
+ * is a tad high according to current insights. I do not expect this 
+ * difference to matter much. 
+ */
+#define	solconst 1367 /* in W/m^2 */
+#else  
+/* Best value I am aware of (B.E. Pieters 21.01.2021): 
+ * Kopp, Greg and Lean, Judith L. "A new, lower value of total solar 
+ * irradiance: Evidence and climate significance", Geophysical Research 
+ * Letters, vol. 38, nr 1, 2011
+ */
+#define solconst 1360.8 /* in W/m^2 */
+#endif
 double ExtraSolPower(double dayofyear)
 {
 	double day_angle;
 	double E0;
-
-	day_angle=2*M_PI*(dayofyear-1)/365;
+	
+	day_angle=2*M_PI*(dayofyear)/365; /* note our day of year comes from a tm struct and thus starts at 0 for january first */
 	E0=1.00011+0.034221*cos(day_angle)+0.00128*sin(day_angle)+0.000719*cos(2*day_angle)+0.000077*sin(2*day_angle);
 	return E0*solconst;
 }
 
-/* there are some undocumented but clearly deliberate deviations in 
- * gendaylit from the vanilla Perez model. The GENDAYLIT define enables
- * the gendaylit Perez model mode. It can be enabled at compile time
- * GENDAYLIT mode which we can turn on or off.
- */
 #define GDL_MINDELTA 0.01
 #define GDL_MAXDELTA 0.6
 
