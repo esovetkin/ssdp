@@ -38,6 +38,8 @@ void ssdp_free_sky(sky_grid *sky);
 
 /* create a sky with a uniform diffuse light distribution */
 void ssdp_make_uniform_sky(sky_grid *sky, sky_pos sun, double GHI, double DHI);
+/* only update solar position and intensity, no diffuse light changes */
+void ssdp_make_sky_sunonly(sky_grid *sky, sky_pos sun, double GHI, double DHI);
 /* create a sky with the Perez all weather model */
 void ssdp_make_perez_all_weather_sky(sky_grid * sky, sky_pos sun, double GHI, double DHI, double dayofyear);
 
@@ -45,6 +47,7 @@ void ssdp_make_perez_cumulative_sky_coordinate(sky_grid * sky, double *t, double
 
 /* same as above but now specifyiong time and spatial coordinates to compute the solar position and the dayofyear */
 void ssdp_make_uniform_sky_coordinate(sky_grid *sky, time_t t, double lon, double lat, double GHI, double DHI);
+void ssdp_make_skysunonly_coordinate(sky_grid *sky, time_t t, double lon, double lat, double GHI, double DHI);
 void ssdp_make_perez_all_weather_sky_coordinate(sky_grid * sky, time_t t, double lon, double lat, double GHI, double DHI);
 
 /* projection routings for plane of array irradiance */

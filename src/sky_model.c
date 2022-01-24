@@ -52,11 +52,36 @@ void UniformSky(sky_grid *sky, sky_pos sun, double GHI, double DHI)
 	if (sun.z<M_PI/2)
 	{
 		sky->suni=FindPatch(sky, sun);
-		if (sky->P[sky->suni].p.z<M_PI/2)
-			sky->sI=dir/sky->cosz[sky->suni];
-		else
-			sky->suni=-1;
-		
+		sky->sI=dir/cos(sun.z);
+	}
+	else
+		sky->suni=-1;
+}
+
+	
+void SkySunOnly(sky_grid *sky, sky_pos sun, double GHI, double DHI)
+{
+	// only set solar position and intensity
+	double dhi0=0, dir;
+	int i;
+	if (GHI<0)
+	{
+		GHI=0; // it is night
+		DHI=0;
+	}
+	if (DHI<0)
+		DHI=0; // black sky
+	dir=GHI-DHI;
+	if (dir<0)
+	{
+		// no black hole sun
+		dir=0;
+	}
+	sky->sp=sun;
+	if (sun.z<M_PI/2)
+	{
+		sky->suni=FindPatch(sky, sun);
+		sky->sI=dir/cos(sun.z);
 	}
 	else
 		sky->suni=-1;

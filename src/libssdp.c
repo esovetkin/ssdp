@@ -63,6 +63,10 @@ void ssdp_make_uniform_sky(sky_grid *sky, sky_pos sun, double GHI, double DHI)
 {
 	UniformSky(sky, sun, GHI, DHI);
 }
+void ssdp_make_sky_sunonly(sky_grid *sky, sky_pos sun, double GHI, double DHI)
+{
+	SkySunOnly(sky, sun, GHI, DHI);
+}
 void ssdp_make_perez_all_weather_sky(sky_grid * sky, sky_pos sun, double GHI, double DHI, double dayofyear)
 {
 	PerezSky(sky, sun, GHI, DHI, dayofyear);
@@ -72,6 +76,12 @@ void ssdp_make_uniform_sky_coordinate(sky_grid *sky, time_t t, double lon, doubl
 	sky_pos sun;	
 	sun=sunpos(t, lat, lon);
 	UniformSky(sky, sun, GHI, DHI);
+}
+void ssdp_make_skysunonly_coordinate(sky_grid *sky, time_t t, double lon, double lat, double GHI, double DHI)
+{
+	sky_pos sun;	
+	sun=sunpos(t, lat, lon);
+	SkySunOnly(sky, sun, GHI, DHI);
 }
 void ssdp_make_perez_all_weather_sky_coordinate(sky_grid * sky, time_t t, double lon, double lat, double GHI, double DHI)
 {
@@ -127,6 +137,7 @@ AOI_Model_Data ssdp_init_aoi_model(AOI_Model model,double nf, double nar,double 
 typedef struct location {
 	sky_transfer T;
 	horizon H;
+	double difftrans; // diffuse light transmission efficiency for a uniform sky
 } location;
 //END_SSDP_EXPORT
 
@@ -143,7 +154,7 @@ location ssdp_setup_location(sky_grid *sky, topology *T, double albedo, sky_pos 
 {
 	int i;
 	location l;
-	location l0={{NULL,0.0,0},{0,0.0,NULL}};
+	location l0={{NULL,0.0,0},{0,0.0,NULL},0};
 	// setup horizon
 	l.H=InitHorizon(sky->Nz);
 	l.T=InitSkyTransfer(sky->N);
@@ -189,6 +200,11 @@ location ssdp_setup_location(sky_grid *sky, topology *T, double albedo, sky_pos 
 		ssdp_free_location(&l);
 		return l0;
 	}
+	l.difftrans=0;
+	for (i=0;i<l.T.N;i++)
+		l.difftrans+=l.T.t[i];
+	l.difftrans/=sky->icosz;
+	
 	return l;
 }
 location ssdp_setup_grid_location(sky_grid *sky, topogrid *T, double albedo, sky_pos pn, double xoff, double yoff, double zoff, AOI_Model_Data *M)

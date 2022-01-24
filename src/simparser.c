@@ -21,7 +21,7 @@
 BEGIN_DESCRIPTION
 SECTION Simulation
 PARSEFLAG sim_static SimStatic "C=<in-config> t=<in-array> GHI=<in-array> DHI=<in-array> POA=<out-array>"
-DESCRIPTION Computes the POA irradiance time series for all configured locations. 
+DESCRIPTION Computes the POA irradiance time series for all configured locations using the Perez All Weather Sky Model. 
 ARGUMENT C Simulation config variable
 ARGUMENT t unix time array.
 ARGUMENT GHI global horizontal irradiance as a function of time
@@ -134,7 +134,7 @@ void SimStatic(char *in)
 BEGIN_DESCRIPTION
 SECTION Simulation
 PARSEFLAG sim_static_integral SimStaticInt "C=<in-config> t=<in-array> GHI=<in-array> DHI=<in-array> POA=<out-array>"
-DESCRIPTION Computes the integrated POA irradiance for all configured locations.
+DESCRIPTION Computes the integrated POA irradiance for all configured locations using the Perez All Weather Sky Model.
 ARGUMENT C Simulation config variable
 ARGUMENT t unix time array.
 ARGUMENT GHI global horizontal irradiance as a function of time
@@ -241,7 +241,7 @@ void SimStaticInt(char *in)
 BEGIN_DESCRIPTION
 SECTION Simulation
 PARSEFLAG sim_route SimRoute "C=<in-config> t=<in-array> GHI=<in-array> DHI=<in-array> POA=<out-array>"
-DESCRIPTION Computes the POA irradiance along a route along all configured locations.
+DESCRIPTION Computes the POA irradiance along a route along all configured locations using the Perez All Weather Sky Model.
 ARGUMENT C Simulation config variable
 ARGUMENT t unix time array. As t progresses from t0-tn we move through locations l0-lm
 ARGUMENT GHI global horizontal irradiance as a function of time
@@ -352,6 +352,128 @@ void SimRoute(char *in)
 	}	
 }
 
+
+
+/*
+BEGIN_DESCRIPTION
+SECTION Simulation
+PARSEFLAG sim_static_uniform SimStaticUniform "C=<in-config> t=<in-array> GHI=<in-array> DHI=<in-array> POA=<out-array>"
+DESCRIPTION Computes the POA irradiance time series for all configured locations using a uniform sky. 
+ARGUMENT C Simulation config variable
+ARGUMENT t unix time array.
+ARGUMENT GHI global horizontal irradiance as a function of time
+ARGUMENT DHI diffuse horizontal irradiance as a function of time
+OUTPUT POA plane of array irradiance as a function of time and location (with n time values and m locations the array contains n times m values)
+END_DESCRIPTION
+*/
+void SimStaticUniform(char *in)
+{
+	int i, j; // loop through space and time
+	char *word;
+	simulation_config *C;
+	array *t, *GH, *DH, out;
+	double tsky=0, tpoa=0;
+	double DHIeff;
+	int pco=0;
+	word=malloc((strlen(in)+1)*sizeof(char));
+	
+	if (FetchConfig(in, "C", word, &C))
+	{
+		free(word);
+		return;
+	}		
+	if (!C->sky_init)
+	{		
+		Warning("Simulation config has no sky initialized\n");
+		free(word);
+		return;
+	}	
+	if ((!C->topo_init)&&(!C->grid_init))
+	{	
+		Warning("No topological data available, omitting horizon\n");
+		InitConfigMaskNoH(C);
+		if (ssdp_error_state)
+		{
+			ssdp_print_error_messages();
+			ssdp_reset_errors();
+			free(word);
+			return;
+		}
+	}
+	if (!C->loc_init) 
+	{	
+		Warning("Simulation config has no locations initialized\n");
+		free(word);
+		return;
+	}		
+	if (FetchArray(in, "t", word, &t))
+	{
+		free(word);
+		return;
+	}
+	if (FetchArray(in, "GHI", word, &GH))
+	{
+		free(word);
+		return;
+	}
+	if (FetchArray(in, "DHI", word, &DH))
+	{
+		free(word);
+		return;
+	}	
+	if ((t->N!=GH->N)||(t->N!=DH->N))
+	{
+		Warning("Length of t-, GHI-, and DHI-arrays do not match\n");
+		free(word);
+		return;
+	}
+	// fetch name of output var
+	if (!GetArg(in, "POA", word))
+	{
+		free(word);
+		return;
+	}
+	out.D=malloc(t->N*C->Nl*sizeof(double));
+	if (out.D==NULL)
+	{
+		free(word);
+		return;
+	}	
+	out.N=t->N*C->Nl;	
+	printf("doing static simulation of %d locations at %d instances\n",C->Nl, t->N);
+	
+	
+	for (j=0;j<t->N;j++)
+	{
+		TIC();
+		// only update sun position, we do not need to compute the diffuse sky, it is uniform and boring
+		ssdp_make_skysunonly_coordinate(&(C->S), (time_t) t->D[j], C->lon, C->lat, GH->D[j], DH->D[j]);
+		tsky+=TOC();
+		TIC();
+#pragma omp parallel private(i) shared(C)
+		{
+#pragma omp for 
+			for (i=0;i<C->Nl;i++)
+			{
+				out.D[j*C->Nl+i]=ssdp_direct_poa(&(C->S), C->o[i], &(C->M), C->L+i);
+				out.D[j*C->Nl+i]+=C->L[i].difftrans*DH->D[j]; // diffuse part is directly proportional to diffuse horizontal
+			}
+		}
+		pco=ProgressBar((100*(j+1))/(t->N), pco, ProgressLen, ProgressTics);
+		tpoa+=TOC();
+	}
+	printf("Computed %d skies in %g s (%g s/sky)\n", t->N, tsky, tsky/((double)t->N));
+	printf("Computed %d POA Irradiances in %g s (%g s/POA)\n", t->N*C->Nl, tpoa, tpoa/((double)(t->N*C->Nl)));
+	printf("Creating array %s\n",word);
+	if(AddArray(word, out))
+	{
+		free(word); // failed to make array
+		free(out.D);
+	}	
+}
+
+
+
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation
@@ -442,7 +564,7 @@ void SolarPos(char *in)
 BEGIN_DESCRIPTION
 SECTION Simulation
 PARSEFLAG export_sky ExportSky "C=<in-config> t=<in-array> GHI=<in-array> DHI=<in-array> index=<in-int> file=<in-string>"
-DESCRIPTION Exports a 3D polar plot of a sky. It only expoits one location. You need to specify the index of the location (starting at index 0).
+DESCRIPTION Exports a 3D polar plot of a sky according to the Perez All Weather Sky model. It only exports one location. You need to specify the index of the location (starting at index 0).
 ARGUMENT C config-variable
 ARGUMENT t single value unix time
 ARGUMENT GHI single value global horizontal irradiance
