@@ -189,12 +189,12 @@ double POA_Albedo_Transfer(sky_grid *sky, sky_pos pn, AOI_Model_Data *M)
 	pn.z+=M_PI;
 	pn.z=fmod(pn.z,2*M_PI);
 	Th=InitSkyTransfer(sky->N);	
-	POA_Sky_Transfer(&ground,&Th, pn, M);	
-	free_sky_grid(&ground);
-	
+	POA_Sky_Transfer(&ground,&Th, pn, M);		
 	for (i=0;i<Th.N;i++)
-		g+=Th.t[i];
+		g+=ground.sa[i]*Th.t[i];
 	g=g/((double)Th.N);
+	free_sky_grid(&ground);
+	FreeSkyTransfer(&Th);
 	return g;
 }
 // diffuse light albedo transfer : albedo*g*sky->cosz[i];

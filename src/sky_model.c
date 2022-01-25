@@ -62,8 +62,7 @@ void UniformSky(sky_grid *sky, sky_pos sun, double GHI, double DHI)
 void SkySunOnly(sky_grid *sky, sky_pos sun, double GHI, double DHI)
 {
 	// only set solar position and intensity
-	double dhi0=0, dir;
-	int i;
+	double dir;
 	if (GHI<0)
 	{
 		GHI=0; // it is night

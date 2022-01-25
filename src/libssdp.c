@@ -199,19 +199,18 @@ location ssdp_setup_location(sky_grid *sky, topology *T, double albedo, sky_pos 
 		Print(WARNING, "Warning: Horizon does not match the sky\n");
 		ssdp_free_location(&l);
 		return l0;
-	}
+	}	
 	l.difftrans=0;
 	for (i=0;i<l.T.N;i++)
-		l.difftrans+=l.T.t[i];
+		l.difftrans+=sky->sa[i]*l.T.t[i];
 	l.difftrans/=sky->icosz;
-	
 	return l;
 }
 location ssdp_setup_grid_location(sky_grid *sky, topogrid *T, double albedo, sky_pos pn, double xoff, double yoff, double zoff, AOI_Model_Data *M)
 {
 	int i;
 	location l;
-	location l0={{NULL,0,0},{0,0,NULL}};
+	location l0={{NULL,0,0},{0,0,NULL},0};
 	// setup horizon
 	l.H=InitHorizon(sky->Nz);
 	l.T=InitSkyTransfer(sky->N);
@@ -256,6 +255,10 @@ location ssdp_setup_grid_location(sky_grid *sky, topogrid *T, double albedo, sky
 		ssdp_free_location(&l);
 		return l0;
 	}
+	l.difftrans=0;
+	for (i=0;i<l.T.N;i++)
+		l.difftrans+=sky->sa[i]*l.T.t[i];
+	l.difftrans/=sky->icosz;
 	return l;
 }
 double ssdp_diffuse_poa(sky_grid *sky, location *l)

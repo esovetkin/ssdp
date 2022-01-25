@@ -373,7 +373,6 @@ void SimStaticUniform(char *in)
 	simulation_config *C;
 	array *t, *GH, *DH, out;
 	double tsky=0, tpoa=0;
-	double DHIeff;
 	int pco=0;
 	word=malloc((strlen(in)+1)*sizeof(char));
 	
