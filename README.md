@@ -43,26 +43,31 @@ assume a ground albedo of 0.25. For this simulation we do not take into
 account any topography (the data is for an open field) so we only look 
 at irradiance and transposition modeling. For both ssdp and pvlib we 
 use a Perez model (ssdp uses [1] and pvlib a slightly different model 
-[3]). The results are shown in Fig. 1 for ssdp (left) and pvlib 
-(right). Both models perform well with a coefficient of determination 
+[3]). The results are shown in Fig. 1 for ssdp (top) and pvlib 
+(bottom). Both models perform well with a coefficient of determination 
 of more than R<sup>2</sup>=0.995. Small differences (~0.1% range) are 
 observed and expected due to the different methods and models.
 
-![Cumputed Irradiance](POA_ssdp.png) ![Cumputed Irradiance](POA_pvlib.png)
+![Cumputed Irradiance](POA_ssdp.png) 
 
-_Fig. 1 Transposition and irradiance modeling with (left) ssdp, and 
-(right) pvlib_
+![Cumputed Irradiance](POA_pvlib.png)
+
+_Fig. 1 Transposition and irradiance modeling with (top) ssdp, and 
+(bottom) pvlib_
   
-In Fig. 2 we show two examples. In Fig 2 (left) the surface irradiance 
-is computed ate some location for the 15th of june 2015 at 08:00 for a 
-Global Horizontal Irradiance of 500 W/m<sup>2</sup> and a Diffuse 
-Horizontal Irradiance of 200 W/m<sup>2</sup>. In Fig. 2 (right) we 
-integrated the irradiance for a complete summer week
+In Fig. 2 we show two examples where we compute shading. The topography 
+comes from LIDAR data. We compute the irradiation intensity on the 
+topography surface. In Fig 2 (top) the surface irradiance is computed 
+at some location for the 15th of june 2015 at 08:00 for a 
+GHI of 500 W/m<sup>2</sup> and a DHI of 200 W/m<sup>2</sup>. In Fig. 2 
+(bottom) we integrated the irradiance for a complete summer week.
  
-![Cumputed Irradiance](park_irr.png) ![Cumputed Irradiance](park_int.png)
+![Cumputed Irradiance](park_irr.png)
 
-_Fig. 2 (left) Example irradiance computation at one particular moment. 
-(right) Example for the integrated irradiance over one summer week_
+![Cumputed Irradiance](park_int.png)
+
+_Fig. 2 (top) Example irradiance computation at one particular moment. 
+(bottom) Example for the integrated irradiance over one summer week_
 
 ## Installation
 The SSDP program comes with autotools build scripts, hence the 
@@ -79,6 +84,8 @@ options are:
 
 * --enable-openmp: Use openmp palatalization (disabled per default) 
 * --disable_fastatan2: Disables a fast atan2 approximation
+* --enable-gendaylit: Enables the gendaylit modifications to the Perez 
+model
 
 Compiler optimizations:
 
