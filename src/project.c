@@ -171,6 +171,15 @@ double DirectPlaneOfArray(sky_grid *sky, horizon *H, sky_pos pn, AOI_Model_Data 
 		return sky->sI*cos(sky->sp.z)*EffectiveT(M, sky->sp.z, R0);
 	return 0;
 }
+// contribution direct light to GHI
+double DirectGHI(sky_grid *sky, horizon *H)
+{
+	if (sky->suni<0) // sun not in sky
+		return 0;
+	if (BelowHorizon(H, sky->sp))
+		return 0;		
+	return sky->sI*cos(sky->sp.z);
+}
 
 double POA_Albedo_Transfer(sky_grid *sky, sky_pos pn, AOI_Model_Data *M)
 {
@@ -186,13 +195,15 @@ double POA_Albedo_Transfer(sky_grid *sky, sky_pos pn, AOI_Model_Data *M)
 		free_sky_grid(&ground);
 		return 0;
 	}
+	// turn the sky upside down (or flip the module, that is the same)
 	pn.z+=M_PI;
 	pn.z=fmod(pn.z,2*M_PI);
+	
 	Th=InitSkyTransfer(sky->N);	
 	POA_Sky_Transfer(&ground,&Th, pn, M);		
 	for (i=0;i<Th.N;i++)
 		g+=ground.sa[i]*Th.t[i];
-	g=g/((double)Th.N);
+	g/=ground.icosz;
 	free_sky_grid(&ground);
 	FreeSkyTransfer(&Th);
 	return g;

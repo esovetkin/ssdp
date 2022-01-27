@@ -267,9 +267,8 @@ double ssdp_diffuse_poa(sky_grid *sky, location *l)
 }
 double ssdp_direct_poa(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, location *l)
 {
-	double g=0;
-	if ((sky->sp.z<M_PI/2)&&(sky->sp.z>=0))
-		g=cos(sky->sp.z)*sky->sI*l->T.g;
+	double g;
+	g=DirectGHI(sky, &(l->H))*l->T.g;
 	return DirectPlaneOfArray(sky, &(l->H), pn, M)+g;
 }
 

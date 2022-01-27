@@ -33,5 +33,6 @@ void POA_Sky_Transfer(sky_grid *sky, sky_transfer *T, sky_pos pn, AOI_Model_Data
 double POA_Albedo_Transfer(sky_grid *sky, sky_pos pn, AOI_Model_Data *M);
 double DiffusePlaneOfArray(sky_grid *sky, sky_transfer *T);
 double DirectPlaneOfArray(sky_grid *sky, horizon *H, sky_pos pn, AOI_Model_Data *M);
+double DirectGHI(sky_grid *sky, horizon *H);
 void POA_to_SurfaceNormal(sky_pos *pn, sky_pos sn);
 #endif
