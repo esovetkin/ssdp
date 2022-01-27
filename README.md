@@ -33,15 +33,35 @@ UTC time (specified as Unix Time) using the PCA algorithm [2]
 	* Supports both unstructured and regular meshes for the topography
 
 ## Examples
-In Fig. 1 we show two examples. In Fig 1 (left) the surface irradiance is 
-computed ate some location for the 15th of june 2015 at 08:00 for a 
-Global Horizontal Irradiance of 500 W/m<sup>2</sup> and a Diffuse Horizontal 
-Irradiance of 200 W/m<sup>2</sup>. In Fig. 1 (right) we integrated the 
-irradiance for a complete summer week
+As a validation of the irradiance and transposition models in ssdp we 
+compare simulated plane of array irradiance values with 
+[pvlib](https://github.com/pvlib/pvlib-python). To this end we take
+measured GHI, DHI, and POA data from a location somewhere in the south 
+of germany, and use the measured GHI and DHI to predict the POA 
+irradiance. The POA in this case is a 40 degrees tilt, facing south. We 
+assume a ground albedo of 0.25. For this simulation we do not take into 
+account any topography (the data is for an open field) so we only look 
+at irradiance and transposition modeling. For both ssdp and pvlib we 
+use a Perez model (ssdp uses [1] and pvlib a slightly different model 
+[3]). The results are shown in Fig. 1 for ssdp (left) and pvlib 
+(right). Both models perform well with a coefficient of determination 
+of more than R<sup>2</sup>=0.995. Small differences (~0.1% range) are 
+observed and expected due to the different methods and models.
+
+![Cumputed Irradiance](POA_ssdp.png) ![Cumputed Irradiance](POA_pvlib.png)
+
+_Fig. 1 Transposition and irradiance modeling with (left) ssdp, and 
+(right) pvlib_
+  
+In Fig. 2 we show two examples. In Fig 2 (left) the surface irradiance 
+is computed ate some location for the 15th of june 2015 at 08:00 for a 
+Global Horizontal Irradiance of 500 W/m<sup>2</sup> and a Diffuse 
+Horizontal Irradiance of 200 W/m<sup>2</sup>. In Fig. 2 (right) we 
+integrated the irradiance for a complete summer week
  
 ![Cumputed Irradiance](park_irr.png) ![Cumputed Irradiance](park_int.png)
 
-_Fig. 1 (left) Example irradiance computation at one particular moment. 
+_Fig. 2 (left) Example irradiance computation at one particular moment. 
 (right) Example for the integrated irradiance over one summer week_
 
 ## Installation
@@ -83,9 +103,13 @@ using the groff program and the ssdp.man file, e.g.:
 
 ## References
 [1] R. Perez, et al. "All-Weather Model for Sky Luminance Distribution 
--- Preliminary Configuration and Validation." Solar Energy  50.3  
+-- Preliminary Configuration and Validation." Solar Energy  50.3 
 (1993):235-245
 
-[2] Blanco-Muriel, Manuel, et al. "Computing the solar vector." Solar 
-energy 70.5 (2001): 431-441
+[2] M. Blanco-Muriel, et al. "Computing the solar vector." Solar 
+Energy 70.5 (2001): 431-441
+
+[3] R. Perez, et al. "Modeling daylight availability and irradiance 
+components from direct and global irradiance". Solar Energy 44.5 
+(1990):271-289.
 
