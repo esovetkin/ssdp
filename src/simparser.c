@@ -110,7 +110,7 @@ void SimStatic(char *in)
 		ssdp_make_perez_all_weather_sky_coordinate(&(C->S), (time_t) t->D[j], C->lon, C->lat, GH->D[j], DH->D[j]);
 		tsky+=TOC();
 		TIC();
-#pragma omp parallel private(i) shared(C)
+#pragma omp parallel private(i) shared(C) schedule(runtime)
 		{
 #pragma omp for 
 			for (i=0;i<C->Nl;i++)
@@ -222,7 +222,7 @@ void SimStaticInt(char *in)
 	printf("Integrated %d skies in %g s (%g s/sky)\n", t->N, tsky, tsky/((double)t->N));
 	
 	TIC();
-#pragma omp parallel private(i) shared(C)
+#pragma omp parallel private(i) shared(C) schedule(runtime)
 	{
 #pragma omp for 
 		for (i=0;i<C->Nl;i++)
@@ -449,7 +449,7 @@ void SimStaticUniform(char *in)
 		ssdp_make_skysunonly_coordinate(&(C->S), (time_t) t->D[j], C->lon, C->lat, GH->D[j], DH->D[j]);
 		tsky+=TOC();
 		TIC();
-#pragma omp parallel private(i) shared(C)
+#pragma omp parallel private(i) shared(C) schedule(runtime)
 		{
 #pragma omp for 
 			for (i=0;i<C->Nl;i++)
