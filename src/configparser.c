@@ -226,12 +226,12 @@ void InitConfigMask(simulation_config *C)
 		}
 		printf("Tracing %d locations\n", C->Nl);
 		TIC();
-#pragma omp parallel private(i) shared(C) schedule(runtime)
+#pragma omp parallel private(i) shared(C)
 		{
 #ifdef OPENMP
 			int nt=omp_get_num_threads();
 #endif
-#pragma omp for 
+#pragma omp for schedule(runtime)
 			for (i=0;i<C->Nl;i++)
 			{ 
 				C->L[i]=ssdp_setup_location(&(C->S), &(C->T), C->albedo, C->o[i], C->x[i],C->y[i],C->z[i], &(C->M));
@@ -275,12 +275,12 @@ void InitConfigGridMask(simulation_config *C)
 		}
 		printf("Tracing %d locations\n", C->Nl);
 		TIC();
-#pragma omp parallel private(i) shared(C) schedule(runtime)
+#pragma omp parallel private(i) shared(C)
 		{
 #ifdef OPENMP
 			int nt=omp_get_num_threads();
 #endif
-#pragma omp for 
+#pragma omp for schedule(runtime)
 			for (i=0;i<C->Nl;i++)
 			{ 
 				C->L[i]=ssdp_setup_grid_location(&(C->S), &(C->Tx), C->albedo, C->o[i], C->x[i],C->y[i],C->z[i], &(C->M));
@@ -324,12 +324,12 @@ void InitConfigMaskNoH(simulation_config *C) // same as above but without horizo
 		}
 		printf("Tracing %d locations\n", C->Nl);
 		TIC();
-#pragma omp parallel private(i) shared(C) schedule(runtime)
+#pragma omp parallel private(i) shared(C)
 		{
 #ifdef OPENMP
 			int nt=omp_get_num_threads();
 #endif
-#pragma omp for 
+#pragma omp for schedule(runtime)
 			for (i=0;i<C->Nl;i++)
 			{ 
 				C->L[i]=ssdp_setup_location(&(C->S), NULL, C->albedo, C->o[i], C->x[i],C->y[i],C->z[i], &(C->M));
