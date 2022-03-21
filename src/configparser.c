@@ -216,6 +216,9 @@ void InitConfigMask(simulation_config *C)
 	if ((C->sky_init)&&(C->topo_init)&&(C->loc_init))
 	{
 		double dt;
+#ifdef OPENMP
+		int totals=0, pc;
+#endif		
 		int pco=0;
 		FreeConfigMask(C); // make sure we are clear to allocate new memory
 		C->L=calloc(C->Nl,sizeof(location));
@@ -226,22 +229,20 @@ void InitConfigMask(simulation_config *C)
 		}
 		printf("Tracing %d locations\n", C->Nl);
 		TIC();
-#pragma omp parallel private(i) shared(C)
+#pragma omp parallel private(i) shared(C,totals)
 		{
-#ifdef OPENMP
+#ifdef OPENMP	
 			int nt=omp_get_num_threads();
-#endif
+#endif	
 #pragma omp for schedule(runtime)
 			for (i=0;i<C->Nl;i++)
 			{ 
 				C->L[i]=ssdp_setup_location(&(C->S), &(C->T), C->albedo, C->o[i], C->x[i],C->y[i],C->z[i], &(C->M));
 #ifdef OPENMP
+				totals++;
 				if (omp_get_thread_num()==0)
 				{
-					int pc;
-					pc=100*(nt*i+1)/C->Nl;
-					if (pc>100)
-						pc=100;
+					pc=100*(totals+1)/C->Nl;
 					pco=ProgressBar(pc, pco, ProgressLen, ProgressTics);
 				}
 #else
@@ -265,6 +266,9 @@ void InitConfigGridMask(simulation_config *C)
 	if ((C->sky_init)&&(C->grid_init)&&(C->loc_init))
 	{
 		double dt;
+#ifdef OPENMP
+		int totals=0, pc;
+#endif		
 		int pco=0;
 		FreeConfigMask(C); // make sure we are clear to allocate new memory
 		C->L=malloc(C->Nl*sizeof(location));
@@ -275,22 +279,20 @@ void InitConfigGridMask(simulation_config *C)
 		}
 		printf("Tracing %d locations\n", C->Nl);
 		TIC();
-#pragma omp parallel private(i) shared(C)
+#pragma omp parallel private(i) shared(C,totals)
 		{
 #ifdef OPENMP
 			int nt=omp_get_num_threads();
-#endif
+#endif	
 #pragma omp for schedule(runtime)
 			for (i=0;i<C->Nl;i++)
 			{ 
 				C->L[i]=ssdp_setup_grid_location(&(C->S), &(C->Tx), C->albedo, C->o[i], C->x[i],C->y[i],C->z[i], &(C->M));
 #ifdef OPENMP
+				totals++;
 				if (omp_get_thread_num()==0)
 				{
-					int pc;
-					pc=100*(nt*i+1)/C->Nl;
-					if (pc>100)
-						pc=100;
+					pc=100*(totals+1)/C->Nl;
 					pco=ProgressBar(pc, pco, ProgressLen, ProgressTics);
 				}
 #else
