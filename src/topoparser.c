@@ -154,7 +154,7 @@ void SampleTopography(char *in)
 /*
 BEGIN_DESCRIPTION
 SECTION Topography
-PARSEFLAG offset_topo OffsetTopography "C=<in-config>  o=<float> x=<in-array> y=<in-array> type=<topology/topogrid> xoff=<out-array> yoff=<out-array> zoff=<out-array>"
+PARSEFLAG offset_topo OffsetTopography "C=<in-config>  o=<in-array> x=<in-array> y=<in-array> type=<topology/topogrid> xoff=<out-array> yoff=<out-array> zoff=<out-array>"
 DESCRIPTION Computes a topography offset in the direction of the surface normal
 ARGUMENT C config-variable
 ARGUMENT o offset value
@@ -171,8 +171,7 @@ void OffsetTopography(char *in)
 	int i;
 	char *word;
 	simulation_config *C;
-	array *x, *y, zoff, yoff, xoff;
-	double o;
+	array *o, *x, *y, zoff, yoff, xoff;
 	char type='t';
 	sky_pos sn;
 	word=malloc((strlen(in)+1)*sizeof(char));
@@ -188,7 +187,7 @@ void OffsetTopography(char *in)
 		free(word);
 		return;
 	}	
-	if (FetchFloat(in, "o", word, &o))
+	if (FetchArray(in, "o", word, &o))
 	{
 		free(word);
 		return;
@@ -248,16 +247,16 @@ void OffsetTopography(char *in)
 	yoff.N=x->N;
 	xoff.D=malloc(x->N*sizeof(double));
 	xoff.N=x->N;
-	printf("computing tolology offset by %e\n",o);
+	printf("computing tolology offset\n");
 	for (i=0;i<x->N;i++)
 	{
 		if (type=='t')
-			zoff.D[i]=ssdp_sample_topology(x->D[i], y->D[i], &(C->T),&sn)+o*cos(sn.z);
+			zoff.D[i]=ssdp_sample_topology(x->D[i], y->D[i], &(C->T),&sn)+o->D[i%o->N]*cos(sn.z);
 		else
-			zoff.D[i]=ssdp_sample_topogrid(x->D[i], y->D[i], &(C->Tx),&sn)+o*cos(sn.z);
+			zoff.D[i]=ssdp_sample_topogrid(x->D[i], y->D[i], &(C->Tx),&sn)+o->D[i%o->N]*cos(sn.z);
 		
-		xoff.D[i]=x->D[i]+o*sin(sn.z)*sin(sn.a);
-		yoff.D[i]=y->D[i]+o*sin(sn.z)*cos(sn.a);
+		xoff.D[i]=x->D[i]+o->D[i%o->N]*sin(sn.z)*sin(sn.a);
+		yoff.D[i]=y->D[i]+o->D[i%o->N]*sin(sn.z)*cos(sn.a);
 	}
 	
 	
