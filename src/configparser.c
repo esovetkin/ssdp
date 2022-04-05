@@ -88,7 +88,7 @@ void ConfigCoord (char *in)
 	C->lat=l->D[0];
 	printf("set latitude to %e degrees (%e rad)\n", rad2deg(C->lat), C->lat);
 	
-	if (FetchArray(in, "E", word, &l))
+	if (FetchOptArray(in, "E", word, &l))
 	{
 		C->E=0;
 		printf("set elevation to %e m\n", C->E);

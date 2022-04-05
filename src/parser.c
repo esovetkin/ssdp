@@ -220,11 +220,36 @@ int FetchArray(const char *in, const char *pat, char *str, array **a)
 		}
 		return 0;
 	}
+	Warning("Input array %s is not specified\n",pat);
+	return 1;
+}
+int FetchOptArray(const char *in, const char *pat, char *str, array **a)
+{
+	if (GetOption(in, pat, str))
+	{
+		if (!LookupArray(str, a))
+		{
+			Warning("Input array %s=%s, %s is not available\n",pat, str, str);
+			return 1;
+		}
+		return 0;
+	}
+	Warning("Input array %s is not specified\n",pat);
 	return 1;
 }
 int FetchFloat(const char *in, const char *pat, char *str, double *a)
 {
 	if (GetArg(in, pat, str))
+	{
+		(*a)=atof(str);
+		return 0;
+	}
+	Warning("Input float %s is not specified\n",pat);
+	return 1;
+}
+int FetchOptFloat(const char *in, const char *pat, char *str, double *a)
+{
+	if (GetOption(in, pat, str))
 	{
 		(*a)=atof(str);
 		return 0;
@@ -242,12 +267,22 @@ int FetchInt(const char *in, const char *pat, char *str, int *a)
 	Warning("Input int %s is not specified\n",pat);
 	return 1;
 }
+int FetchOptInt(const char *in, const char *pat, char *str, int *a)
+{
+	if (GetOption(in, pat, str))
+	{
+		(*a)=atoi(str);
+		return 0;
+	}
+	Warning("Input int %s is not specified\n",pat);
+	return 1;
+}
 
 /* 
  * To automate the documentation process a bit every parser gets a 
  * description in the source which is automatically added to the ssdp 
  * man page. The format is as follows:
- * In comments use the BEGIN_DESCRIPTION/END_DESCRIPTION flahs to mark the beginning
+ * In comments use the BEGIN_DESCRIPTION/END_DESCRIPTION flags to mark the beginning
  * and end of a man page entry.
  * The parseflag was already used to generate the parsedef.h data and is also used here
  * I like to put them together.
