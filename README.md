@@ -20,7 +20,8 @@ surface normal).
 	* sun taken separately as a point source a alleviate sky-mesh 
 	resolution requirements
 * Computes solar position given the latitude and lonitude and the 
-UTC time (specified as Unix Time) using the PCA algorithm [2]
+UTC time (specified as Unix Time) using the spa algorithm [2] 
+as implemented by freespa [3]
 	* also supports a manual specification of azimuth and zenith angles
 * Simple and fast irradiance computation
 	* easy specification of location (x,y,z) and orientation 
@@ -43,7 +44,7 @@ assume a ground albedo of 0.25. For this simulation we do not take into
 account any topography (the data is for an open field) so we only look 
 at irradiance and transposition modeling. For both ssdp and pvlib we 
 use a Perez model (ssdp uses [1] and pvlib a slightly different model 
-[3]). The results are shown in Fig. 1 for ssdp (top) and pvlib 
+[4]). The results are shown in Fig. 1 for ssdp (top) and pvlib 
 (bottom). Both models perform well with a coefficient of determination 
 of more than R<sup>2</sup>=0.995. Small differences (~0.1% range) are 
 observed and expected due to the different methods and models.
@@ -113,10 +114,12 @@ using the groff program and the ssdp.man file, e.g.:
 -- Preliminary Configuration and Validation." Solar Energy  50.3 
 (1993):235-245
 
-[2] M. Blanco-Muriel, et al. "Computing the solar vector." Solar 
-Energy 70.5 (2001): 431-441
+[2] R. Ibrahim and A. Afshin "Solar position algorithm for solar 
+radiation applications" Solar Energy 76.5 (2004): 577-589
 
-[3] R. Perez, et al. "Modeling daylight availability and irradiance 
+[3] freespa (insert github address as it is available)
+
+[4] R. Perez, et al. "Modeling daylight availability and irradiance 
 components from direct and global irradiance". Solar Energy 44.5 
 (1990):271-289.
 
