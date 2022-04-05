@@ -1,7 +1,8 @@
-m4_define([ssdp_major_version],    [2])
-m4_define([ssdp_minor_version],    [3])
+m4_define([ssdp_major_version],    [3])
+m4_define([ssdp_minor_version],    [0])
 m4_define([ssdp_revis_version],    [0])
-m4_define([ssdp_version],[ssdp_major_version:ssdp_minor_version:ssdp_revis_version])
+m4_define([ssdp_libversion],[ssdp_major_version:ssdp_minor_version:ssdp_revis_version])
+m4_define([ssdp_version],[ssdp_major_version.ssdp_minor_version.ssdp_revis_version])
 AC_INIT([libssdp], [ssdp_version])
 AC_CONFIG_MACRO_DIRS([m4])
 AC_PROG_LIBTOOL()
@@ -44,9 +45,8 @@ esac],[gendaylit=false])
 AS_IF([test "x$gendaylit" == "xtrue"], [
   AC_DEFINE([GENDAYLIT], [], [Use the gendaylit Perez model flavor])
 ])
-
-
-AC_DEFINE([LIBSSDPVERSION], ["[ssdp_version]"], [libssdp version string])
+AC_SUBST(LIBVERSION, [ssdp_libversion])
+AC_DEFINE([LIBSSDPVERSION], ["[ssdp_libversion]"], [libssdp version string])
 AC_CONFIG_FILES([
  Makefile src/Makefile
 ])

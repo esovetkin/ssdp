@@ -42,10 +42,11 @@ void InitConfig(char *in)
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation Configuration
-PARSEFLAG config_coord ConfigCoord "C=<out-config> lat=<float> lon=<float>"
+PARSEFLAG config_coord ConfigCoord "C=<out-config> lat=<float> lon=<float> E=<float>"
 DESCRIPTION Setup the coordinate in the configuration variable.
 ARGUMENT lat latitude (in radians)
 ARGUMENT lon longitude (in radians)
+ARGUMENT E elevation (in m, default 0)
 OUTPUT C configuration variable
 END_DESCRIPTION
 */
@@ -86,6 +87,19 @@ void ConfigCoord (char *in)
 	}
 	C->lat=l->D[0];
 	printf("set latitude to %e degrees (%e rad)\n", rad2deg(C->lat), C->lat);
+	
+	if (FetchArray(in, "E", word, &l))
+	{
+		C->E=0;
+		printf("set elevation to %e m\n", C->E);
+		
+	}
+	if (l->N!=1)
+	{
+		Warning("config_coord expects a scalar value (array length 1) as longitude\n");
+		free(word);
+		return;
+	}
 }
 
 /*
@@ -231,9 +245,6 @@ void InitConfigMask(simulation_config *C)
 		TIC();
 #pragma omp parallel private(i) shared(C,totals)
 		{
-#ifdef OPENMP	
-			int nt=omp_get_num_threads();
-#endif	
 #pragma omp for schedule(runtime)
 			for (i=0;i<C->Nl;i++)
 			{ 
@@ -281,9 +292,6 @@ void InitConfigGridMask(simulation_config *C)
 		TIC();
 #pragma omp parallel private(i) shared(C,totals)
 		{
-#ifdef OPENMP
-			int nt=omp_get_num_threads();
-#endif	
 #pragma omp for schedule(runtime)
 			for (i=0;i<C->Nl;i++)
 			{ 

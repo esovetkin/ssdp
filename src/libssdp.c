@@ -71,19 +71,19 @@ void ssdp_make_perez_all_weather_sky(sky_grid * sky, sky_pos sun, double GHI, do
 {
 	PerezSky(sky, sun, GHI, DHI, dayofyear);
 }
-void ssdp_make_uniform_sky_coordinate(sky_grid *sky, time_t t, double lon, double lat, double GHI, double DHI)
+void ssdp_make_uniform_sky_coordinate(sky_grid *sky, time_t t, double lon, double lat, double E, double p, double T, double GHI, double DHI)
 {
 	sky_pos sun;	
-	sun=sunpos(t, lat, lon);
+	sun=sunpos(t, lat, lon, E, p, T);
 	UniformSky(sky, sun, GHI, DHI);
 }
-void ssdp_make_skysunonly_coordinate(sky_grid *sky, time_t t, double lon, double lat, double GHI, double DHI)
+void ssdp_make_skysunonly_coordinate(sky_grid *sky, time_t t, double lon, double lat, double E, double p, double T, double GHI, double DHI)
 {
 	sky_pos sun;	
-	sun=sunpos(t, lat, lon);
+	sun=sunpos(t, lat, lon, E, p, T);
 	SkySunOnly(sky, sun, GHI, DHI);
 }
-void ssdp_make_perez_all_weather_sky_coordinate(sky_grid * sky, time_t t, double lon, double lat, double GHI, double DHI)
+void ssdp_make_perez_all_weather_sky_coordinate(sky_grid * sky, time_t t, double lon, double lat, double E, double p, double T, double GHI, double DHI)
 {
 	sky_pos sun;
 	struct tm * ut;
@@ -93,10 +93,10 @@ void ssdp_make_perez_all_weather_sky_coordinate(sky_grid * sky, time_t t, double
 		AddErr(GMTIMENULL); //GMTIMENULL initialized in sunpos.c
 		return;
 	}
-	sun=sunpos(t, lat, lon);
+	sun=sunpos(t, lat, lon, E, p, T);
 	PerezSky(sky, sun, GHI, DHI, (double)ut->tm_yday);
 }
-void ssdp_make_perez_cumulative_sky_coordinate(sky_grid * sky, double *t, double lon, double lat, double *GHI, double *DHI, int N)
+void ssdp_make_perez_cumulative_sky_coordinate(sky_grid * sky, double *t, double lon, double lat, double E, double *p, double *T, double *GHI, double *DHI, int N)
 {
 	int i;
 	sky_pos *sun;
@@ -114,7 +114,7 @@ void ssdp_make_perez_cumulative_sky_coordinate(sky_grid * sky, double *t, double
 			AddErr(GMTIMENULL); //GMTIMENULL initialized in sunpos.c
 			return;
 		}
-		sun[i]=sunpos(tt, lat, lon);
+		sun[i]=sunpos(tt, lat, lon, E, p[i], T[i]);
 		dayofyear[i]=(double)ut->tm_yday;
 	}
 	CumulativePerezSky(sky, sun, t, GHI, DHI, dayofyear, N);
@@ -314,12 +314,8 @@ double ssdp_sample_topogrid(double x, double y, topogrid *T, sky_pos *sn)
 	return SampleTopoGrid(x, y, T, sn);
 }
 // solar position
-sky_pos ssdp_sunpos(time_t t, double lat, double lon)
+sky_pos ssdp_sunpos(time_t t, double lat, double lon, double E, double p, double T)
 {
-	return sunpos(t, lat, lon);
+	return sunpos(t, lat, lon, E, p, T);
 }
 
-void ssdp_solartimes(time_t t, double lat, double lon, time_t * trise, time_t *tnoon, time_t *tset, sky_pos *prise, sky_pos *pnoon, sky_pos *pset)
-{
-	SolarTimes(t, lat, lon, trise, tnoon, tset, prise, pnoon, pset);
-}

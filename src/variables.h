@@ -10,7 +10,7 @@ typedef struct simulation_config {
 	 * - DHI
 	 */
 	AOI_Model_Data M; 		// angle of incidence effects
-	double lon, lat;		// longitude, latitude 
+	double lon, lat, E;		// longitude, latitude, elevation
 	char sky_init, topo_init, grid_init; // flags indicating whether the structures have been initialized or not
 	sky_grid S; 			// sky
 	topology T; 			// topology

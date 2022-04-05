@@ -36,6 +36,7 @@ simulation_config InitConf()
 	C.albedo=0.0; 
 	C.lon=FZLON;
 	C.lat=FZLAT;
+	C.E=0;
 	C.loc_init=0;
 	C.x=NULL;
 	C.y=NULL;

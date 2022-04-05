@@ -43,12 +43,12 @@ void ssdp_make_sky_sunonly(sky_grid *sky, sky_pos sun, double GHI, double DHI);
 /* create a sky with the Perez all weather model */
 void ssdp_make_perez_all_weather_sky(sky_grid * sky, sky_pos sun, double GHI, double DHI, double dayofyear);
 
-void ssdp_make_perez_cumulative_sky_coordinate(sky_grid * sky, double *t, double lon, double lat, double *GHI, double *DHI, int N);
+void ssdp_make_perez_cumulative_sky_coordinate(sky_grid * sky, double *t, double lon, double lat, double E, double *p, double *T, double *GHI, double *DHI, int N);
 
 /* same as above but now specifyiong time and spatial coordinates to compute the solar position and the dayofyear */
-void ssdp_make_uniform_sky_coordinate(sky_grid *sky, time_t t, double lon, double lat, double GHI, double DHI);
-void ssdp_make_skysunonly_coordinate(sky_grid *sky, time_t t, double lon, double lat, double GHI, double DHI);
-void ssdp_make_perez_all_weather_sky_coordinate(sky_grid * sky, time_t t, double lon, double lat, double GHI, double DHI);
+void ssdp_make_uniform_sky_coordinate(sky_grid *sky, time_t t, double lon, double lat, double E, double p, double T, double GHI, double DHI);
+void ssdp_make_skysunonly_coordinate(sky_grid *sky, time_t t, double lon, double lat, double E, double p, double T, double GHI, double DHI);
+void ssdp_make_perez_all_weather_sky_coordinate(sky_grid * sky, time_t t, double lon, double lat, double E, double p, double T, double GHI, double DHI);
 
 /* projection routings for plane of array irradiance */
 void ssdp_poa_to_surface_normal(sky_pos pn0, sky_pos sn, sky_pos *pn); // orient module w.r.t ground orientation
@@ -78,5 +78,4 @@ double ssdp_sample_topology(double x, double y, topology *T, sky_pos *sn);
 double ssdp_sample_topogrid(double x, double y, topogrid *T, sky_pos *sn);
 
 
-sky_pos ssdp_sunpos(time_t t, double lat, double lon); // lat & lon in radians
-void ssdp_solartimes(time_t t, double lat, double lon, time_t * trise, time_t *tnoon, time_t *tset, sky_pos *prise, sky_pos *pnoon, sky_pos *pset);
+sky_pos ssdp_sunpos(time_t t, double lat, double lon, double E, double p, double T); // lat & lon in radians
