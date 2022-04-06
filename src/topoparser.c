@@ -208,6 +208,9 @@ void OffsetTopography(char *in)
 		free(word);
 		return;
 	}
+	if (x->N%o->N)
+		Warning("Length x-array (%d) not divisable by the length offset array (%d)\n", x->N, o->N);
+		
 	if (GetOption(in, "type", word))
 	{
 		if (strncmp(word,"topology",10)==0)
