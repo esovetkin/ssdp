@@ -79,10 +79,10 @@ void ConfigCoord (char *in)
 		free(word);
 		return;
 	}
-	free(word);
 	if (l->N!=1)
 	{
 		Warning("config_coord expects a scalar value (array length 1) as latitude\n");
+		free(word);
 		return;
 	}
 	C->lat=l->D[0];
@@ -90,16 +90,20 @@ void ConfigCoord (char *in)
 	
 	if (FetchOptArray(in, "E", word, &l))
 	{
-		C->E=0;
-		printf("set elevation to %e m\n", C->E);
-		
+		C->E=0;	
 	}
-	if (l->N!=1)
+	else
 	{
-		Warning("config_coord expects a scalar value (array length 1) as longitude\n");
-		free(word);
-		return;
+		C->E=l->D[0];
+		if (l->N!=1)
+		{
+			Warning("config_coord expects a scalar value (array length 1) as longitude\n");
+			free(word);
+			return;
+		}
 	}
+	printf("set elevation to %e m\n", C->E);	
+	free(word);
 }
 
 /*
