@@ -713,7 +713,7 @@ void SimStaticUniform(char *in)
 BEGIN_DESCRIPTION
 SECTION Simulation
 PARSEFLAG solpos SolarPos "t=<in-array> lon=<in-float> lat=<in-float> E=<in-float> p=<in-array> T=<in-array> azimuth=<out-array> zenith=<out-array>"
-DESCRIPTION Computes the solar position using freespa [2].
+DESCRIPTION Computes the solar position using freespa [2]. Computation includes atmopheric refraction effects, (true solar position may be obtained by setting p=0).
 ARGUMENT t unix time array
 ARGUMENT lon longitude float
 ARGUMENT lat latitude float
@@ -767,7 +767,7 @@ void SolarPos(char *in)
 		pp.D[0]=1010.0;
 		p=&pp;
 	}
-	if (FetchOptArray(in, "T", word, &p))
+	if (FetchOptArray(in, "T", word, &T))
 	{
 		// make a scalar array
 		TT.N=1;
@@ -796,7 +796,6 @@ void SolarPos(char *in)
 			free(TT.D);
 		return;
 	}	
-		
 	
 	azi.D=malloc(t->N*sizeof(double));
 	if (azi.D==NULL)
@@ -837,25 +836,34 @@ void SolarPos(char *in)
 	if (!GetArg(in, "azimuth", word))
 	{
 		free(word);
-		return;
-	}
-	printf("Creating array %s\n",word);
-	if(AddArray(word, azi))
-	{
-		free(word); // failed to make array
 		free(azi.D);
-	}	
-	word=malloc((strlen(in)+1)*sizeof(char));
+	}
+	else
+	{
+		printf("Creating array %s\n",word);
+		if(AddArray(word, azi))
+		{
+			free(word); // failed to make array
+			free(azi.D);
+			free(zen.D);
+			return;
+		}
+		word=malloc((strlen(in)+1)*sizeof(char));
+	}
 	if (!GetArg(in, "zenith", word))
 	{
 		free(word);
-		return;
-	}
-	printf("Creating array %s\n",word);
-	if(AddArray(word, zen))
-	{
-		free(word); // failed to make array
 		free(zen.D);
+	}
+	else
+	{
+		printf("Creating array %s\n",word);
+		if(AddArray(word, zen))
+		{
+			free(word); // failed to make array
+			free(zen.D);
+			return;
+		}
 	}	
 }
 

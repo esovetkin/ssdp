@@ -22,13 +22,13 @@ echo "[command1] [command2] [...] [-f script.ssdp] [-i]" >>  $FILE
 echo ".SH DESCRIPTION" >>  $FILE
 echo ".B ssdp" >>  $FILE
 echo "Computes sky domes according to the Perez all weather sky model [1]," >>  $FILE
-echo "and can project this sky on a tilted surface." >>  $FILE
+echo "and can project this sky on a tilted surface. The solar position" >>  $FILE
+echo "is computed from longitude, latitude, date/time, air temperature " >> $FILE
+echo "and pressure, according to the Solar Position Algorithm (SPA) [2-4]." >>  $FILE
+echo "For SPA wee use the freespa package [5]." >>  $FILE
 echo "In addition it can process topological data and compute a horizon" >>  $FILE
 echo "and thus take into account shading. The ssdp program implements a " >>  $FILE
 echo "basic syntax to compute stuff. " >>  $FILE
-echo ".P " >>  $FILE
-echo ".B [1] " >>  $FILE
-echo "R. Perez, et al. \"All-Weather Model for Sky Luminance Distribution -- Preliminary Configuration and Validation\", Solar Energy Vol. 50, No, 3, pp. 235-245, 1993" >> $FILE
 echo ".SS Options" >>  $FILE
 echo ".TP" >>  $FILE
 echo ".B [command]" >>  $FILE
@@ -139,4 +139,14 @@ echo ".B [1] " >>  $FILE
 echo "R. Perez, et al. \"All-Weather Model for Sky Luminance Distribution -- Preliminary Configuration and Validation.\" Solar Energy 50.3 (1993): 235-245" >> $FILE
 echo ".TP " >>  $FILE
 echo ".B [2] " >>  $FILE
-echo "Blanco-Muriel, Manuel, et al. \"Computing the solar vector.\" Solar energy 70.5 (2001): 431-441" >>  $FILE
+echo "I. Reda and A. Andreas, \"Solar position algorithm for solar radiation applications.\" Solar Energy 76.5 (2004): 577-589" >>  $FILE
+echo ".TP " >>  $FILE
+echo ".B [3] " >>  $FILE
+echo "I. Reda and A. Andreas, \"Corrigendum to Solar position algorithm for solar radiation applications.\" Solar Energy 81.6 (2007): 838" >>  $FILE
+echo ".TP " >>  $FILE
+echo ".B [4] " >>  $FILE
+echo "NREL SPA code: http://rredc.nrel.gov/solar/codesandalgorithms/spa/" >>  $FILE
+echo ".TP " >>  $FILE
+echo ".B [5] " >>  $FILE
+echo "freespa: https://jugit.fz-juelich.de/pearl-project/freespa" >>  $FILE
+echo ".TP " >>  $FILE

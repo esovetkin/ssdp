@@ -377,6 +377,7 @@ void MakeArray(char *in)
 	return;	
 }
 
+
 /*
 BEGIN_DESCRIPTION
 SECTION Array
