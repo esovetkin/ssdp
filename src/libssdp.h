@@ -79,3 +79,4 @@ double ssdp_sample_topogrid(double x, double y, topogrid *T, sky_pos *sn);
 
 
 sky_pos ssdp_sunpos(time_t t, double lat, double lon, double E, double p, double T); // lat & lon in radians
+int ssdp_suntimes(time_t t, double lat, double lon, double e, double p, double T, time_t *sunrise, time_t *transit, time_t *sunset);

@@ -318,4 +318,8 @@ sky_pos ssdp_sunpos(time_t t, double lat, double lon, double E, double p, double
 {
 	return sunpos(t, lat, lon, E, p, T);
 }
+int ssdp_suntimes(time_t t, double lat, double lon, double E, double p, double T, time_t *sunrise, time_t *transit, time_t *sunset);
+{
+	return suntimes(t, lat, lon, E, p, T, sunrise, transit, sunset);
+}
 

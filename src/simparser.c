@@ -870,6 +870,199 @@ void SolarPos(char *in)
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation
+PARSEFLAG suntimes SolarTimes "t=<in-array> lon=<in-float> lat=<in-float> E=<in-float> p=<in-array> T=<in-array> sunrise=<out-array> sunset=<out-array> transit=<out-array>"
+DESCRIPTION Computes sunrise, transit and sunset times using freespa [2]. Computation includes atmopheric refraction effects and the effect of observer elevation. Note that the solar times are computed w.r.t. the solar transit on the specified UTC date. The sunrise and sunset times signify the period with sunlight. This means that in case of a polar night sunset and sunset coincide at the solar transit (when the sun's altitude is highest). For a midnight sun, sunrise and sunset are 24 hours apart centered around the solar transit with the highest altitude.
+ARGUMENT t unix time array
+ARGUMENT lon longitude float
+ARGUMENT lat latitude float
+ARGUMENT E elevation (m) float (default 0)
+ARGUMENT p pressure in mb array (default 1010)
+ARGUMENT T temperature in C array (default 10)
+OUTPUT sunrise (unix time)
+OUTPUT transit (unix time)
+OUTPUT sunset  (unix time)
+END_DESCRIPTION
+*/
+void SolarTimes(char *in)
+{
+	int i;
+	char *word;
+	sky_pos s;
+	array *t, sunrise, sunset, transit, *p, *T;
+	array pp, TT;
+	double lon, lat, E;
+	time_t t1, t2, t3;
+	pp.N=0;
+	pp.D=NULL;
+	TT.N=0;
+	TT.D=NULL;
+	word=malloc((strlen(in)+1)*sizeof(char));
+	if (FetchArray(in, "t", word, &t))
+	{
+		free(word);
+		return;
+	}
+	
+	if (FetchFloat(in, "lon", word, &lon))
+	{
+		free(word);
+		return;
+	}
+	lon=deg2rad(lon);
+	if (FetchFloat(in, "lat", word, &lat))
+	{
+		free(word);
+		return;
+	}
+	lat=deg2rad(lat);
+	
+	if (FetchOptFloat(in, "E", word, &E))
+		E=0;
+		
+	if (FetchOptArray(in, "p", word, &p))
+	{
+		// make a scalar array
+		pp.N=1;
+		pp.D=malloc(sizeof(double));
+		pp.D[0]=1010.0;
+		p=&pp;
+	}
+	if (FetchOptArray(in, "T", word, &T))
+	{
+		// make a scalar array
+		TT.N=1;
+		TT.D=malloc(sizeof(double));
+		TT.D[0]=10.0;
+		T=&TT;
+	}
+	
+	if ((p->N>1)&&(p->N!=t->N))
+	{
+		Warning("The p-array must either have length one or be equal in length as the t-array\n");
+		free(word);
+		if (pp.D)
+			free(pp.D);
+		if (TT.D)
+			free(TT.D);
+		return;
+	}	
+	if ((T->N>1)&&(T->N!=t->N))
+	{
+		Warning("The T-array must either have length one or be equal in length as the t-array\n");
+		free(word);
+		if (pp.D)
+			free(pp.D);
+		if (TT.D)
+			free(TT.D);
+		return;
+	}	
+	
+	sunrise.D=malloc(t->N*sizeof(double));
+	if (sunrise.D==NULL)
+	{
+		Warning("Could not allocate memory for the sun rise time\n");
+		free(word);
+		if (pp.D)
+			free(pp.D);
+		if (TT.D)
+			free(TT.D);
+		return;
+	}		
+	sunrise.N=t->N;
+	sunset.D=malloc(t->N*sizeof(double));
+	if (sunset.D==NULL)
+	{
+		Warning("Could not allocate memory for the sun set time\n");
+		free(word);
+		if (pp.D)
+			free(pp.D);
+		if (TT.D)
+			free(TT.D);
+		return;
+	}		
+	sunset.N=t->N;
+	transit.D=malloc(t->N*sizeof(double));
+	if (transit.D==NULL)
+	{
+		Warning("Could not allocate memory for the sun transit time\n");
+		free(word);
+		if (pp.D)
+			free(pp.D);
+		if (TT.D)
+			free(TT.D);
+		return;
+	}		
+	transit.N=t->N;
+	
+	
+	printf("Computing solar times for %d instances\n",t->N);
+	for (i=0;i<t->N;i++)
+	{
+		s=ssdp_suntimes((time_t)t->D[i], lat, lon, E, p->D[i%p->N], T->D[i%T->N],&t1,&t2,&t3);
+		sunrise.D[i]=(double)t1;
+		transit.D[i]=(double)t1;
+		sunset.D[i]=(double)t3;
+	}
+	if (pp.D)
+		free(pp.D);
+	if (TT.D)
+		free(TT.D);
+	
+	if (!GetArg(in, "sunrise", word))
+	{
+		free(word);
+		free(sunrise.D);
+	}
+	else
+	{
+		printf("Creating array %s\n",word);
+		if(AddArray(word, sunrise))
+		{
+			free(word); // failed to make array
+			free(sunrise.D);
+			free(sunset.D);
+			free(transit.D);
+			return;
+		}
+		word=malloc((strlen(in)+1)*sizeof(char));
+	}
+	if (!GetArg(in, "transit", word))
+	{
+		free(word);
+		free(transit.D);
+	}
+	else
+	{
+		printf("Creating array %s\n",word);
+		if(AddArray(word, transit))
+		{
+			free(word); // failed to make array
+			free(sunset.D);
+			free(transit.D);
+			return;
+		}
+	}
+	if (!GetArg(in, "sunset", word))
+	{
+		free(word);
+		free(sunset.D);
+	}
+	else
+	{
+		printf("Creating array %s\n",word);
+		if(AddArray(word, sunset))
+		{
+			free(word); // failed to make array
+			free(sunset.D);
+			return;
+		}
+		word=malloc((strlen(in)+1)*sizeof(char));
+	}	
+}
+
+/*
+BEGIN_DESCRIPTION
+SECTION Simulation
 PARSEFLAG export_sky ExportSky "C=<in-config> t=<in-array> p=<in-array> T=<in-array> GHI=<in-array> DHI=<in-array> index=<in-int> file=<in-string>"
 DESCRIPTION Exports a 3D polar plot of a sky according to the Perez All Weather Sky model. It only exports one location. You need to specify the index of the location (starting at index 0).
 ARGUMENT C config-variable
