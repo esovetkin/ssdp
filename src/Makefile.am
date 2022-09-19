@@ -26,7 +26,7 @@ nodist_libssdp_la_SOURCES = errorflags.h errormessages.h libssdp_structs.h
 bin_PROGRAMS = ssdp
 ssdp_SOURCES = lio.c variables.c parser.c configparser.c arrayparser.c topoparser.c simparser.c readlineshell.c util.c ssdp.c lio.h variables.h parser.h parserutil.h readlineshell.h util.h winunistd.h gen_parserflags.sh gen_errorflags.sh collect_datastructs.sh gen_ssdpdoc.sh 
 if OPENMP
-ssdp_LDFLAGS= -lreadline -fopenmp
+ssdp_LDFLAGS= -lreadline -fopenmp -lm
 ssdp_CFLAGS = $(AM_CFLAGS) -DOPENMP -fopenmp
 else
 ssdp_LDFLAGS= -lreadline

@@ -748,14 +748,13 @@ void SolarPos(char *in)
 		free(word);
 		return;
 	}
-	lon=deg2rad(lon);
 	if (FetchFloat(in, "lat", word, &lat))
 	{
 		free(word);
 		return;
 	}
+	lon=deg2rad(lon);
 	lat=deg2rad(lat);
-	
 	if (FetchOptFloat(in, "E", word, &E))
 		E=0;
 		
@@ -998,7 +997,7 @@ void SolarTimes(char *in)
 	printf("Computing solar times for %d instances\n",t->N);
 	for (i=0;i<t->N;i++)
 	{
-		s=ssdp_suntimes((time_t)t->D[i], lat, lon, E, p->D[i%p->N], T->D[i%T->N],&t1,&t2,&t3);
+		ssdp_suntimes((time_t)t->D[i], lat, lon, E, p->D[i%p->N], T->D[i%T->N],&t1,&t2,&t3);
 		sunrise.D[i]=(double)t1;
 		transit.D[i]=(double)t1;
 		sunset.D[i]=(double)t3;

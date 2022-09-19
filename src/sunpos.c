@@ -63,8 +63,9 @@ int suntimes(time_t t, double lat, double lon, double e, double p, double T, tim
 	{	 
 		// ERRORFLAG GMTIMENULL  "Error: gmtime returned NULL" 
 		AddErr(GMTIMENULL); 
-		s.z=0;         
-		s.a=0;
+		(*sunrise)=0;         
+		(*transit)=0;         
+		(*sunset)=0; 
 	}
 	return 2;// return vlalue >1 indicates an error
 }
