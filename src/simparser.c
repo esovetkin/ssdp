@@ -1040,6 +1040,7 @@ void SolarTimes(char *in)
 			free(transit.D);
 			return;
 		}
+		word=malloc((strlen(in)+1)*sizeof(char));
 	}
 	if (!GetArg(in, "sunset", word))
 	{
@@ -1055,7 +1056,6 @@ void SolarTimes(char *in)
 			free(sunset.D);
 			return;
 		}
-		word=malloc((strlen(in)+1)*sizeof(char));
 	}	
 }
 

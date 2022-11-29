@@ -16,6 +16,7 @@ AM_INIT_AUTOMAKE()
 AC_PROG_CC
 AC_CONFIG_SRCDIR([src/sky_dome.c])
 AC_CONFIG_HEADERS([src/config.h])
+AC_CHECK_LIB(m,main)
 AC_CHECK_HEADERS([readline/readline.h, readline/rlconf.h], [HAVE_READLINE_H=yes], [HAVE_READLINE_H=no], [])
   if test "$HAVE_READLINE_H" = "no"; then
     AC_MSG_ERROR([GNU readline development header is not installed.])
