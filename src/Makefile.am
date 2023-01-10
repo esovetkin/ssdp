@@ -1,5 +1,5 @@
 AUTOMAKE_OPTIONS = subdir-objects
-SUBDIRS = freespa
+
 ACLOCAL_AMFLAGS = -I m4
 AM_CFLAGS = -Wall
 
@@ -18,7 +18,8 @@ ground.$(OBJEXT): errorflags.h
 shull.$(OBJEXT): errorflags.h
 delaunay.$(OBJEXT): errorflags.h
 ll.$(OBJEXT): errorflags.h
-error.$(OBJEXT): errorflags.h errormessages.h 
+error.$(OBJEXT): errorflags.h errormessages.h
+freespa/freespa.$(OBJEXT):
 sunpos.$(OBJEXT): errorflags.h freespa/freespa.h
 nodist_libssdp_la_SOURCES = errorflags.h errormessages.h libssdp_structs.h
 
