@@ -293,6 +293,10 @@ topogrid ssdp_make_topogrid(double *z, double x1, double y1, double x2, double y
 {
 	return MakeTopogrid(z,x1,y1,x2,y2,Nx,Ny);
 }
+topogrid ssdp_make_topogdal(double x1, double y1, double x2, double y2, char **fns, int nfns, double step, int epsg)
+{
+        return MakeTopoGDAL(x1, y1, x2, y2, fns, nfns, step, epsg);
+}
 topology ssdp_make_rand_topology(double dx, double dy, double dz, int N1, int N2)
 {
 	return CreateRandomTopology(dx, dy, dz, N1, N2);

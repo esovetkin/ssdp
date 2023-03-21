@@ -347,4 +347,73 @@ void Help(char *in)
 }
 
 
+int GetNumOption(const char *in, const char *opt, int i, char *word)
+{
+	char *start;
+	char *opti;
+	int len, k;
+	len=1;
+	if (i<0)
+		len++;
+	k=abs(i);
+	while((k=k/10)>0)
+		len++;
 
+	len+=(strlen(opt)+2);
+	opti=malloc(len*sizeof(char));
+	snprintf(opti,len,"%s%d=",opt,i);
+	start=strstr(in, opti);
+
+	if (!start)
+	{
+		*word='\0';
+		free(opti);
+		return 0;
+	}
+	GetWord(start+len-1, word);
+	free(opti);
+	return 1;
+}
+
+
+struct cvec* cvec_init(int a) {
+        struct cvec *self;
+        self = malloc(sizeof(*self));
+        if (NULL == self) goto cvec_init_eself;
+
+        self->a = a > 0 ? a : 1;
+        self->n = 0;
+        self->s = malloc(sizeof(*self->s));
+        if (NULL == self->s) goto cvec_init_es;
+
+        return self;
+cvec_init_es:
+        free(self);
+cvec_init_eself:
+        return NULL;
+}
+
+
+void cvec_free(struct cvec *self)
+{
+        if (self->s)
+                free(self->s);
+        self->s = NULL;
+        free(self);
+        self = NULL;
+}
+
+
+int cvec_push(struct cvec *self, char *word)
+{
+        if (self->n == self->a) {
+                self->s = realloc(self->s, 2*self->a*sizeof(*self->s));
+                if (NULL == self->s) goto cvec_push_erealloc;
+        }
+
+        self->a *= 2;
+        self->s[self->n++] = word;
+        return 0;
+cvec_push_erealloc:
+        return -1;
+}

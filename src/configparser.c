@@ -14,6 +14,8 @@
 #include "variables.h"
 #include "parser.h"
 #include "parserutil.h"
+#include "epsg.h"
+#include "coordinates.h"
 
 /*
 BEGIN_DESCRIPTION
@@ -592,6 +594,83 @@ void ConfigTOPOGrid (char *in)
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation Configuration
+PARSEFLAG config_topogdal ConfigTOPOGDAL "C=<out-config> lat1=<float-value> lon1=<float-value> lat2=<float-value> lon2=<float-value> step=<float-value> f0=<file-str> f1=<file-str> .. fN=<file-str> [epsg=<1-float-array>]"
+DESCRIPTION Setup the topogrid. Load the z data (column major, from the south-west corner to the north-east corner).
+ARGUMENT lat1 latitude of the south-west corner (in WGS84, epsg:4326)
+ARGUMENT lon1 longitude of the south-west corner (in WGS84, epsg:4326)
+ARGUMENT lat2 latitude of the north-east corner (in WGS84, epsg:4326)
+ARGUMENT lon2 longitude of the north-east corner (in WGS84, epsg:4326)
+ARGUMENT fi input i-th raster file
+ARGUMENT step step at which rasters are sampled (units of step depend on epsg)
+ARGUMENT epsg optional coordinate system where to resample rasters. By default an approritate UTM system is used, which is determinted with the centre of the box
+OUTPUT C configuration variable
+END_DESCRIPTION
+*/
+void ConfigTOPOGDAL (char *in)
+{
+        simulation_config *C;
+        double x1, y1, x2, y2, step;
+        array *fepsg;
+        int i = 0, epsg = -1;
+        char *word;
+        word=malloc((strlen(in)+1)*sizeof(*word));
+        if (NULL == word) goto eword;
+
+        if (FetchConfig(in, "C", word, &C)) goto epars;
+        if (FetchFloat(in, "lat1", word, &x1)) goto epars;
+        if (FetchFloat(in, "lon1", word, &y1)) goto epars;
+        if (FetchFloat(in, "lat2", word, &x2)) goto epars;
+        if (FetchFloat(in, "lon2", word, &y2)) goto epars;
+        if (FetchFloat(in, "step", word, &step)) goto epars;
+
+        struct cvec *fns = cvec_init(4);
+        while(GetNumOption(in, "f", i, word)) {
+                if (cvec_push(fns, word)) goto efnspush;
+                word=malloc((strlen(in)+1)*sizeof(*word));
+                if (NULL == word) goto efnspush;
+                ++i;
+        }
+
+        if (FetchOptArray(in, "epsg", word, &fepsg)
+            || 1 != fepsg->N || fepsg->D[0] < 0)
+                epsg = determine_utm((x1+x2)/2, (y1+y2)/2);
+        else
+                epsg = (int)(fepsg->D[0]);
+
+        printf("Sampling with step=%.3f epsg=%d\n"
+               "\tbox: %.5f %.5f %.5f %.5f\n"
+               "\tfiles:\n",
+               step, epsg, x1, y1, x2, y2);
+        for (i=0; i < fns->n; ++i)
+                printf("\t%s\n", fns->s[i]);
+
+        if (C->grid_init)
+                ssdp_free_topogrid(&C->Tx);
+        else
+                C->grid_init = 1;
+
+        C->Tx = ssdp_make_topogdal(x1, y1, x2, y2, fns->s, fns->n, step, epsg);
+        if (ssdp_error_state) goto emaketopogdal;
+
+        InitConfigGridMask(C);
+        if (ssdp_error_state) goto emaketopogdal;
+
+        return;
+emaketopogdal:
+        ssdp_print_error_messages();
+        ssdp_free_topogrid(&C->Tx);
+        C->grid_init=0;
+        ssdp_reset_errors();
+efnspush:
+        cvec_free(fns);
+epars:
+        free(word);
+eword:
+        return;
+}
+/*
+BEGIN_DESCRIPTION
+SECTION Simulation Configuration
 PARSEFLAG config_locations ConfigLoc "C=<out-config> x=<in-array> y=<in-array> z=<in-array> azimuth=<in-array> zenith=<in-array> [type=<topology/topogrid> [albedo=<in-float>]"
 DESCRIPTION Setup the topography. Load the x, y, and z data of the unstructured topography mesh into the configuration data.
 ARGUMENT x x coordinates
@@ -862,4 +941,112 @@ void RandTOPO (char *in)
 		ssdp_reset_errors();
 	}
 	return;
+}
+/*
+BEGIN_DESCRIPTION
+SECTION Coordinate System
+PARSEFLAG determine_utm DetermineUTM "epsg=<out-array> lat=<float-value> lon=<float-value>"
+DESCRIPTION Get EPSG code of the UTM system at a given location
+ARGUMENT lat latitude coordinates (in WGS84, epsg:4326)
+ARGUMENT lon longitude coordinates (in WGS84, epsg:4326)
+OUTPUT epsg integer epsg code
+END_DESCRIPTION
+*/
+void DetermineUTM(char *in)
+{
+        array a;
+        double lat, lon;
+        int epsg;
+        char *word;
+        word=malloc((strlen(in)+1)*sizeof(*word));
+        if (NULL == word) goto eword;
+
+        if (FetchFloat(in, "lat", word, &lat)) goto epars;
+        if (FetchFloat(in, "lon", word, &lon)) goto epars;
+        if (!GetArg(in, "epsg", word)) goto epars;
+
+        epsg = determine_utm(lat, lon);
+        a.D = malloc(sizeof(*a.D));
+        if (NULL == a.D) goto epars;
+        a.N = 1;
+        a.D[0] = (double) epsg;
+
+        printf("UTM at (%.5f, %.5f) %s := %d\n", lat, lon, word, epsg);
+        if (AddArray(word, a)) goto eaddarray;
+
+        return;
+eaddarray:
+        free(a.D);
+epars:
+        free(word);
+eword:
+        return;
+}
+/*
+BEGIN_DESCRIPTION
+SECTION Coordinate System
+PARSEFLAG convert_epsg ConvertEPSG "x=<in/out-array> y=<in/out-array> epsg_src=<1-element-array> epsg_dst=<1-element-array>"
+DESCRIPTION Convert coordinate from one projection to another
+ARGUMENT x first (latitude) coordinate (in epsg_src)
+ARGUMENT y second (longitude) coordinate (in epsg_dst)
+ARGUMENT epsg_src source coordinate system (e.g. "4326" corresponds to the WGS84 or GPS system)
+ARGUMENT epsg_dst destination coordinate system
+OUTPUT x,y output coordinates
+END_DESCRIPTION
+*/
+void ConvertEPSG(char *in)
+{
+        int i;
+        char *word;
+        word=malloc((strlen(in)+1)*sizeof(*word));
+        if (NULL == word) goto eword;
+
+        array *x, *y, *es, *ed;
+        if (FetchArray(in, "x", word, &x)) goto epars;
+        if (FetchArray(in, "y", word, &y)) goto epars;
+        if (FetchArray(in, "epsg_src", word, &es)) goto epars;
+        if (FetchArray(in, "epsg_dst", word, &ed)) goto epars;
+
+        if (x->N != y->N) {
+                Warning("arrays have different lengths!\n"
+                        "\tlen(x) = %d\n"
+                        "\tlen(y) = %d\n",
+                        x->N, y->N);
+                goto epars;
+        }
+
+        if (1 != es->N || 1 != ed->N) {
+                Warning("epsg array is not size 1!\n"
+                       "\t len(epsg_src) = %d\n"
+                       "\t len(epsg_dst) = %d\n",
+                       es->N, ed->N);
+                goto epars;
+        }
+
+        struct epsg *pc = epsg_init_epsg((int)es->D[0],(int)ed->D[0]);
+        if (NULL == pc) {
+                Warning("failed to init epsg context"
+                       "\t epsg_src = %d"
+                       "\t epsg_dst = %d",
+                       (int)es->D[0], (int)ed->D[0]);
+                goto epars;
+        }
+
+        struct point p;
+        printf("Converting coordinates from epsg:%d to epsg:%d\n",
+               (int)es->D[0], (int)ed->D[0]);
+        for (i=0; i<x->N;++i) {
+                p.x = x->D[i];
+                p.y = y->D[i];
+                convert_point(pc,&p,1);
+                x->D[i] = p.x;
+                y->D[i] = p.y;
+        }
+
+        epsg_free(pc);
+        return;
+epars:
+        free(word);
+eword:
+        return;
 }

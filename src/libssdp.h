@@ -66,6 +66,7 @@ int ssdp_below_horizon(location *l, sky_pos p);
 // create a topology from a point cloud
 topology ssdp_make_topology(double *x, double *y, double *z, int N);
 topogrid ssdp_make_topogrid(double *z, double x1, double y1, double x2, double y2, int Nx, int Ny);
+topogrid ssdp_make_topogdal(double x1, double y1, double x2, double y2, char **fns, int nfns, double step, int epsg);
 // create random topologies for testing
 topology ssdp_make_rand_topology(double dx, double dy, double dz, int N1, int N2);
 void ssdp_free_topology(topology *T);

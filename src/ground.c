@@ -32,6 +32,8 @@
 #include "error.h"
 #include "config.h"
 #include "fatan2.h"
+#include "epsg.h"
+#include "topogdal.h"
 // sort triangle list by height
 int tcomp(const void *a, const void *b)
 { 
@@ -302,6 +304,36 @@ topogrid MakeTopogrid(double *z, double x1, double y1, double x2, double y2, int
 	T.y2=y2;
 	return T;
 }
+
+
+topogrid MakeTopoGDAL(double x1, double y1, double x2, double y2, char **fns, int nfns, double step, int epsg)
+{
+        topogrid T={NULL,NULL,NULL,NULL,0,0,0,0,0,1,1};
+        struct coordinates *lcs = box2coordinates(x1,y1,x2,y2,step,epsg);
+        if (NULL == lcs) goto maketopogdal_elcs;
+
+        struct gdaldata *gd = gdaldata_init(fns, nfns);
+        if (NULL == gd) goto maketopogdal_egd;
+
+        double *z;
+        z = topogrid_from_gdal(gd, lcs);
+        if (NULL == z) goto maketopogdal_ez;
+
+        T = MakeTopogrid(z, lcs->y1, lcs->x1, lcs->y2, lcs->x2, lcs->ny, lcs->nx);
+
+        free(z);
+        gdaldata_free(gd);
+        coordinates_free(lcs);
+        return T;
+maketopogdal_ez:
+        gdaldata_free(gd);
+maketopogdal_egd:
+        coordinates_free(lcs);
+maketopogdal_elcs:
+        AddErr(MALLOCFAILTOPOGRID);
+        return T;
+}
+
 
 void free_topo (topology *T)
 {

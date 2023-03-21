@@ -99,14 +99,4 @@ void raster_free(struct raster *self);
  */
 double* topogrid_from_gdal(struct gdaldata*, struct coordinates*);
 
-// TODO: config_topogdal C=<out-config> x1=<f> y1=<f> x2=<f> y2=<f> step=<f> epsg=<d> a0=<file1-str> a1=<file2-str> ... aN=<fileN-str>
-// x1,y1,x2,y2 define bounding box in epsg:4326
-// step defines step in meters
-// epsg should be optional as determine_epsg gives local utm thing.
-// a0 a1 ... aN defines filepaths
-//
-// config_topogdal initialises topogrid by reading provided files at specific locations
-
-// struct topogrid topogrid_from_gdal(struct gdaldata*, struct coordinates*);
-
 #endif

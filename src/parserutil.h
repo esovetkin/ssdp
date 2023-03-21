@@ -16,10 +16,21 @@
 	#define TOC() ((double)(clock()-tic)/CLOCKS_PER_SEC)
 #endif // OPENMP
 
+struct cvec {
+        char **s;
+        int a, n;
+};
+
+struct cvec* cvec_init(int a);
+void cvec_free();
+// returns -1 on realloc fails
+int cvec_push(struct cvec*, char *word);
+
 /* utility function to write parsers */
 char * GetWord(const char *in, char *word);
 int GetOption(const char *in, const char *opt, char *word);
 int GetArg(const char *in, const char *opt, char *word);
+int GetNumOption(const char *in, const char *opt, int i, char *word);
 
 int FetchConfig(const char *in, const char *pat, char *str, simulation_config **a);
 int FetchArray(const char *in, const char *pat, char *str, array **a);

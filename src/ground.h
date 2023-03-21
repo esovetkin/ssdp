@@ -38,6 +38,7 @@ typedef struct topogrid {
 
 topology MakeTopology(double *x, double *y, double *z, int N);
 topogrid MakeTopogrid(double *z, double x1, double y1, double x2, double y2, int Nx, int Ny);
+topogrid MakeTopoGDAL(double x1, double y1, double x2, double y2, char **fns, int nfns, double step, int epsg);
 
 topology CreateRandomTopology(double dx, double dy, double dz, int N1, int N2);
 void free_topo (topology *T);

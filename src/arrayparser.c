@@ -142,34 +142,6 @@ void array_comp(char *in)
 	}	
 }
 
-
-int GetNumOption(char *in, char *opt, int i, char *word)
-{
-	char *start;
-	char *opti;
-	int len, k;
-	len=1;
-	if (i<0)
-		len++;
-	k=abs(i);
-	while((k=k/10)>0)
-		len++;
-		
-	len+=(strlen(opt)+2);
-	opti=malloc(len*sizeof(char));
-	snprintf(opti,len,"%s%d=",opt,i);
-	start=strstr(in, opti);
-	
-	if (!start)
-	{
-		*word='\0';
-		free(opti);	
-		return 0;
-	}	
-	GetWord(start+len-1, word);
-	free(opti);	
-	return 1;
-}
 /*
 BEGIN_DESCRIPTION
 SECTION Array
