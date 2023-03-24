@@ -22,7 +22,7 @@ shift
 for s in $@
 do
 	echo Collecting parsing flags from $s
-	egrep -o 'PARSEFLAG.*' "$srcdir/$s" | sort | uniq >>tmpflags
+	grep -o -E 'PARSEFLAG.*' "$srcdir/$s" | sort | uniq >>tmpflags
 done
 
 # create the parse flag defines
