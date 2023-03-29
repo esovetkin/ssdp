@@ -44,8 +44,6 @@ struct gdaldata* gdaldata_init(const char *fns[], int nfs)
 
         if (NULL == (self->ds = malloc(nfs*sizeof(*self->ds))))
                 goto ds_emalloc;
-        if (NULL == (self->pj = malloc(nfs*sizeof(*self->pj))))
-                goto pj_emalloc;
         if (NULL == (self->br = malloc(nfs*sizeof(*self->br))))
                 goto br_emalloc;
         if (NULL == (self->gt = malloc(nfs*sizeof(*self->gt))))
@@ -70,14 +68,24 @@ struct gdaldata* gdaldata_init(const char *fns[], int nfs)
                 if (set_geotransform(&self->ds[i], &self->gt[i]))
                         goto loop_egdal;
 
-                self->pj[i] = epsg_init("EPSG:4326",GDALGetProjectionRef(self->ds[i]));
-                if (NULL == self->pj[i])
-                        goto loop_egdal;
-
                 self->br[i] = raster_corners(self->gt[i].d, self->gt[i].nx, self->gt[i].ny);
         }
 
+        int nepj = 0;
+        if (NULL == (self->pj = malloc(nfs*sizeof(*self->pj))))
+                goto loop_epj;
+        for (i=0; i < nfs; ++i) {
+                self->pj[i] = epsg_init("EPSG:4326",GDALGetProjectionRef(self->ds[i]));
+                if (NULL == self->pj[i])
+                        goto loop_epj;
+                ++nepj;
+        }
+
         return self;
+loop_epj:
+        for (i=0; i < nepj; ++i)
+                epsg_free(self->pj[i]);
+        free(self->pj);
 loop_egdal:
         for (i=0; i < self->nds; ++i)
                 GDALClose(self->ds[i]);
@@ -85,8 +93,6 @@ loop_egdal:
 gt_emalloc:
         free(self->br);
 br_emalloc:
-        free(self->pj);
-pj_emalloc:
         free(self->ds);
 ds_emalloc:
         free(self);
@@ -98,24 +104,30 @@ self_emalloc:
 void gdaldata_free(struct gdaldata* self) {
         int i;
 
-        for (i=0; i < self->nds; ++i)
-                GDALClose(self->ds[i]);
+        if (NULL == self)
+                return;
 
-        if (self->gt)
-                free(self->gt);
-        self->gt = NULL;
+        if (self->ds) {
+                for (i=0; i < self->nds; ++i)
+                        GDALClose(self->ds[i]);
+                free(self->ds);
+                self->ds = NULL;
+        }
+
+        if (self->pj) {
+                for (i=0; i < self->nds; ++i)
+                        epsg_free(self->pj[i]);
+                free(self->pj);
+                self->pj = NULL;
+        }
 
         if (self->br)
                 free(self->br);
         self->br = NULL;
 
-        if (self->pj)
-                free(self->pj);
-        self->pj = NULL;
-
-        if (self->ds)
-                free(self->ds);
-        self->ds = NULL;
+        if (self->gt)
+                free(self->gt);
+        self->gt = NULL;
 
         self->nds = 0;
         free(self);
