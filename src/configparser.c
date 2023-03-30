@@ -655,6 +655,7 @@ void ConfigTOPOGDAL (char *in)
         InitConfigGridMask(C);
         if (ssdp_error_state) goto emaketopogdal;
 
+        cvec_free(fns);
         return;
 emaketopogdal:
         ssdp_print_error_messages();
