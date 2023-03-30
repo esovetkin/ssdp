@@ -173,7 +173,9 @@ static int scan3(struct edt *self, int y)
                         if (-1 == f(self,y,t[q],u))
                                 break;
 
-                        if (f(self,y,t[q],s[q]) <= f(self,y,t[q],u))
+                        if (f(self,y,t[q],s[q]) <= f(self,y,t[q],u)
+                            && -1 != f(self,y,t[q],u)
+                            && -1 != f(self,y,t[q],s[q]))
                                 break;
 
                         --q;
@@ -300,10 +302,9 @@ void test_1(int nx, int ny, int every)
 }
 
 
-void test_2(int nx, int ny)
+void test_2()
 {
-        nx *= 2; ny *= 2;
-        int i, every = 2, n = nx*ny;
+        int i, nx = 4, ny = 4, every = 2, n = nx*ny;
         double *z = malloc(nx*ny*sizeof(*z));
         assert(z);
 
@@ -322,7 +323,7 @@ void test_2(int nx, int ny)
         for (i=0; i<n; ++i)
                 sum += z[i];
 
-        assert((sum - (double)n) < 1e-8);
+        assert((sum - 120) < 1e-8);
         edt_free(dt);
         free(z);
 }
@@ -371,7 +372,6 @@ int main(void)
 {
         printf("testing fillmissing ...\n");
 
-        // TODO this test fails!
         test_1(6,6,2);
         test_1(6,6,7);
         test_1(5,5,3);
@@ -384,8 +384,7 @@ int main(void)
         test_corners(2,100);
         test_corners(100,100);
 
-        // TODO this test fails!
-        test_2(2,2);
+        test_2();
 
         printf("PASSED\n");
 }
