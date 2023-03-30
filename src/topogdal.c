@@ -7,6 +7,21 @@
 #include "edt.h"
 
 
+void save_raster(double *d, int nd)
+{
+        int i;
+        FILE *fd;
+        fd = fopen("raster.txt", "w");
+        if (NULL == fd) goto efopen;
+
+        for (i=0; i < nd; ++i)
+                fprintf(fd, "%.5f\n", d[i]);
+        fclose(fd);
+efopen:
+        return;
+}
+
+
 static struct poly4 raster_corners(double gt[6], int xs, int ys)
 {
         struct poly4 br;
@@ -191,10 +206,10 @@ static void conv_box(int out[4], struct gdaldata *gd, int i,
         GDALApplyGeoTransform(gd->gt[i].i, cb.p[2].y, cb.p[2].x, &pb.p[2].y, &pb.p[2].x);
         GDALApplyGeoTransform(gd->gt[i].i, cb.p[3].y, cb.p[3].x, &pb.p[3].y, &pb.p[3].x);
 
-        out[0] = minp(&pb, 'y');
-        out[1] = minp(&pb, 'x');
-        out[2] = maxp(&pb, 'y') - out[0] + 1;
-        out[3] = maxp(&pb, 'x') - out[1] + 1;
+        out[0] = minp(&pb, 'x');
+        out[1] = minp(&pb, 'y');
+        out[2] = maxp(&pb, 'x') - out[0] + 1;
+        out[3] = maxp(&pb, 'y') - out[1] + 1;
 
         if (out[0] < 0)
                 out[0] = 0;
@@ -247,10 +262,10 @@ struct raster* raster_init(struct gdaldata *gd, int i, struct poly4 *cb)
         }
 
         if (GDALRasterIO(hband, GF_Read,
-                         self->xoff, self->yoff,
-                         self->xsize, self->ysize,
+                         self->yoff, self->xoff,
+                         self->ysize, self->xsize,
                          self->d,
-                         self->xsize, self->ysize,
+                         self->ysize, self->xsize,
                          GDT_Float64, 0, 0 )) {
                 AddErr(GDALRASTEREREAD);
                 goto erasterio;
@@ -287,13 +302,13 @@ static double get_pixel(struct geotransform *gt, struct raster *r, struct point 
                 return -9999.0;
 
         GDALApplyGeoTransform(gt->i, p->y, p->x, &v, &u);
-        u -= r->yoff;
-        v -= r->xoff;
+        u -= r->xoff;
+        v -= r->yoff;
 
-        if (u < 0 || u >= r->ysize || v < 0 || v >= r->xsize)
+        if (u < 0 || u >= r->xsize || v < 0 || v >= r->ysize)
                 return -9999.0;
 
-        return r->d[(int) u * r->xsize + (int) v];
+        return r->d[(int) u * r->ysize + (int) v];
 }
 
 
