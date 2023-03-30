@@ -74,6 +74,7 @@ void gdaldata_free(struct gdaldata*);
  */
 struct raster {
         double *d;
+        double nodata_value;
         int xoff, yoff, xsize, ysize, n;
 };
 

@@ -1,9 +1,11 @@
 #include <stdlib.h>
+#include <math.h>
+#include <float.h>
 
 #include "edt.h"
 
 
-struct edt* edt_init(double *z, int n, int nx, int ny)
+struct edt* edt_init(double *z, int n, int nx, int ny, double missing_value)
 {
         struct edt *self;
         self = malloc(sizeof(*self));
@@ -13,7 +15,7 @@ struct edt* edt_init(double *z, int n, int nx, int ny)
         self->n = n;
         self->nx = nx;
         self->ny = ny;
-        self->missing_value = -9000;
+        self->missing_value = nextafter(missing_value, DBL_MAX);
 
         self->x = malloc(n*sizeof(*self->x));
         if (NULL == self->x) goto edt_ex;
@@ -280,18 +282,18 @@ void test_1(int nx, int ny, int every)
         double *z = malloc(nx*ny*sizeof(*z));
         assert(z);
 
-        struct edt *dt = edt_init(z, n, nx, ny);
+        struct edt *dt = edt_init(z, n, nx, ny, -9000.0);
         assert(dt);
 
         for (i=0; i<n; ++i)
-                z[i] = (i % every ? -9999.0 : 0.0);
+                z[i] = (i % every ? -9000.0 : 0.0);
 
         edt_compute(dt);
         edt_fill(dt);
         assert_zero(dt);
 
         for (i=0; i<n; ++i)
-                z[i] = (i % every ? 0.0 : -9999.0);
+                z[i] = (i % every ? 0.0 : -9000.0);
 
         edt_compute(dt);
         edt_fill(dt);
@@ -309,9 +311,9 @@ void test_2()
         assert(z);
 
         for (i=0; i<n; ++i)
-                z[i] = (i % every ? (double)i : -9999.0);
+                z[i] = (i % every ? (double)i : -9000.0);
 
-        struct edt *dt = edt_init(z, n, nx, ny);
+        struct edt *dt = edt_init(z, n, nx, ny, -9000.0);
         assert(dt);
 
         edt_compute(dt);
@@ -339,7 +341,7 @@ void test_corners(int nx, int ny)
         ndx = malloc(nx*ny*sizeof(*ndx));
         assert(ndx);
 
-        struct edt *dt = edt_init(z, n, nx, ny);
+        struct edt *dt = edt_init(z, n, nx, ny, -9000.0);
         assert(dt);
 
         for (i=0; i<n; ++i) {
@@ -350,7 +352,7 @@ void test_corners(int nx, int ny)
                         continue;
                 }
 
-                z[i] = -9999.0;
+                z[i] = -9000.0;
         }
 
         edt_compute(dt);

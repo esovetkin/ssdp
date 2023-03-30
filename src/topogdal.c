@@ -1,5 +1,6 @@
 #include <cpl_conv.h> /* for CPLMalloc() */
 #include <math.h>
+#include <float.h>
 
 #include "error.h"
 #include "epsg.h"
@@ -238,6 +239,11 @@ struct raster* raster_init(struct gdaldata *gd, int i, struct poly4 *cb)
         GDALRasterBandH hband;
         hband = GDALGetRasterBand(gd->ds[i], 1);
 
+        int err;
+        self->nodata_value = GDALGetRasterNoDataValue(hband, &err);
+        if (0 == err)
+                self->nodata_value = -9999.0;
+
         int rb[4];
         conv_box(rb, gd, i, *cb,
                  GDALGetRasterBandXSize(hband),
@@ -293,34 +299,34 @@ void raster_free(struct raster *self)
 }
 
 
-static double get_pixel(struct geotransform *gt, struct raster *r, struct point *p)
+static double get_pixel(struct geotransform *gt, struct raster *r, struct point *p, double nodatav)
 {
         double u, v;
 
         // case when raster has no data
         if (0 == r->n)
-                return -9999.0;
+                return nodatav;
 
         GDALApplyGeoTransform(gt->i, p->y, p->x, &v, &u);
         u -= r->xoff;
         v -= r->yoff;
 
         if (u < 0 || u >= r->xsize || v < 0 || v >= r->ysize)
-                return -9999.0;
+                return nodatav;
 
         return r->d[(int) u * r->ysize + (int) v];
 }
 
 
-static double lookup_raster(struct gdaldata *gd, struct raster **r, struct point p)
+static double lookup_raster(struct gdaldata *gd, struct raster **r, struct point p, double nodatav)
 {
         int i;
-        double x, val = -9999.0;
+        double x, val = nodatav;
 
         for (i=0; i < gd->nds; ++i) {
                 convert_point(gd->pj[i], &p, 1);
 
-                x = get_pixel(&gd->gt[i], r[i], &p);
+                x = get_pixel(&gd->gt[i], r[i], &p, nodatav);
                 val = x > val ? x : val;
 
                 convert_point(gd->pj[i], &p, -1);
@@ -357,13 +363,17 @@ double* topogrid_from_gdal(struct gdaldata *gd, struct coordinates *locs)
                 nrd = i + 1;
         }
 
+        double nodatav = -DBL_MAX;
+        for (i=0; i < gd->nds; ++i)
+                nodatav = nodatav > rd[i]->nodata_value ? nodatav : rd[i]->nodata_value;
+
         for (i=0; i<locs->np; ++i)
-                z[i] = lookup_raster(gd, rd, locs->p[i]);
+                z[i] = lookup_raster(gd, rd, locs->p[i], nodatav);
 
         free_rasters(rd, nrd);
 
         // fill the missing values
-        struct edt *dt = edt_init(z, locs->np, locs->nx, locs->ny);
+        struct edt *dt = edt_init(z, locs->np, locs->nx, locs->ny, nodatav);
         if (NULL == dt) goto eedt_init;
         edt_compute(dt);
         edt_fill(dt);

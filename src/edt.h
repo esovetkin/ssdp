@@ -21,9 +21,8 @@
  *
  * @z: **borrowed** array. memory management of z is done outside.
  *
- * @missing_value: upper limit, values below are considered
- * missing. pdal does -9999.0, I had used the same convention in
- * PV-GRIP. we use the value of -9000 here.
+ * @missing_value: upper limit, values below (or equal) are considered
+ * missing.
  *
  * @s, @t: s and t arrays from the second stage
  */
@@ -36,7 +35,7 @@ struct edt {
 };
 
 
-struct edt* edt_init(double *z, int n, int nx, int ny);
+struct edt* edt_init(double *z, int n, int nx, int ny, double missing_value);
 void edt_free(struct edt*);
 
 void edt_compute(struct edt*);
