@@ -381,9 +381,9 @@ struct cvec* cvec_init(int a) {
         self = malloc(sizeof(*self));
         if (NULL == self) goto cvec_init_eself;
 
-        self->a = a > 0 ? a : 1;
+        self->astep = a > 0 ? a : 1;
         self->n = 0;
-        self->s = malloc(sizeof(*self->s));
+        self->s = malloc(self->astep * sizeof(*self->s));
         if (NULL == self->s) goto cvec_init_es;
 
         return self;
@@ -396,8 +396,12 @@ cvec_init_eself:
 
 void cvec_free(struct cvec *self)
 {
-        if (self->s)
+        if (self->s) {
+                int i;
+                for (i=0; i<self->n; ++i)
+                        free(self->s[i]);
                 free(self->s);
+        }
         self->s = NULL;
         free(self);
         self = NULL;
@@ -407,11 +411,11 @@ void cvec_free(struct cvec *self)
 int cvec_push(struct cvec *self, char *word)
 {
         if (self->n == self->a) {
-                self->s = realloc(self->s, 2*self->a*sizeof(*self->s));
+                self->s = realloc(self->s, (self->a + self->astep)*sizeof(*self->s));
                 if (NULL == self->s) goto cvec_push_erealloc;
+                self->a += self->astep;
         }
 
-        self->a *= 2;
         self->s[self->n++] = word;
         return 0;
 cvec_push_erealloc:

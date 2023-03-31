@@ -18,7 +18,7 @@
 
 struct cvec {
         char **s;
-        int a, n;
+        int astep, a, n;
 };
 
 struct cvec* cvec_init(int a);
