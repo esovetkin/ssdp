@@ -40,6 +40,10 @@ struct geotransform {
  *
  * @gt: geotransform data
  *
+ * @na_value: stores the maximum of missing values among all rasters
+ * (NoData Value in GDAL's nomenclature). If any NoData Value field is
+ * missing, -9999.0 is used.
+ *
  * @nds: number of raster used
  */
 struct gdaldata {
@@ -47,6 +51,7 @@ struct gdaldata {
         struct epsg **pj;
         struct poly4 *br;
         struct geotransform *gt;
+        double na_value;
         int nds;
 };
 
@@ -74,7 +79,6 @@ void gdaldata_free(struct gdaldata*);
  */
 struct raster {
         double *d;
-        double nodata_value;
         int xoff, yoff, xsize, ysize, n;
 };
 

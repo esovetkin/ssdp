@@ -46,6 +46,29 @@ einvtransform:
 }
 
 
+static void set_na_value(struct gdaldata *self, double default_na)
+{
+        if (0 == self->nds) {
+                self->na_value = default_na;
+                return;
+        }
+
+        int i, err;
+        double x, na_v = -DBL_MAX;
+
+        for (i=0; i < self->nds; ++i) {
+                GDALRasterBandH hband;
+                hband = GDALGetRasterBand(self->ds[i], 1);
+
+                x = GDALGetRasterNoDataValue(hband, &err);
+                x = 0 == err ? default_na : x;
+                na_v = na_v > x ? na_v : x;
+        }
+
+        self->na_value = na_v;
+}
+
+
 // ERRORFLAG GDALNCHANNELNOTONE "Provided raster has channels != 1"
 // ERRORFLAG GDALREADFAILED "Cannot read provided raster"
 struct gdaldata* gdaldata_init(const char *fns[], int nfs)
@@ -86,6 +109,8 @@ struct gdaldata* gdaldata_init(const char *fns[], int nfs)
 
                 self->br[i] = raster_corners(self->gt[i].d, self->gt[i].nx, self->gt[i].ny);
         }
+
+        set_na_value(self, -9999.0);
 
         int nepj = 0;
         if (NULL == (self->pj = malloc(nfs*sizeof(*self->pj))))
@@ -239,11 +264,6 @@ struct raster* raster_init(struct gdaldata *gd, int i, struct poly4 *cb)
         GDALRasterBandH hband;
         hband = GDALGetRasterBand(gd->ds[i], 1);
 
-        int err;
-        self->nodata_value = GDALGetRasterNoDataValue(hband, &err);
-        if (0 == err)
-                self->nodata_value = -9999.0;
-
         int rb[4];
         conv_box(rb, gd, i, *cb,
                  GDALGetRasterBandXSize(hband),
@@ -318,30 +338,33 @@ static double get_pixel(struct geotransform *gt, struct raster *r, struct point 
 }
 
 
-static double lookup_raster(struct gdaldata *gd, struct raster **r, struct point p, double nodatav)
+static int process_raster(double *z, struct gdaldata *gd, int raster_id, struct coordinates *locs)
 {
+        struct raster *rd;
+        rd = raster_init(gd, raster_id, &locs->br);
+        if (NULL == rd) goto eraster_init;
+
         int i;
-        double x, val = nodatav;
+        double x;
+        struct point p;
 
-        for (i=0; i < gd->nds; ++i) {
-                convert_point(gd->pj[i], &p, 1);
+        for (i=0; i<locs->np; ++i) {
+                // init z with the missing value
+                if (0 == raster_id)
+                        z[i] = gd->na_value;
 
-                x = get_pixel(&gd->gt[i], r[i], &p, nodatav);
-                val = x > val ? x : val;
+                p.x = locs->p[i].x; p.y = locs->p[i].y;
+                convert_point(gd->pj[raster_id], &p, 1);
 
-                convert_point(gd->pj[i], &p, -1);
+                // take maximum from all rasters
+                x = get_pixel(&gd->gt[raster_id], rd, &p, gd->na_value);
+                z[i] = x > z[i] ? x : z[i];
         }
 
-        return val;
-}
-
-
-void free_rasters(struct raster **rd, int nrd)
-{
-        int i;
-        for (i=0; i<nrd; ++i)
-                raster_free(rd[i]);
-        free(rd);
+        raster_free(rd);
+        return 0;
+eraster_init:
+        return -1;
 }
 
 
@@ -351,29 +374,14 @@ double* topogrid_from_gdal(struct gdaldata *gd, struct coordinates *locs)
         if (NULL == (z = malloc(locs->np*sizeof(*z))))
                 goto z_emalloc;
 
-        struct raster **rd;
-        if (NULL == (rd = malloc(gd->nds*sizeof(*rd))))
-                goto rd_emalloc;
-
-        // read patches of rasters in memory
-        int i, nrd = 0;
+        int i, err;
         for (i=0; i<gd->nds; ++i) {
-                rd[i] = raster_init(gd, i, &locs->br);
-                if (NULL == rd[i]) goto eraster_init;
-                nrd = i + 1;
+                err = process_raster(z, gd, i, locs);
+                if (err < 0) goto eprocess_raster;
         }
 
-        double nodatav = -DBL_MAX;
-        for (i=0; i < gd->nds; ++i)
-                nodatav = nodatav > rd[i]->nodata_value ? nodatav : rd[i]->nodata_value;
-
-        for (i=0; i<locs->np; ++i)
-                z[i] = lookup_raster(gd, rd, locs->p[i], nodatav);
-
-        free_rasters(rd, nrd);
-
         // fill the missing values
-        struct edt *dt = edt_init(z, locs->np, locs->nx, locs->ny, nodatav);
+        struct edt *dt = edt_init(z, locs->np, locs->nx, locs->ny, gd->na_value);
         if (NULL == dt) goto eedt_init;
         edt_compute(dt);
         edt_fill(dt);
@@ -381,9 +389,7 @@ double* topogrid_from_gdal(struct gdaldata *gd, struct coordinates *locs)
 
         return z;
 eedt_init:
-eraster_init:
-        free_rasters(rd, nrd);
-rd_emalloc:
+eprocess_raster:
         free(z);
 z_emalloc:
         return NULL;
