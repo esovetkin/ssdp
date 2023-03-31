@@ -58,6 +58,9 @@ self_emalloc:
 
 void epsg_free(struct epsg *self)
 {
+        if (NULL == self)
+                return;
+
         if (self->P)
                 proj_destroy(self->P);
         self->P = NULL;
@@ -156,13 +159,26 @@ void test_2()
 }
 
 
+void test_epsg()
+{
+        struct epsg *pc;
+        pc = epsg_init_epsg(-42,4326);
+        assert(NULL == pc);
+        epsg_free(pc);
+        pc = epsg_init("EPSG:4326","");
+        assert(NULL == pc);
+        epsg_free(pc);
+}
+
+
 int main(void)
 {
-        printf("testing epsg ...\n");
+        printf("testing epsg ...");
 
         test_determine_epsg();
         test_1();
         test_2();
+        test_epsg();
 
         printf("PASSED\n");
         return 0;

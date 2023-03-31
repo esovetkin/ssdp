@@ -50,6 +50,9 @@ edt_eself:
 
 void edt_free(struct edt *self)
 {
+        if (NULL == self)
+                return;
+
         free(self->t);
         free(self->s);
         free(self->G);
@@ -372,7 +375,7 @@ void test_corners(int nx, int ny)
 
 int main(void)
 {
-        printf("testing fillmissing ...\n");
+        printf("testing fillmissing ...");
 
         test_1(6,6,2);
         test_1(6,6,7);

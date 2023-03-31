@@ -1,2 +1,2 @@
 AUTOMAKE_OPTIONS = foreign subdir-objects
-SUBDIRS = src
+SUBDIRS = src tests

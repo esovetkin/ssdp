@@ -71,8 +71,11 @@ static void set_na_value(struct gdaldata *self, double default_na)
 
 // ERRORFLAG GDALNCHANNELNOTONE "Provided raster has channels != 1"
 // ERRORFLAG GDALREADFAILED "Cannot read provided raster"
-struct gdaldata* gdaldata_init(const char *fns[], int nfs)
+struct gdaldata* gdaldata_init(const char **fns, int nfs)
 {
+        if (NULL == fns || nfs <= 0)
+                goto self_emalloc;
+
         struct gdaldata* self;
         self = malloc(sizeof(*self));
         if (NULL == self)
@@ -142,12 +145,12 @@ self_emalloc:
 }
 
 
-void gdaldata_free(struct gdaldata* self) {
-        int i;
-
+void gdaldata_free(struct gdaldata* self)
+{
         if (NULL == self)
                 return;
 
+        int i;
         if (self->ds) {
                 for (i=0; i < self->nds; ++i)
                         GDALClose(self->ds[i]);
@@ -261,6 +264,9 @@ struct raster* raster_init(struct gdaldata *gd, int i, struct poly4 *cb)
         if (NULL == self)
                 goto self_emalloc;
 
+        if (NULL == gd || i >= gd->nds)
+                goto self_emalloc;
+
         GDALRasterBandH hband;
         hband = GDALGetRasterBand(gd->ds[i], 1);
 
@@ -309,6 +315,9 @@ self_emalloc:
 
 void raster_free(struct raster *self)
 {
+        if (NULL == self)
+                return;
+
         if (self->d)
                 CPLFree(self->d);
         self->d = NULL;
@@ -394,3 +403,41 @@ eprocess_raster:
 z_emalloc:
         return NULL;
 }
+
+
+#ifdef RUNTEST
+
+#include <stdio.h>
+#include <assert.h>
+
+void test_dummyinit()
+{
+        struct raster* r;
+        struct gdaldata* g;
+
+        r = raster_init(NULL, 1241, NULL);
+        assert(NULL == r);
+        raster_free(r);
+
+        g = gdaldata_init(NULL, 0);
+        assert(NULL == g);
+        gdaldata_free(g);
+
+        const char *fns[1] = {"topogdal"};
+        g = gdaldata_init(fns, 1);
+        assert(NULL == g);
+        gdaldata_free(g);
+}
+
+
+int main(void)
+{
+        printf("testing topogdal ...");
+
+        test_dummyinit();
+
+        printf("PASSED\n");
+        return 0;
+}
+
+#endif

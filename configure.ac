@@ -166,6 +166,6 @@ AS_IF([test "x$gendaylit" == "xtrue"], [
 AC_SUBST(LIBVERSION, [ssdp_libversion])
 AC_DEFINE([LIBSSDPVERSION], ["[ssdp_libversion]"], [libssdp version string])
 AC_CONFIG_FILES([
- Makefile src/Makefile
+ Makefile src/Makefile tests/Makefile
 ])
 AC_OUTPUT

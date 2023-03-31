@@ -62,6 +62,9 @@ static void convert_array(struct epsg *pc, double *a, int na, double b, int iffi
 
 struct coordinates* coordinates_init(int n)
 {
+        if (n <= 0)
+                goto self_emalloc;
+
         struct coordinates* self;
         self = malloc(sizeof(*self));
         if (NULL == self)
@@ -82,6 +85,9 @@ self_emalloc:
 
 void coordinates_free(struct coordinates *self)
 {
+        if (NULL == self)
+                return;
+
         if (self->p)
                 free(self->p);
         self->p = NULL;
@@ -214,3 +220,57 @@ emesh:
 eprojc:
         return NULL;
 }
+
+
+#ifdef RUNTEST
+
+#include <stdio.h>
+#include <assert.h>
+
+
+void test_coords_init(void)
+{
+        struct coordinates* p;
+        p = coordinates_init(100);
+        assert(p);
+        coordinates_free(p);
+
+        p = coordinates_init(0);
+        assert(NULL == p);
+        coordinates_free(p);
+}
+
+
+void test_box2coordinates(void)
+{
+        int epsg;
+        epsg = determine_utm(-34.498, 149.491);
+
+        struct coordinates* p;
+        p = box2coordinates(-34.498, 149.491, -32.296, 151.754, 100, epsg);
+        assert(p);
+        coordinates_free(p);
+
+        p = box2coordinates(-34.498, 149.491, -32.296, 151.754, 500, epsg);
+        assert(p);
+        coordinates_free(p);
+
+        p = box2coordinates(-34.498, 149.491, -32.296, 151.754, 1500, epsg);
+        assert(p);
+        coordinates_free(p);
+}
+
+
+int main(void)
+{
+        printf("testing coordinates ...");
+
+        test_coords_init();
+        test_box2coordinates();
+
+        printf("PASSED\n");
+        return 0;
+}
+
+
+#endif

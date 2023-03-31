@@ -396,6 +396,9 @@ cvec_init_eself:
 
 void cvec_free(struct cvec *self)
 {
+        if (NULL == self)
+                return;
+
         if (self->s) {
                 int i;
                 for (i=0; i<self->n; ++i)
