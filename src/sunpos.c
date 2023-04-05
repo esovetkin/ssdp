@@ -17,7 +17,8 @@ sky_pos sunpos(time_t t, double lat, double lon, double e, double p, double T)
 	if (tp)
 	{	
 		
-		S=SPA(tp, NULL, 0, lon, lat, e, p, T);
+		S=SPA(tp, NULL, 0, lon, lat, e);
+		S=ApSolposBennet(S,NULL, e, p, T);
 		if (S.E)
 		{
 			// ERRORFLAG FREESPAERR  "Error: freespa failed" 
@@ -27,8 +28,8 @@ sky_pos sunpos(time_t t, double lat, double lon, double e, double p, double T)
 		}
 		else
 		{
-			s.z=S.az;         
-			s.a=S.aa;
+			s.z=S.z;         
+			s.a=S.a;
 		}
 	}   
 	else
@@ -44,20 +45,38 @@ sky_pos sunpos(time_t t, double lat, double lon, double e, double p, double T)
 int suntimes(time_t t, double lat, double lon, double e, double p, double T, time_t *sunrise, time_t *transit, time_t *sunset)
 {
 	sol_pos S;
+	solar_day D;
 	struct tm ut, *tp;
-	struct tm Sr, Ss, St;
-	int r;
+	int r=0;
 	tp=gmjtime_r(&t, &ut);
 	if (tp)
 	{	
-		r=SunTimes(ut, NULL, 0, lon, lat, e, p, T,&Sr, &St, &Ss);
-		if (sunrise)
-			(*sunrise)=mkgmjtime(&Sr);
-		if (transit)
-			(*transit)=mkgmjtime(&St);
-		if (sunset)
-			(*sunset)=mkgmjtime(&Ss);
-		return r; // -1: polar night, 0: normal, 1 midnight sun
+		// only compute sunrise and sunset
+		SDMASK=(_FREESPA_SUNRISE|_FREESPA_SUNSET);
+		D=SolarDay(tp, NULL, 0, lon, lat, e, NULL, p, T, &ApSolposBennet);
+						
+		if (D.status[3]==0)
+			(*sunrise)=D.t[3];
+		else
+		{
+			r|=1;
+			(*sunrise)=0;       
+		}
+		if (D.status[1]==0)
+			(*transit)=D.t[1];
+		else
+		{
+			r|=2;   
+			(*transit)=0;      
+		}
+		if (D.status[4]==0)
+			(*sunset)=D.t[4];
+		else
+		{
+			r|=4;       
+			(*sunset)=0; 
+		}
+		return r;
 	}   
 	else
 	{	 
@@ -67,6 +86,6 @@ int suntimes(time_t t, double lat, double lon, double e, double p, double T, tim
 		(*transit)=0;         
 		(*sunset)=0; 
 	}
-	return 2;// return vlalue >1 indicates an error
+	return 8;// return vlalue >0 indicates an error
 }
 

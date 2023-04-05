@@ -884,7 +884,7 @@ END_DESCRIPTION
 */
 void SolarTimes(char *in)
 {
-	int i;
+	int i, r;
 	char *word;
 	sky_pos s;
 	array *t, sunrise, sunset, transit, *p, *T;
@@ -997,10 +997,19 @@ void SolarTimes(char *in)
 	printf("Computing solar times for %d instances\n",t->N);
 	for (i=0;i<t->N;i++)
 	{
-		ssdp_suntimes((time_t)t->D[i], lat, lon, E, p->D[i%p->N], T->D[i%T->N],&t1,&t2,&t3);
-		sunrise.D[i]=(double)t1;
-		transit.D[i]=(double)t1;
-		sunset.D[i]=(double)t3;
+		r=ssdp_suntimes((time_t)t->D[i], lat, lon, E, p->D[i%p->N], T->D[i%T->N],&t1,&t2,&t3);
+		if (r&1)
+			sunrise.D[i]=NAN; // is this wise as a signal there was no sunrise that day?
+		else
+			sunrise.D[i]=(double)t1;
+		if (r&2)
+			transit.D[i]=NAN; // this is probably a full blown error, how can there be no transit time?
+		else
+			transit.D[i]=(double)t2;
+		if (r&4)
+			sunset.D[i]=NAN;
+		else
+			sunset.D[i]=(double)t3;
 	}
 	if (pp.D)
 		free(pp.D);
