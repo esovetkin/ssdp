@@ -14,7 +14,7 @@ coords_LDFLAGS = -lproj
 coords_LDADD = libepsg.la
 
 topogdal_SOURCES = $(top_builddir)/src/topogdal.c $(top_builddir)/src/error.c
-topogdal_CFLAGS = -DRUNTEST
+topogdal_CFLAGS = -DRUNTEST $(GDAL_CFLAGS)
 topogdal_LDFLAGS = -lproj $(GDAL_LDFLAGS)
 topogdal_LDADD = libepsg.la libcoordinates.la
 
