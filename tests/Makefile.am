@@ -16,10 +16,11 @@ coords_LDADD = libepsg.la
 topogdal_SOURCES = $(top_builddir)/src/topogdal.c $(top_builddir)/src/error.c
 topogdal_CFLAGS = -DRUNTEST $(GDAL_CFLAGS)
 topogdal_LDFLAGS = -lproj $(GDAL_LDFLAGS)
-topogdal_LDADD = libepsg.la libcoordinates.la
+topogdal_LDADD = libedt.la libepsg.la libcoordinates.la
 
-noinst_LTLIBRARIES = libcoordinates.la libepsg.la
+noinst_LTLIBRARIES = libcoordinates.la libepsg.la libedt.la
 libcoordinates_la_SOURCES = $(top_builddir)/src/coordinates.c
 libepsg_la_SOURCES = $(top_builddir)/src/epsg.c
+libedt_la_SOURCES = $(top_builddir)/src/edt.c
 
 TESTS=edt epsg coords topogdal
