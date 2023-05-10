@@ -306,7 +306,7 @@ void VarLister(char *in)
 BEGIN_DESCRIPTION
 SECTION General
 PARSEFLAG help Help "[-l/command]"
-DESCRIPTION Print basic help. If no arguments or the -l argument is given this will list all availablke help data. You can also request help on a specific command.
+DESCRIPTION Print basic help. If no arguments or the -l argument is given this will list all available help data. You can also request help on a specific command.
 END_DESCRIPTION
 */
 void Help(char *in)
