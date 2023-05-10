@@ -11,7 +11,9 @@
 #include "variables.h"
 #include "parser.h"
 #include "parserutil.h"
-
+#include "HDF5/H5FileIO.h"
+#include "HDF5/H5Datatypes.h"
+#include "HDF5/H5Enums.h"
 
 typedef enum arrayops{ARR_PLUS,ARR_MINUS,ARR_MULT,ARR_DIV} arrayops;
 /*
@@ -309,6 +311,90 @@ void WriteArraysToFile(char *in)
 	}
 	printf("writing arrays to file %s\n", file);
 	WriteArrays(file,data,i,N);
+	free(file);
+	free(data);
+}
+/*
+BEGIN_DESCRIPTION
+SECTION Array
+PARSEFLAG write_array_to_H5 WriteArraysToH5 "a0=<in-array> a1=<in-array> .. aN=<in-array> file=<file-str>"
+DESCRIPTION Writes arrays in columns of a HDF5 File in a dataset called 'data'. The i-th array is written to the i-th column in the file. Note that you cannot skip columns!
+ARGUMENT ai the i-th input array
+OUTPUT file output filename
+END_DESCRIPTION
+*/
+void WriteArraysToH5(char *in)
+{
+	char *word;
+	char *file;
+	double **data;
+	array *a;
+	int i, Na=4, N=-1;
+	file=malloc((strlen(in)+1)*sizeof(char));
+	if (!GetArg(in, "file", file))
+	{
+		free(file);
+		return;
+	}
+	word=malloc((strlen(in)+1)*sizeof(char));
+	i=0;
+	data=malloc(Na*sizeof(double *));
+	while(GetNumOption(in, "a", i, word))
+	{
+		
+		if (!LookupArray(word, &a))
+		{
+			Warning("Array %s not available\n",word); 
+			free(word);
+			free(data);
+			free(file);
+			return;
+		}
+		data[i]=a->D;
+		if (N<0)
+			N=a->N;
+		else if (a->N!=N)
+		{
+			printf("0: %d %d:%d\n", N, i, a->N);
+			Warning("Error: arrays must be of equal length\n"); 
+			free(word);
+			free(data);
+			free(file);
+			return;
+		}
+		i++;
+		if (i==Na-1)
+		{
+			Na+=4;
+			data=realloc(data, Na*sizeof(double *));
+		}
+	}
+	free(word);
+	if (i==0)
+	{
+		Warning("Cannot define arrays from file, no array arguments recognized\n"); 
+		free(data);
+		free(file);
+		return;
+	}
+	printf("writing arrays to file %s\n", file);
+	// TODO 
+	// add writing to h5 file here
+	//WriteArrays(file,data,i,N);
+	struct H5FileIOHandler *handler = H5FileIOHandler_init(file, W);
+	if (NULL == handler){
+		Warning("Error creating HDF5 file! Try using .h5 file extention.\n"); 
+		free(file);
+		free(data);
+		return;
+	}
+	hid_t small_float = H5T_define_16bit_float();
+	ErrorCode err;
+	err = H5FileIOHandler_write_array(handler, "data", &(data[0][0]), N, i, N, small_float);
+	if (SUCCESS != err){
+		Warning("Error writing to HDF5 file! Try using .h5 file extention.\n");
+	}
+	free(handler);
 	free(file);
 	free(data);
 }
