@@ -1,4 +1,5 @@
 #include <hdf5/serial/hdf5.h>
+#include <hdf5/serial/hdf5_hl.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <math.h>

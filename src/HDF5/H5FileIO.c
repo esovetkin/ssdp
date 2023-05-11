@@ -196,7 +196,7 @@ ErrorCode H5FileIOHander_read_array(struct H5FileIOHandler *self, const char *da
     return:
         SUCESS if it worked else a nonzero enum value
  */
-ErrorCode H5FileIOHandler_write_array(struct H5FileIOHandler *self, const char *dataset_name, double *data, int nrows, int ncols, size_t chunk_size, hid_t disk_datatype){
+ErrorCode H5FileIOHandler_write_array(struct H5FileIOHandler *self, const char *dataset_name, double *data, int nrows, int ncols, hsize_t chunk_size, hid_t disk_datatype){
     struct H5DatasetHandler *dataset = H5DatasetHandler_init(dataset_name, self->file_id);
     ErrorCode err;
     err = H5DatasetHandler_write_array( dataset, data,  nrows,  ncols, disk_datatype, chunk_size);
