@@ -25,7 +25,7 @@ nodist_libssdp_la_SOURCES = errorflags.h errormessages.h libssdp_structs.h
 
 
 bin_PROGRAMS = ssdp
-ssdp_SOURCES = lio.c variables.c parser.c configparser.c arrayparser.c topoparser.c simparser.c readlineshell.c util.c ssdp.c lio.h variables.h parser.h parserutil.h readlineshell.h util.h winunistd.h gen_parserflags.sh gen_errorflags.sh collect_datastructs.sh gen_ssdpdoc.sh HDF5/_primes.h HDF5/H5Dataset.h HDF5/H5Datatypes.h HDF5/H5Enums.h HDF5/H5FileIO.h HDF5/H5Properties.h HDF5/H5Table.h HDF5/primes_table.h HDF5/utils.h HDF5/H5Dataset.c HDF5/H5Datatypes.c HDF5/H5Enums.c HDF5/H5FileIO.c HDF5/H5Properties.c HDF5/H5Table.c HDF5/primes_table.c HDF5/utils.c
+ssdp_SOURCES = lio.c variables.c parser.c configparser.c arrayparser.c topoparser.c simparser.c readlineshell.c util.c ssdp.c lio.h variables.h parser.h parserutil.h readlineshell.h util.h winunistd.h gen_parserflags.sh gen_errorflags.sh collect_datastructs.sh gen_ssdpdoc.sh HDF5/hd5extention/src/_primes.h HDF5/hd5extention/src/H5Dataset.h HDF5/hd5extention/src/H5Datatypes.h HDF5/hd5extention/src/H5Enums.h HDF5/hd5extention/src/H5FileIO.h HDF5/hd5extention/src/H5Properties.h HDF5/hd5extention/src/H5Table.h HDF5/hd5extention/src/primes_table.h HDF5/hd5extention/src/utils.h HDF5/hd5extention/src/H5Dataset. HDF5/hd5extention/src/H5Datatypes.c HDF5/hd5extention/src/H5Enums.c HDF5/hd5extention/src/H5FileIO.c HDF5/hd5extention/src/H5Properties.c HDF5/hd5extention/src/H5Table.c HDF5/hd5extention/src/primes_table.c HDF5/hd5extention/src/utils.c
 if OPENMP
 ssdp_LDFLAGS= -lreadline -fopenmp -lm
 ssdp_CFLAGS = $(AM_CFLAGS) -DOPENMP -fopenmp
