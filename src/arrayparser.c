@@ -1,3 +1,4 @@
+#include <hdf5/serial/H5Tpublic.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -314,6 +315,21 @@ void WriteArraysToFile(char *in)
 	free(file);
 	free(data);
 }
+
+double* transpose(double** arr, int nrows, int ncols) {
+    // Allocate memory for the transposed array
+    double* transposed = (double*)malloc(nrows * ncols * sizeof(double));
+    
+    // Transpose the array
+    for (int i = 0; i < nrows; i++) {
+        for (int j = 0; j < ncols; j++) {
+            double yeet = arr[j][i];
+			transposed[i * ncols + j] = yeet;
+        }
+    }
+    return transposed;
+}
+
 /*
 BEGIN_DESCRIPTION
 SECTION Array
@@ -377,10 +393,7 @@ void WriteArraysToH5(char *in)
 		free(file);
 		return;
 	}
-	printf("writing arrays to file %s\n", file);
-	// TODO 
-	// add writing to h5 file here
-	//WriteArrays(file,data,i,N);
+	printf("writing arrays to H5 file %s\n", file);
 	struct H5FileIOHandler *handler = H5FileIOHandler_init(file, W);
 	if (NULL == handler){
 		Warning("Error creating HDF5 file! Try using .h5 file extention.\n"); 
@@ -390,13 +403,29 @@ void WriteArraysToH5(char *in)
 	}
 	hid_t small_float = H5T_define_16bit_float();
 	ErrorCode err;
-	err = H5FileIOHandler_write_array(handler, "data", &(data[0][0]), N, i, N, small_float);
-	if (SUCCESS != err){
-		Warning("Error writing to HDF5 file! Try using .h5 file extention.\n");
+	
+	printf("N=%d\tNa=%d\ti=%d\n",N,Na,i);
+	double *data2 = transpose(data, N, i);
+	if(NULL == data2){
+		Warning("Error can not malloc to write h5 file.\n");
+		goto error;
 	}
+	
+	
+	
+	err = H5FileIOHandler_write_array(handler, "data", data2, N, i, 1000, H5T_NATIVE_DOUBLE);
+	if (SUCCESS != err){
+		Warning("Error writing to HDF5 file!\n");
+
+	}
+
 	free(handler);
+	free(data2);
+error:
+	H5Tclose(small_float);
 	free(file);
 	free(data);
+	
 }
 /*
 BEGIN_DESCRIPTION
