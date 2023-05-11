@@ -1,4 +1,3 @@
-#include <hdf5/serial/H5Tpublic.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -12,9 +11,9 @@
 #include "variables.h"
 #include "parser.h"
 #include "parserutil.h"
-#include "HDF5/H5FileIO.h"
-#include "HDF5/H5Datatypes.h"
-#include "HDF5/H5Enums.h"
+#include "HDF5/hd5extention/src/H5FileIO.h"
+#include "HDF5/hd5extention/src/H5Datatypes.h"
+#include "HDF5/hd5extention/src/H5Enums.h"
 
 typedef enum arrayops{ARR_PLUS,ARR_MINUS,ARR_MULT,ARR_DIV} arrayops;
 /*
