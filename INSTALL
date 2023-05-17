@@ -14,7 +14,7 @@ autogen.sh script to set up everything.
 To remove the installation you can run:
 sudo make uninstall
 
-Optionally you may pass arhuments to the configure script. The ssdp 
+Optionally you may pass arguments to the configure script. The ssdp 
 program has no package specific features you can anable or disable, 
 just the standard autotools stuff. For example you can try to get 
 faster code by trying things like:
