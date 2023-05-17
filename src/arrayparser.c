@@ -365,14 +365,14 @@ struct supported_type map_supported_types_to_h5types(char* type){
 	}
 
     for(int i = 0; i < n; i++){
-		if (strncmp(type, supported_types[i].type_str, longest_type_name)){
+		if (strncmp(type, supported_types[i].type_str, longest_type_name) == 0){
 			return supported_types[i];
 		}
 	}
 	struct supported_type error_out = {type, H5I_INVALID_HID, 0};
 	return error_out;
 }
-// read api hat argumente filename und dataset
+
 /*
 BEGIN_DESCRIPTION
 SECTION Array
@@ -387,7 +387,8 @@ OUTPUT file output filename
 END_DESCRIPTION
 */
 void WriteArraysToH5(char *in)
-{
+{	
+
 	char *word;
 	char *file;
 	char *dataset_name;
