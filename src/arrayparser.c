@@ -330,11 +330,59 @@ double* transpose(double** arr, int nrows, int ncols) {
 }
 
 /*
+	map a string to a hid_t of a datatype
+
+	args:
+		type: str that encodes a hdf5 datatype
+		out: location to store id of datatype if a failure ocurrse this value will be H5I_INVALID_HID
+	return:
+		0 if type is builting else 1
+		if this function returns 1 remember to free the datatype!
+*/
+
+struct supported_type {
+	char *type_str;
+	hid_t type_id;
+	int is_custom;
+};
+
+struct supported_type map_supported_types_to_h5types(char* type){
+	struct supported_type supported_types [] = {
+		{"float16", H5T_define_16bit_float(), 1},
+		{"float64", H5T_NATIVE_DOUBLE, 0},
+		{"int32", H5T_NATIVE_INT32, 0},
+		{"int64", H5T_NATIVE_INT64, 0}
+	};
+	
+	int n = sizeof(supported_types) / sizeof(struct supported_type);
+	
+	int longest_type_name = 0;
+	for(int i = 0; i < n; i++){
+		int curr = strlen(supported_types[i].type_str);
+		if( curr > longest_type_name){
+			longest_type_name = curr;
+		}
+	}
+
+    for(int i = 0; i < n; i++){
+		if (strncmp(type, supported_types[i].type_str, longest_type_name)){
+			return supported_types[i];
+		}
+	}
+	struct supported_type error_out = {type, H5I_INVALID_HID, 0};
+	return error_out;
+}
+// read api hat argumente filename und dataset
+/*
 BEGIN_DESCRIPTION
 SECTION Array
-PARSEFLAG write_array_to_H5 WriteArraysToH5 "a0=<in-array> a1=<in-array> .. aN=<in-array> file=<file-str>"
-DESCRIPTION Writes arrays in columns of a HDF5 File in a dataset called 'data'. The i-th array is written to the i-th column in the file. Note that you cannot skip columns!
+PARSEFLAG write_array_to_H5 WriteArraysToH5 "a0=<in-array> a1=<in-array> .. aN=<in-array> type=<type-str> file=<file-str> dataset=<str> chunksize=<int>"
+DESCRIPTION Writes arrays in columns of a HDF5 File in a dataset called 'dataset'. The i-th array is written to the i-th column in the file. Note that you cannot skip columns! Each dataset handles a basic data type. So different datatyes require different datasets!
 ARGUMENT ai the i-th input array
+ARGUMENT type str that describes the datatype to save on the disc supported datatypes are: float16, float64, int32, int64
+ARGUMENT file name of file should end with .h5
+ARGUMENT dataset name of dataset 
+ARGUMENT chunksize in number of rows for chunked I/O
 OUTPUT file output filename
 END_DESCRIPTION
 */
@@ -342,7 +390,11 @@ void WriteArraysToH5(char *in)
 {
 	char *word;
 	char *file;
+	char *dataset_name;
+	char *type_name;
+	struct supported_type type;
 	double **data;
+	int chunk_size;
 	array *a;
 	int i, Na=4, N=-1;
 	file=malloc((strlen(in)+1)*sizeof(char));
@@ -351,7 +403,29 @@ void WriteArraysToH5(char *in)
 		free(file);
 		return;
 	}
+	dataset_name=malloc((strlen(in)+1)*sizeof(char));
+	if (!GetArg(in, "dataset", dataset_name))
+	{
+		free(dataset_name);
+		free(file);
+		return;
+	}
+	type_name=malloc((strlen(in)+1)*sizeof(char));
+	if (!GetArg(in, "type", type_name))
+	{
+		free(dataset_name);
+		free(file);
+		free(type_name);
+		return;
+	}
+	type = map_supported_types_to_h5types(type_name);
 	word=malloc((strlen(in)+1)*sizeof(char));
+	if(FetchInt(in, "chunksize", word, &chunk_size)){
+		free(dataset_name);
+		free(file);
+		free(type_name);
+		return;
+	}
 	i=0;
 	data=malloc(Na*sizeof(double *));
 	while(GetNumOption(in, "a", i, word))
@@ -363,6 +437,8 @@ void WriteArraysToH5(char *in)
 			free(word);
 			free(data);
 			free(file);
+			free(dataset_name);
+			free(type_name);
 			return;
 		}
 		data[i]=a->D;
@@ -375,6 +451,8 @@ void WriteArraysToH5(char *in)
 			free(word);
 			free(data);
 			free(file);
+			free(dataset_name);
+			free(type_name);
 			return;
 		}
 		i++;
@@ -390,17 +468,20 @@ void WriteArraysToH5(char *in)
 		Warning("Cannot define arrays from file, no array arguments recognized\n"); 
 		free(data);
 		free(file);
+		free(dataset_name);
+		free(type_name);
 		return;
 	}
 	printf("writing arrays to H5 file %s\n", file);
-	struct H5FileIOHandler *handler = H5FileIOHandler_init(file, W);
+	struct H5FileIOHandler *handler = H5FileIOHandler_init(file, A);
 	if (NULL == handler){
 		Warning("Error creating HDF5 file! Try using .h5 file extention.\n"); 
 		free(file);
 		free(data);
+		free(dataset_name);
+		free(type_name);
 		return;
 	}
-	hid_t small_float = H5T_define_16bit_float();
 	ErrorCode err;
 	
 	printf("N=%d\tNa=%d\ti=%d\n",N,Na,i);
@@ -409,21 +490,22 @@ void WriteArraysToH5(char *in)
 		Warning("Error can not malloc to write h5 file.\n");
 		goto error;
 	}
-	
-	
-	
-	err = H5FileIOHandler_write_array(handler, "data", data2, N, i, 1000, H5T_NATIVE_DOUBLE);
+	err = H5FileIOHandler_write_array(handler, dataset_name, data2, N, i, chunk_size, type.type_id);
 	if (SUCCESS != err){
 		Warning("Error writing to HDF5 file!\n");
 
 	}
-
 	free(handler);
 	free(data2);
+	if(type.is_custom){
+		H5Tclose(type.type_id);
+	}
+
 error:
-	H5Tclose(small_float);
 	free(file);
 	free(data);
+	free(type_name);
+	free(dataset_name);
 	
 }
 /*
