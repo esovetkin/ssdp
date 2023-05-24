@@ -4,4 +4,3 @@
 [submodule "src/HDF5"]
 	path = src/HDF5
 	url = git@jugit.fz-juelich.de:pearl-project/ssdp_hdf5_extention.git
-	branch = dev_ssdp
