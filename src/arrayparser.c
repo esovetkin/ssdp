@@ -14,6 +14,7 @@
 #include "HDF5/hd5extention/src/H5FileIO.h"
 #include "HDF5/hd5extention/src/H5Datatypes.h"
 #include "HDF5/hd5extention/src/H5Enums.h"
+#include "h5filepool.h"
 
 typedef enum arrayops{ARR_PLUS,ARR_MINUS,ARR_MULT,ARR_DIV} arrayops;
 /*
@@ -355,7 +356,8 @@ struct supported_type map_supported_types_to_h5types(char* type){
 	};
 	
 	int n = sizeof(supported_types) / sizeof(struct supported_type);
-	
+	// I think we can just use strcmp? todo ask if strcmp is evil (I used it somehwere else already)	
+	/*
 	int longest_type_name = 0;
 	for(int i = 0; i < n; i++){
 		int curr = strlen(supported_types[i].type_str);
@@ -363,16 +365,147 @@ struct supported_type map_supported_types_to_h5types(char* type){
 			longest_type_name = curr;
 		}
 	}
+	*/
 
-    for(int i = 0; i < n; i++){
-		if (strncmp(type, supported_types[i].type_str, longest_type_name) == 0){
+        for(int i = 0; i < n; i++){
+		if (strcmp(type, supported_types[i].type_str) == 0){
 			return supported_types[i];
 		}
 	}
 	struct supported_type error_out = {type, H5I_INVALID_HID, 0};
 	return error_out;
 }
+// TODO
+/*
+BEGIN_DESCRIPTION
+SECTION Array
+PARSEFLAG read_array_from_H5 ReadArraysFromH5 "file=<file-str> a0=<out-array> a1=<out-array> .. aN=<out-array> dataset=<str>"
+DESCRIPTION Reads columns from a HDF5 and stores them in arrays. The i-th column is stored in the i-th output array. Note that you cannot skip columns!
+ARGUMENT file input filename
+OUTPUT ai the i-th output array
+END_DESCRIPTION
+*/
+void ReadArraysFromH5(char *in)
+{
+	char **names;
+	char *word;
+	char *file;
+	double *data;
+	char *dataset_name;
+	int read_nrows, read_ncols;
+	int n_arr_vars, Na=4;
+	ErrorCode err;
+	file=malloc((strlen(in)+1)*sizeof(char));
+	if (!GetArg(in, "file", file))
+	{
+		free(file);
+		return;
+	}
+	word=malloc((strlen(in)+1)*sizeof(char));
+	n_arr_vars=0;
+	names=malloc(Na*sizeof(char *));
+	dataset_name=malloc((strlen(in)+1)*sizeof(char));
+	if (!GetArg(in, "dataset", dataset_name))
+	{
+		free(dataset_name);
+		free(file);
+		return;
+	}
+	while(GetNumOption(in, "a", n_arr_vars, word))
+	{
+		names[n_arr_vars]=word;
+		n_arr_vars++;
+		word=malloc((strlen(in)+1)*sizeof(char));
+		if (n_arr_vars==Na-1)
+		{
+			Na+=4;
+			names=realloc(names, Na*sizeof(char *));
+		}
+	}
+	free(word);
+	if (n_arr_vars==0)
+	{
+		Warning("Cannot define arrays from file, no array arguments recognized\n"); 
+		free(names);
+		free(file);
+		return;
+	}
+	struct H5FileIOHandler *handler = H5FileIOHandlerPool_get_handler(g_h5filepool, file, R);
+	if (NULL == handler){
+		Warning("Error reading H5 file: Could not create handler.!\n");
+		goto end;
+	}
+	err = H5FileIOHandler_read_array(handler, dataset_name, &data, &read_nrows, &read_ncols);
+	if(SUCCESS != err){
+		Warning("Error reading H5 file could not read dataset\n");
+		goto end;
+	}
+	//data=ReadArrays(file, i, &N);
+	if(n_arr_vars != read_ncols){
+		// user didn't provide enough variables
+		Warning("Not enough variables provided to store arrays! Provided Variables: %d Read Arrays: %d\n",
+		 n_arr_vars, read_ncols);
+		 goto end;
 
+	}
+	if (read_ncols>0)
+	{
+		array *arrays = malloc(sizeof(array)*read_ncols);
+		if(NULL == arrays){
+			Warning("Failed to create arrays. Out of malloc memory");
+			goto end;
+		}
+		// create read_ncols arrays
+		for(int i = 0; i < read_ncols; i++){
+			arrays[i].N = read_nrows;
+			arrays[i].D = malloc(sizeof(double)*read_nrows);
+			if(NULL == arrays[i].D ){
+				free(arrays);
+				Warning("Failed to create arrays. Out of malloc memory");
+				goto end;
+			}
+		}
+		// fill the arrays
+		for (int i=0; i<read_nrows; i++)
+		{	
+			for(int j = 0; j<read_ncols; j++){
+				arrays[j].D[i]=data[i*read_ncols+j];
+			}
+		}
+		for(int i = 0; i < read_ncols; i++){
+			printf("Creating array %s\n", names[i]);
+			if(AddArray(names[i], arrays[i]))
+			{	
+				Warning("Failed to create array variable");
+				free(names[i]); // failed to make array
+				free(arrays[i].D);
+			}
+		}
+		
+	}else
+	{
+		printf("Could not parse file %s\n", file);
+		for (int i=0; i<n_arr_vars; i++)
+		{
+			free(names[i]);
+		}
+	}
+end:
+	free(file);
+	free(names);
+	free(data);
+}
+
+/*
+BEGIN_DESCRIPTION
+SECTION Array
+PARSEFLAG flush_h5 FlushH5 ""
+DESCRIPTION Save all currently open HDF5 file to disc and close the resources.
+END_DESCRIPTION
+*/
+void FlushH5(char *in){
+	H5FileIOHandlerPool_close_all_files(g_h5filepool);
+}
 /*
 BEGIN_DESCRIPTION
 SECTION Array
@@ -388,7 +521,19 @@ END_DESCRIPTION
 */
 void WriteArraysToH5(char *in)
 {	
-
+	/*
+		TODO:
+			a) this function may make weird stuff if file already exists its better to delete it beforhand
+			I can not open the file in W mode as I need multiple calls to this function
+			due to me only having a single ssdp function per dataset write
+			fixes:
+				1. (best) figure out how to cleanly put multiple different types in a dataset so I only need one write
+				2. (ehh) this function first removes the file if it exists then creates it
+				3. (I chose this one; GOTCHA) I make a pool which hides the creation of the file so now we don't have problems with redundant opening and closing
+				the pool is deleted at the end of ssdp
+			b) we still need a read function
+			c) a flush function to write all files from the pool to disc
+	*/
 	char *word;
 	char *file;
 	char *dataset_name;
@@ -474,9 +619,9 @@ void WriteArraysToH5(char *in)
 		return;
 	}
 	printf("writing arrays to H5 file %s\n", file);
-	struct H5FileIOHandler *handler = H5FileIOHandler_init(file, A);
+	struct H5FileIOHandler *handler = H5FileIOHandlerPool_get_handler(g_h5filepool, file, W);
 	if (NULL == handler){
-		Warning("Error creating HDF5 file! Try using .h5 file extention.\n"); 
+		Warning("Error creating HDF5 file!\n"); 
 		free(file);
 		free(data);
 		free(dataset_name);
@@ -496,7 +641,6 @@ void WriteArraysToH5(char *in)
 		Warning("Error writing to HDF5 file!\n");
 
 	}
-	free(handler);
 	free(data2);
 	if(type.is_custom){
 		H5Tclose(type.type_id);
