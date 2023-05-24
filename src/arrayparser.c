@@ -316,10 +316,23 @@ void WriteArraysToFile(char *in)
 	free(data);
 }
 
-double* transpose(double** arr, int nrows, int ncols) {
+/*
+	Transpose a 2d array into a 1d array.
+	This function allocates memory that must be freed.
+
+	args:
+		arr: 2d array of size ncols x nrows
+		nrows: number of rows in arr
+		ncols: number of columns in arr
+	return:
+		pointer to transposed and unraveled/flattened array or NULL if this function fails
+*/
+double* transpose_unravel(double** arr, int nrows, int ncols) {
     // Allocate memory for the transposed array
     double* transposed = (double*)malloc(nrows * ncols * sizeof(double));
-    
+	if(NULL == transposed){
+		return NULL;
+	}
     // Transpose the array
     for (int i = 0; i < nrows; i++) {
         for (int j = 0; j < ncols; j++) {
@@ -335,9 +348,9 @@ double* transpose(double** arr, int nrows, int ncols) {
 
 	args:
 		type: str that encodes a hdf5 datatype
-		out: location to store id of datatype if a failure ocurrse this value will be H5I_INVALID_HID
+		out: location to store id of datatype if a failure occurs this value will be H5I_INVALID_HID
 	return:
-		0 if type is builting else 1
+		0 if type is builtin else 1
 		if this function returns 1 remember to free the datatype!
 */
 
@@ -346,7 +359,6 @@ struct supported_type {
 	hid_t type_id;
 	int is_custom;
 };
-
 struct supported_type map_supported_types_to_h5types(char* type){
 	struct supported_type supported_types [] = {
 		{"float16", H5T_define_16bit_float(), 1},
@@ -354,7 +366,6 @@ struct supported_type map_supported_types_to_h5types(char* type){
 		{"int32", H5T_NATIVE_INT32, 0},
 		{"int64", H5T_NATIVE_INT64, 0}
 	};
-	
 	int n = sizeof(supported_types) / sizeof(struct supported_type);
 	// I think we can just use strcmp? todo ask if strcmp is evil (I used it somehwere else already)	
 	/*
@@ -367,7 +378,7 @@ struct supported_type map_supported_types_to_h5types(char* type){
 	}
 	*/
 
-        for(int i = 0; i < n; i++){
+    for(int i = 0; i < n; i++){
 		if (strcmp(type, supported_types[i].type_str) == 0){
 			return supported_types[i];
 		}
@@ -444,8 +455,8 @@ void ReadArraysFromH5(char *in)
 	if(n_arr_vars != read_ncols){
 		// user didn't provide enough variables
 		Warning("Not enough variables provided to store arrays! Provided Variables: %d Read Arrays: %d\n",
-		 n_arr_vars, read_ncols);
-		 goto end;
+		n_arr_vars, read_ncols);
+		goto end;
 
 	}
 	if (read_ncols>0)
@@ -631,7 +642,7 @@ void WriteArraysToH5(char *in)
 	ErrorCode err;
 	
 	printf("N=%d\tNa=%d\ti=%d\n",N,Na,i);
-	double *data2 = transpose(data, N, i);
+	double *data2 = transpose_unravel(data, N, i);
 	if(NULL == data2){
 		Warning("Error can not malloc to write h5 file.\n");
 		goto error;
