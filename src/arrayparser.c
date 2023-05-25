@@ -377,11 +377,25 @@ struct supported_type map_supported_types_to_h5types(char* type){
 		}
 	}
 	*/
-
+	int return_idx = -1;
     for(int i = 0; i < n; i++){
 		if (strcmp(type, supported_types[i].type_str) == 0){
-			return supported_types[i];
+			return_idx = i;
 		}
+	}
+	// to avoid memory leaks close all custom types which are not returned
+	// if valgrind says 1,848 bytes in 1 blocks are still reachable
+	// caused by malloc used in H5E_get_stack this has nothing to do with this function
+	// but with H5 as this leak also happens when H5T_define_16bit_float() is not called in this function
+	//(I tested it by commenting it out) 
+	for(int i = 0; i < n; i++){
+		if (i != return_idx && supported_types[i].is_custom){
+			printf("Closed custom type called %s\n", supported_types[i].type_str);
+			H5Tclose(supported_types[i].type_id);
+		}
+	}
+	if(return_idx >=0){
+		return supported_types[return_idx];
 	}
 	struct supported_type error_out = {type, H5I_INVALID_HID, 0};
 	return error_out;
@@ -546,43 +560,35 @@ END_DESCRIPTION
 */
 void WriteArraysToH5(char *in)
 {	
-	char *word;
-	char *file;
-	char *dataset_name;
-	char *type_name;
+	char *word = NULL;
+	char *file = NULL;
+	char *dataset_name = NULL;
+	char *type_name = NULL;
 	struct supported_type type;
-	double **data;
+	double **data = NULL;
+	double *data2 = NULL;
 	int chunk_size;
-	array *a;
+	array *a = NULL;
 	int i, Na=4, N=-1;
 	file=malloc((strlen(in)+1)*sizeof(char));
 	if (!GetArg(in, "file", file))
 	{
-		free(file);
-		return;
+		goto error;
 	}
 	dataset_name=malloc((strlen(in)+1)*sizeof(char));
 	if (!GetArg(in, "dataset", dataset_name))
 	{
-		free(dataset_name);
-		free(file);
-		return;
+		goto error;
 	}
 	type_name=malloc((strlen(in)+1)*sizeof(char));
 	if (!GetArg(in, "type", type_name))
 	{
-		free(dataset_name);
-		free(file);
-		free(type_name);
-		return;
+		goto error;
 	}
 	type = map_supported_types_to_h5types(type_name);
 	word=malloc((strlen(in)+1)*sizeof(char));
 	if(FetchInt(in, "chunksize", word, &chunk_size)){
-		free(dataset_name);
-		free(file);
-		free(type_name);
-		return;
+		goto error;
 	}
 	i=0;
 	data=malloc(Na*sizeof(double *));
@@ -592,12 +598,7 @@ void WriteArraysToH5(char *in)
 		if (!LookupArray(word, &a))
 		{
 			Warning("Array %s not available\n",word); 
-			free(word);
-			free(data);
-			free(file);
-			free(dataset_name);
-			free(type_name);
-			return;
+			goto error;
 		}
 		data[i]=a->D;
 		if (N<0)
@@ -606,12 +607,7 @@ void WriteArraysToH5(char *in)
 		{
 			printf("0: %d %d:%d\n", N, i, a->N);
 			Warning("Error: arrays must be of equal length\n"); 
-			free(word);
-			free(data);
-			free(file);
-			free(dataset_name);
-			free(type_name);
-			return;
+			goto error;
 		}
 		i++;
 		if (i==Na-1)
@@ -620,28 +616,19 @@ void WriteArraysToH5(char *in)
 			data=realloc(data, Na*sizeof(double *));
 		}
 	}
-	free(word);
 	if (i==0)
 	{
 		Warning("Cannot define arrays from file, no array arguments recognized\n"); 
-		free(data);
-		free(file);
-		free(dataset_name);
-		free(type_name);
-		return;
+		goto error;
 	}
 	printf("Preparing to write arrays to H5 file `%s` in dataset `%s`\n", file, dataset_name);
 	struct H5FileIOHandler *handler = H5FileIOHandlerPool_get_handler(g_h5filepool, file, W);
 	if (NULL == handler){
 		Warning("Error creating HDF5 file!\n"); 
-		free(file);
-		free(data);
-		free(dataset_name);
-		free(type_name);
-		return;
+		goto error;
 	}
 	ErrorCode err;
-	double *data2 = transpose_unravel(data, N, i);
+	data2 = transpose_unravel(data, N, i);
 	if(NULL == data2){
 		Warning("Error can not malloc to write h5 file.\n");
 		goto error;
@@ -651,17 +638,16 @@ void WriteArraysToH5(char *in)
 		Warning("Error writing to HDF5 file!\n");
 
 	}
-	free(data2);
-	if(type.is_custom){
-		H5Tclose(type.type_id);
-	}
-
 error:
 	free(file);
 	free(data);
 	free(type_name);
 	free(dataset_name);
-	
+	free(data2);
+	free(word);
+	if(type.is_custom){
+		H5Tclose(type.type_id);
+	}
 }
 /*
 BEGIN_DESCRIPTION
