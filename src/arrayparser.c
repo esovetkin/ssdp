@@ -510,12 +510,26 @@ end:
 /*
 BEGIN_DESCRIPTION
 SECTION Array
-PARSEFLAG flush_h5 FlushH5 ""
-DESCRIPTION Save all currently open HDF5 file to disc and close the resources.
+PARSEFLAG flush_h5 FlushH5 "[f0=<file-str>, f1=<file-str>, .., fN=<file-str>]"
+DESCRIPTION Save currently open HDF5 file to disc and close the resources. If filenames are provided only these files are closed.
+Otherwise all currently open HDF5 files are closed.
 END_DESCRIPTION
 */
 void FlushH5(char *in){
-	H5FileIOHandlerPool_close_all_files(g_h5filepool);
+	
+	char *filename;
+	filename=malloc((strlen(in)+1)*sizeof(char));
+	int i = 0;
+	while(GetNumOption(in, "f", i, filename)){
+		i++;
+		printf("Writing H5 file %s.\n", filename);
+		H5FileIOHandlerPool_close_file(g_h5filepool, filename);
+	}
+	if(i == 0){
+		printf("Writing all currently opened H5 files.\n");
+		H5FileIOHandlerPool_close_all_files(g_h5filepool);
+	}
+	free(filename);
 }
 /*
 BEGIN_DESCRIPTION
@@ -532,19 +546,6 @@ END_DESCRIPTION
 */
 void WriteArraysToH5(char *in)
 {	
-	/*
-		TODO:
-			a) this function may make weird stuff if file already exists its better to delete it beforhand
-			I can not open the file in W mode as I need multiple calls to this function
-			due to me only having a single ssdp function per dataset write
-			fixes:
-				1. (best) figure out how to cleanly put multiple different types in a dataset so I only need one write
-				2. (ehh) this function first removes the file if it exists then creates it
-				3. (I chose this one; GOTCHA) I make a pool which hides the creation of the file so now we don't have problems with redundant opening and closing
-				the pool is deleted at the end of ssdp
-			b) we still need a read function
-			c) a flush function to write all files from the pool to disc
-	*/
 	char *word;
 	char *file;
 	char *dataset_name;
@@ -629,7 +630,7 @@ void WriteArraysToH5(char *in)
 		free(type_name);
 		return;
 	}
-	printf("writing arrays to H5 file %s\n", file);
+	printf("Preparing to write arrays to H5 file `%s` in dataset `%s`\n", file, dataset_name);
 	struct H5FileIOHandler *handler = H5FileIOHandlerPool_get_handler(g_h5filepool, file, W);
 	if (NULL == handler){
 		Warning("Error creating HDF5 file!\n"); 
@@ -640,8 +641,6 @@ void WriteArraysToH5(char *in)
 		return;
 	}
 	ErrorCode err;
-	
-	printf("N=%d\tNa=%d\ti=%d\n",N,Na,i);
 	double *data2 = transpose_unravel(data, N, i);
 	if(NULL == data2){
 		Warning("Error can not malloc to write h5 file.\n");
