@@ -56,7 +56,7 @@
 #include "readlineshell.h"
 #include "variables.h"
 #include "config.h"
-#include "h5filepool.h"
+#include "h5interface.h"
 
 #define MAXLINELEN 4096
 void StripEndline(char *line)
@@ -126,7 +126,7 @@ int main(int argc, char **argv)
 {
 	int i=1;
 	InitVars();
-	init_h5filepool();
+	init_h5interface();
 	if (argc>1)
 	{
 		if (strncmp("-q", argv[1], 3)==0)
@@ -178,7 +178,7 @@ int main(int argc, char **argv)
 				break;
 	}
 	ClearVars();
-	free_h5filepool();
+	free_h5interface();
 	return 0;
 }
 /*

@@ -11,10 +11,7 @@
 #include "variables.h"
 #include "parser.h"
 #include "parserutil.h"
-#include "HDF5/hd5extention/src/H5FileIO.h"
-#include "HDF5/hd5extention/src/H5Datatypes.h"
-#include "HDF5/hd5extention/src/H5Enums.h"
-#include "h5filepool.h"
+#include "h5interface.h"
 
 typedef enum arrayops{ARR_PLUS,ARR_MINUS,ARR_MULT,ARR_DIV} arrayops;
 /*
@@ -354,52 +351,7 @@ double* transpose_unravel(double** arr, int nrows, int ncols) {
 		if this function returns 1 remember to free the datatype!
 */
 
-struct supported_type {
-	char *type_str;
-	hid_t type_id;
-	int is_custom;
-};
-struct supported_type map_supported_types_to_h5types(char* type){
-	struct supported_type supported_types [] = {
-		{"float16", H5T_define_16bit_float(), 1},
-		{"float64", H5T_NATIVE_DOUBLE, 0},
-		{"int32", H5T_NATIVE_INT32, 0},
-		{"int64", H5T_NATIVE_INT64, 0}
-	};
-	int n = sizeof(supported_types) / sizeof(struct supported_type);
-	// I think we can just use strcmp? todo ask if strcmp is evil (I used it somehwere else already)	
-	/*
-	int longest_type_name = 0;
-	for(int i = 0; i < n; i++){
-		int curr = strlen(supported_types[i].type_str);
-		if( curr > longest_type_name){
-			longest_type_name = curr;
-		}
-	}
-	*/
-	int return_idx = -1;
-    for(int i = 0; i < n; i++){
-		if (strcmp(type, supported_types[i].type_str) == 0){
-			return_idx = i;
-		}
-	}
-	// to avoid memory leaks close all custom types which are not returned
-	// if valgrind says 1,848 bytes in 1 blocks are still reachable
-	// caused by malloc used in H5E_get_stack this has nothing to do with this function
-	// but with H5 as this leak also happens when H5T_define_16bit_float() is not called in this function
-	//(I tested it by commenting it out) 
-	for(int i = 0; i < n; i++){
-		if (i != return_idx && supported_types[i].is_custom){
-			printf("Closed custom type called %s\n", supported_types[i].type_str);
-			H5Tclose(supported_types[i].type_id);
-		}
-	}
-	if(return_idx >=0){
-		return supported_types[return_idx];
-	}
-	struct supported_type error_out = {type, H5I_INVALID_HID, 0};
-	return error_out;
-}
+
 // TODO
 /*
 BEGIN_DESCRIPTION
@@ -645,9 +597,6 @@ error:
 	free(dataset_name);
 	free(data2);
 	free(word);
-	if(type.is_custom){
-		H5Tclose(type.type_id);
-	}
 }
 /*
 BEGIN_DESCRIPTION
