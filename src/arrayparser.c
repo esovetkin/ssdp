@@ -364,19 +364,20 @@ END_DESCRIPTION
 */
 void ReadArraysFromH5(char *in)
 {
-	char **names;
-	char *word;
-	char *file;
-	double *data;
-	char *dataset_name;
+	char **names = NULL;
+	char *word = NULL;
+	char *file = NULL;
+	double *data = NULL;
+	char *dataset_name = NULL;
 	int read_nrows, read_ncols;
 	int n_arr_vars, Na=4;
+	struct H5FileIOHandler *handler = NULL;
+	array *arrays = NULL;
 	ErrorCode err;
 	file=malloc((strlen(in)+1)*sizeof(char));
 	if (!GetArg(in, "file", file))
 	{
-		free(file);
-		return;
+		goto end;
 	}
 	word=malloc((strlen(in)+1)*sizeof(char));
 	n_arr_vars=0;
@@ -384,9 +385,7 @@ void ReadArraysFromH5(char *in)
 	dataset_name=malloc((strlen(in)+1)*sizeof(char));
 	if (!GetArg(in, "dataset", dataset_name))
 	{
-		free(dataset_name);
-		free(file);
-		return;
+		goto end;
 	}
 	while(GetNumOption(in, "a", n_arr_vars, word))
 	{
@@ -403,11 +402,9 @@ void ReadArraysFromH5(char *in)
 	if (n_arr_vars==0)
 	{
 		Warning("Cannot define arrays from file, no array arguments recognized\n"); 
-		free(names);
-		free(file);
-		return;
+		goto end;
 	}
-	struct H5FileIOHandler *handler = H5FileIOHandlerPool_get_handler(g_h5filepool, file, R);
+	handler = H5FileIOHandlerPool_get_handler(g_h5filepool, file, R);
 	if (NULL == handler){
 		Warning("Error reading H5 file: Could not create handler.!\n");
 		goto end;
@@ -427,7 +424,7 @@ void ReadArraysFromH5(char *in)
 	}
 	if (read_ncols>0)
 	{
-		array *arrays = malloc(sizeof(array)*read_ncols);
+		arrays = malloc(sizeof(array)*read_ncols);
 		if(NULL == arrays){
 			Warning("Failed to create arrays. Out of malloc memory");
 			goto end;
@@ -471,6 +468,8 @@ end:
 	free(file);
 	free(names);
 	free(data);
+	free(dataset_name);
+	free(arrays);
 }
 
 /*
