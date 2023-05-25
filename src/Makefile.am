@@ -34,13 +34,22 @@ ssdp_LDFLAGS= -lreadline
 endif
 ssdp_LDADD = libssdp.la
 man1_MANS = ssdp.man
+# scripts in extra dist
+EXTRA_DIST = gen_errorflags.sh collect_datastructs.sh gen_parserflags.sh freespa/freespa.c freespa/freespa.h freespa/freespa_tables.h freespa/freespa_dt_table.h
 
-BUILT_SOURCES = errorflags.h errormessages.h gen_errorflags.sh libssdp_structs.h collect_datastructs.sh parsedef.h gen_parserflags.sh ssdp.man
+BUILT_SOURCES = errorflags.h errormessages.h libssdp_structs.h parsedef.h ssdp.man
+
 MOSTLYCLEANFILES = parsedef.h errorflags.h errormessages.h libssdp_structs.h ssdp.man
 parsedef.h: gen_parserflags.sh parser.c configparser.c arrayparser.c topoparser.c simparser.c
 	${SHELL} ${srcdir}/gen_parserflags.sh ${srcdir} parser.c configparser.c arrayparser.c topoparser.c simparser.c
-errorflags.h errormessages.h: gen_errorflags.sh $(libssdp_la_SOURCES)
+# errorflags and errormessages are created with the same script
+# when using parallel make we must prevent make trying to build both headers at the same time
+# as this leads to race conditions, this ensures make will not try to build both at the same time
+errorflags.h: gen_errorflags.sh $(libssdp_la_SOURCES)
 	${SHELL} ${srcdir}/gen_errorflags.sh ${srcdir} $(libssdp_la_SOURCES)
+errormessages.h: errorflags.h
+	@test -f $@ || rm -f errorflags.h
+	@test -f $@ || $(MAKE) $(AM_MAKEFLAGS) errorflags.h
 libssdp_structs.h: collect_datastructs.sh vector.h sky_dome.h delaunay.h trace.h ground.h project.h libssdp.c
 	${SHELL} ${srcdir}/collect_datastructs.sh ${srcdir} vector.h  sky_dome.h delaunay.h trace.h ground.h project.h libssdp.c
 ssdp.man: gen_ssdpdoc.sh parser.c configparser.c arrayparser.c topoparser.c simparser.c

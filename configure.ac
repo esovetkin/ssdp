@@ -3,14 +3,14 @@ m4_define([ssdp_minor_version],    [0])
 m4_define([ssdp_revis_version],    [0])
 m4_define([ssdp_libversion],[ssdp_major_version:ssdp_minor_version:ssdp_revis_version])
 m4_define([ssdp_version],[ssdp_major_version.ssdp_minor_version.ssdp_revis_version])
-AC_INIT([libssdp], [ssdp_version])
+AC_INIT([libssdp],[ssdp_version])
 AC_CONFIG_MACRO_DIRS([m4])
-AC_PROG_LIBTOOL()
+LT_INIT([])
 AC_PROG_SED()
 AC_PROG_AWK()
 AC_PROG_EGREP()
 AC_ENABLE_SHARED
-AM_ENABLE_SHARED
+AC_ENABLE_SHARED([])
 LT_INIT([win32-dll])
 AM_INIT_AUTOMAKE()
 AC_PROG_CC
