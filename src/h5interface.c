@@ -9,7 +9,10 @@ struct supported_type build_supported_type(char *type_str, hid_t type_id, int is
     struct supported_type out = {type_str, type_id, is_custom};
     return out;
 }
-
+/*
+    This function initializes the H5FileIOHandlerPool and all Datatypes via the supported_type struct.
+    It must be called at the beginning of the ssdp main.
+*/
 void init_h5interface(){
     g_h5filepool = H5FileIOHandlerPool_init();
     g_supported_h5types = malloc(sizeof(struct supported_type)*N_SUPPORTED_TYPES);
@@ -19,7 +22,10 @@ void init_h5interface(){
     g_supported_h5types [3] = build_supported_type("int64", H5T_NATIVE_INT64, 0);
 }
 
-
+/*
+    This function frees all the resources allocated by init_h5interface.
+    It must be called at the end of ssdp main.
+*/
 void free_h5interface(){
     for(int i = 0; i < N_SUPPORTED_TYPES; i++){
         if(g_supported_h5types[i].is_custom){
@@ -30,7 +36,11 @@ void free_h5interface(){
 }
 
 
-
+/*
+    This function maps a string to a currently supported type.
+    A type is supported if `type` matches to a `type_str` member of an object found in g_supported_h5types.
+    If no matching type if found return a struct whose type_id member is H5I_INVALID_HID.
+*/
 struct supported_type map_supported_types_to_h5types(char* type){
 	int return_idx = -1;
     for(int i = 0; i < N_SUPPORTED_TYPES; i++){
@@ -38,19 +48,6 @@ struct supported_type map_supported_types_to_h5types(char* type){
 			return_idx = i;
 		}
 	}
-	// to avoid memory leaks close all custom types which are not returned
-	// if valgrind says 1,848 bytes in 1 blocks are still reachable
-	// caused by malloc used in H5E_get_stack this has nothing to do with this function
-	// but with H5 as this leak also happens when H5T_define_16bit_float() is not called in this function
-	//(I tested it by commenting it out) 
-	/*
-    for(int i = 0; i < N_SUPPORTED_TYPES; i++){
-		if (i != return_idx && supported_types[i].is_custom){
-			printf("Closed custom type called %s\n", supported_types[i].type_str);
-			H5Tclose(supported_types[i].type_id);
-		}
-	}
-    */
 	if(return_idx >=0){
 		return g_supported_h5types[return_idx];
 	}

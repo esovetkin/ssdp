@@ -12,9 +12,21 @@ struct supported_type {
 extern struct H5FileIOHandlerPool* g_h5filepool;
 extern struct supported_type *g_supported_h5types;
 
+/*
+    This function initializes the H5FileIOHandlerPool and all Datatypes via the supported_type struct.
+    It must be called at the beginning of the ssdp main.
+*/
 void init_h5interface(void);
 
+/*
+    This function frees all the resources allocated by init_h5interface.
+    It must be called at the end of ssdp main.
+*/
 void free_h5interface(void);
 
-
+/*
+    This function maps a string to a currently supported type.
+    A type is supported if `type` matches to a `type_str` member of an object found in g_supported_h5types.
+    If no matching type if found return a struct whose type_id member is H5I_INVALID_HID.
+*/
 struct supported_type map_supported_types_to_h5types(char* type);
