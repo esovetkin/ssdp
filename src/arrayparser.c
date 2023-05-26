@@ -18,7 +18,7 @@ typedef enum arrayops{ARR_PLUS,ARR_MINUS,ARR_MULT,ARR_DIV} arrayops;
 BEGIN_DESCRIPTION
 SECTION Array
 PARSEFLAG array_eval array_comp "a=<in-array> op=<operator:+,-,*,/> b=<in-array> c=<out-array>"
-DESCRIPTION Basic operations on array variables: c = a <op> b. Works both for element wise array-array operations aswell as for scalar-array operations.
+DESCRIPTION Basic operations on array variables: c = a <op> b. Works both for element wise array-array operations as well as for scalar-array operations.
 ARGUMENT a input array
 ARGUMENT op Operator character (+,-,*,/)
 ARGUMENT b input array
@@ -357,7 +357,7 @@ double* transpose_unravel(double** arr, int nrows, int ncols) {
 BEGIN_DESCRIPTION
 SECTION Array
 PARSEFLAG read_array_from_H5 ReadArraysFromH5 "file=<file-str> a0=<out-array> a1=<out-array> .. aN=<out-array> dataset=<str>"
-DESCRIPTION Reads columns from a HDF5 and stores them in arrays. The i-th column is stored in the i-th output array. Note that you cannot skip columns!
+DESCRIPTION Reads a dataset called `dataset` from an HDF5-file and stores the columns in arrays. The i-th column is stored in the i-th output array. Every array is converted to a 64 bit float for internal processing. Note that you cannot skip columns! This command makes use of the HDF5 file-pool see `flush_h5` for more informations.
 ARGUMENT file input filename
 OUTPUT ai the i-th output array
 END_DESCRIPTION
@@ -476,8 +476,7 @@ end:
 BEGIN_DESCRIPTION
 SECTION Array
 PARSEFLAG flush_h5 FlushH5 "[f0=<file-str>, f1=<file-str>, .., fN=<file-str>]"
-DESCRIPTION Save currently open HDF5 file to disc and close the resources. If filenames are provided only these files are closed.
-Otherwise all currently open HDF5 files are closed.
+DESCRIPTION This library handles all HDF5-files it reads and writes using a resource pool. Whenever an HDF5-file is created and opened for writing or opened for reading it is added to the pool. Files are opened until the end of the SSDP program or until they are flushed using this command. Only once a file is flushed its contents are stored on the hard drive. If no file-string is provides flush_h5 closes all currently opened files. Otherwise only the specified files are flushed. Flushing a HDF5-file does not affect variables created by reading the file. If one wishes to read an HDF5-file previously created by SSDP in the same script it must be flushed first. If a one wishes to write multiple datasets to a file it should only be flushed after all write_array_to_H5 calls.
 END_DESCRIPTION
 */
 void FlushH5(char *in){
@@ -500,7 +499,7 @@ void FlushH5(char *in){
 BEGIN_DESCRIPTION
 SECTION Array
 PARSEFLAG write_array_to_H5 WriteArraysToH5 "a0=<in-array> a1=<in-array> .. aN=<in-array> type=<type-str> file=<file-str> dataset=<str> chunksize=<int>"
-DESCRIPTION Writes arrays in columns of a HDF5 File in a dataset called 'dataset'. The i-th array is written to the i-th column in the file. Note that you cannot skip columns! Each dataset handles a basic data type. So different datatyes require different datasets!
+DESCRIPTION Writes arrays in columns of a HDF5-file in a dataset called 'dataset'. The i-th array is written to the i-th column in the file. Note that you cannot skip columns! The user must provide enough variables to store each column. Each dataset handles a single basic data type. That means if one wishes to store different types different datasets are created. This command makes use of the HDF5 file-pool see `flush_h5` for more informations.
 ARGUMENT ai the i-th input array
 ARGUMENT type str that describes the datatype to save on the disc supported datatypes are: float16, float64, int32, int64
 ARGUMENT file name of file should end with .h5
