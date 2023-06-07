@@ -594,7 +594,7 @@ void ConfigTOPOGrid (char *in)
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation Configuration
-PARSEFLAG config_topogdal ConfigTOPOGDAL "C=<out-config> lat1=<float-value> lon1=<float-value> lat2=<float-value> lon2=<float-value> step=<float-value> f0=<file-str> f1=<file-str> .. fN=<file-str> [epsg=<1-float-array>]"
+PARSEFLAG config_topogdal ConfigTOPOGDAL "C=<out-config> lat1=<float-value> lon1=<float-value> lat2=<float-value> lon2=<float-value> step=<float-value> f0=<file-str> f1=<file-str> .. fN=<file-str> [flist=<file-str>] [epsg=<1-float-array>]"
 DESCRIPTION Setup the topogrid. Load the z data (column major, from the south-west corner to the north-east corner).
 ARGUMENT lat1 latitude of the south-west corner (in WGS84, epsg:4326)
 ARGUMENT lon1 longitude of the south-west corner (in WGS84, epsg:4326)
@@ -602,6 +602,7 @@ ARGUMENT lat2 latitude of the north-east corner (in WGS84, epsg:4326)
 ARGUMENT lon2 longitude of the north-east corner (in WGS84, epsg:4326)
 ARGUMENT fi input i-th raster file
 ARGUMENT step step at which rasters are sampled (units of step depend on epsg)
+ARGUMENT flist optional path to a file containing paths to rasters
 ARGUMENT epsg optional coordinate system where to resample rasters. By default an approritate UTM system is used, which is determinted with the centre of the box
 OUTPUT C configuration variable
 END_DESCRIPTION
@@ -630,6 +631,10 @@ void ConfigTOPOGDAL (char *in)
                 if (NULL == word) goto efnspush;
                 ++i;
         }
+
+        if (GetOption(in, "flist", word))
+                if (read_filelist(word, fns))
+                        goto efnlist;
 
         if (FetchOptArray(in, "epsg", word, &fepsg)
             || 1 != fepsg->N || fepsg->D[0] < 0)
@@ -662,6 +667,8 @@ emaketopogdal:
         ssdp_free_topogrid(&C->Tx);
         C->grid_init=0;
         ssdp_reset_errors();
+efnlist:
+        fprintf(stderr, "Failed to read path list from the file!\n");
 efnspush:
         cvec_free(fns);
 epars:

@@ -424,3 +424,27 @@ int cvec_push(struct cvec *self, char *word)
 cvec_push_erealloc:
         return -1;
 }
+
+int read_filelist(char *fn, struct cvec *dst)
+{
+        FILE *fd;
+        char *x = NULL, *line = NULL;
+        size_t len = 0, read;
+
+        if (NULL == (fd=fopen(fn, "rb"))) goto efopen;
+        while (-1 != (read = getline(&line, &len, fd))) {
+                x = malloc((read+1)*sizeof(*x));
+                if (NULL == x) goto epush;
+                strncpy(x, line, read);
+                x[strcspn(x, "\r\n")] = 0;
+                if (cvec_push(dst, x)) goto epush;
+        }
+
+        fclose(fd);
+        return 0;
+epush:
+        free(x);
+        fclose(fd);
+efopen:
+        return -1;
+}

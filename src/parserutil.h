@@ -25,6 +25,8 @@ struct cvec* cvec_init(int a);
 void cvec_free();
 // returns -1 on realloc fails
 int cvec_push(struct cvec*, char *word);
+// returns -1 if failed to read line from fn
+int read_filelist(char *fn, struct cvec *dst);
 
 /* utility function to write parsers */
 char * GetWord(const char *in, char *word);
