@@ -314,7 +314,7 @@ topogrid MakeTopoGDAL(double x1, double y1, double x2, double y2, char **fns, in
 
         printf("Location box dimensions: %d, %d\n", lcs->nx, lcs->ny);
 
-        struct gdaldata *gd = gdaldata_init(fns, nfns);
+        struct gdaldata *gd = gdaldata_init((const char **)fns, nfns);
         if (NULL == gd) goto maketopogdal_egd;
 
         double *z;
