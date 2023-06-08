@@ -751,17 +751,19 @@ void MakeGrid(char *in)
 /*
 BEGIN_DESCRIPTION
 SECTION Array
-PARSEFLAG get_grid GetGrid "C=<in-config> x=<out-array> y=<out-array>"
+PARSEFLAG get_grid GetGrid "C=<in-config> x=<out-array> y=<out-array> [nx=<out-1dim-array> ny=<out-1dim-array>]"
 DESCRIPTION Extract the grid from the configured topogrid
 ARGUMENT C  Simulation config with a configures topogrid
 OUTPUT x output array
 OUTPUT y output array
+OUTPUT nx optional output
+OUTPUT ny optional output
 END_DESCRIPTION
 */
 void GetGrid(char *in)
 {
 	char *word;
-	array x, y;
+	array x, y, nx, ny;
 	simulation_config *C;
 	int i, j;
 	double dx, dy, xx;
@@ -828,7 +830,32 @@ void GetGrid(char *in)
 		free(y.D);
 		free(word);
 	}
-	return;	
+
+    word=malloc((strlen(in)+1)*sizeof(char));
+    if (GetOption(in, "nx", word)) {
+            nx.N=1;
+            nx.D=malloc(sizeof(*nx.D));
+            nx.D[0] = C->Tx.Nx;
+
+            if(AddArray(word, nx)) {
+                    free(nx.D);
+                    free(word);
+            }
+    }
+
+    word=malloc((strlen(in)+1)*sizeof(char));
+    if (GetOption(in, "ny", word)) {
+            ny.N=1;
+            ny.D=malloc(sizeof(*ny.D));
+            ny.D[0] = C->Tx.Ny;
+
+            if(AddArray(word, ny)) {
+                    free(ny.D);
+                    free(word);
+            }
+    }
+
+	return;
 }
 /*
 BEGIN_DESCRIPTION
