@@ -7,6 +7,7 @@
 /* local includes */
 #include "libssdp.h"
 #include "lio.h"
+#include "pngout.h"
 #include "util.h"
 #include "variables.h"
 #include "parser.h"
@@ -568,6 +569,71 @@ error:
 	free(data2);
 	free(word);
 }
+
+/*
+BEGIN_DESCRIPTION
+SECTION Array
+PARSEFLAG write_png WritePng "z=<in-array> nx=<1-dim array> ny=<1-dim array> ofn=<file> [normalise=1]"
+DESCRIPTION Writes 2d array to a png image. The output file contains 3 channels, though only grayscale images are possible to write.
+ARGUMENT z the 2d array
+ARGUMENT nx the width of the image
+ARGUMENT ny the height of the image
+ARGUMENT ofn name of the output filename
+ARGUMENT normalise optional argument. If 0 no normalisation is performed (negative values turn to 0, values larger than 255 turn to 255).
+OUTPUT file output filename
+END_DESCRIPTION
+*/
+void WritePng(char *in)
+{
+        int n;
+        char *word, *ofn;
+        array *z, *nx, *ny;
+        enum normalisation normalise;
+
+        ofn = malloc((strlen(in)+1)*sizeof(*ofn));
+        if (NULL == ofn) goto eofn;
+        if (!GetArg(in, "ofn", ofn)) goto eofnmissing;
+
+        word = malloc((strlen(in)+1)*sizeof(*word));
+        if (NULL == word) goto eword;
+
+        if (FetchArray(in, "z", word, &z)) goto efetch;
+        if (FetchArray(in, "nx", word, &nx)) goto efetch;
+        if (FetchArray(in, "ny", word, &ny)) goto efetch;
+
+        if (FetchOptInt(in, "normalise", word, &n))
+                n = 1;
+
+        if (0==n)
+                normalise = NORM_NONE;
+        else
+                normalise = NORM_MAXMIN;
+
+        if (nx->N != 1 || ny->N != 1) {
+                Warning("nx and ny must be 1 dimensional arrays!\n");
+                goto enxny;
+        }
+
+        int Nx = (int)(round(nx->D[0]));
+        int Ny = (int)(round(ny->D[0]));
+        if (z->N != Nx * Ny) {
+                Warning("length(z) != nx*ny!\n");
+                goto enxny;
+        }
+
+        if (write_png((const char*)ofn, z->D, Nx, Ny, normalise))
+                Warning("Failed writing the png file!\n");
+
+enxny:
+efetch:
+        free(word);
+eword:
+eofnmissing:
+        free(ofn);
+eofn:
+        return;
+}
+
 /*
 BEGIN_DESCRIPTION
 SECTION Array

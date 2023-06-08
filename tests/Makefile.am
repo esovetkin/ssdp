@@ -1,4 +1,4 @@
-bin_PROGRAMS = edt epsg coords topogdal
+bin_PROGRAMS = edt epsg coords topogdal pngout
 
 edt_SOURCES = $(top_builddir)/src/edt.c
 edt_CFLAGS = -DRUNTEST
@@ -7,6 +7,10 @@ epsg_SOURCES =  $(top_builddir)/src/epsg.c
 epsg_CFLAGS = -DRUNTEST
 epsg_LDFLAGS = -lproj
 epsg_LDADD = libcoordinates.la
+
+pngout_SOURCES = $(top_builddir)/src/pngout.c
+pngout_CFLAGS = -DRUNTEST
+pngout_LDFLAGS = -lpng
 
 coords_SOURCES = $(top_builddir)/src/coordinates.c
 coords_CFLAGS = -DRUNTEST
@@ -23,4 +27,4 @@ libcoordinates_la_SOURCES = $(top_builddir)/src/coordinates.c
 libepsg_la_SOURCES = $(top_builddir)/src/epsg.c
 libedt_la_SOURCES = $(top_builddir)/src/edt.c
 
-TESTS=edt epsg coords topogdal
+TESTS=edt epsg coords topogdal pngout

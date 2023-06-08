@@ -5,9 +5,9 @@ AM_CFLAGS = -Wall
 
 
 lib_LTLIBRARIES = libssdp.la
-libssdp_la_SOURCES = sky_dome.c sky_model.c pv-aoi.c project.c trace.c vector.c ground.c print.c libssdp.c shull.c delaunay.c ll.c error.c sunpos.c freespa/freespa.c fatan2.c coordinates.c epsg.c edt.c topogdal.c sky_dome.h sky_model.h pv-aoi.h project.h trace.h vector.h ground.h print.h libssdp.h shull.h delaunay.h ll.h error.h sunpos.h fatan2.h winunistd.h coordinates.h epsg.h edt.h topogdal.h libssdp.map
+libssdp_la_SOURCES = sky_dome.c sky_model.c pv-aoi.c project.c trace.c vector.c ground.c print.c libssdp.c shull.c delaunay.c ll.c error.c sunpos.c freespa/freespa.c fatan2.c coordinates.c epsg.c edt.c topogdal.c pngout.c sky_dome.h sky_model.h pv-aoi.h project.h trace.h vector.h ground.h print.h libssdp.h shull.h delaunay.h ll.h error.h sunpos.h fatan2.h winunistd.h coordinates.h epsg.h edt.h topogdal.h pngout.h libssdp.map
 CLEANFILES = errorflags.h errormessages.h parsedef.h libssdp_structs.h
-libssdp_la_LDFLAGS = -lm -lproj $(GDAL_LDFLAGS) -Wl,--version-script=${srcdir}/libssdp.map -no-undefined -version-number $(LIBVERSION)
+libssdp_la_LDFLAGS = -lm -lproj -lpng $(GDAL_LDFLAGS) -Wl,--version-script=${srcdir}/libssdp.map -no-undefined -version-number $(LIBVERSION)
 include_HEADERS = libssdp.h libssdp_structs.h
 libssdp_la_CFLAGS = $(AM_CFLAGS) $(GDAL_CFLAGS) -DLL_CIRCULAR -D_GNU_SOURCE
 sky_dome.$(OBJEXT): errorflags.h
@@ -25,9 +25,9 @@ nodist_libssdp_la_SOURCES = errorflags.h errormessages.h libssdp_structs.h
 
 
 bin_PROGRAMS = ssdp
-ssdp_SOURCES = lio.c variables.c parser.c configparser.c arrayparser.c topoparser.c simparser.c readlineshell.c util.c epsg.c coordinates.c ssdp.c lio.h variables.h parser.h parserutil.h readlineshell.h util.h winunistd.h epsg.h coordinates.h gen_parserflags.sh gen_errorflags.sh collect_datastructs.sh gen_ssdpdoc.sh h5interface.c h5interface.h HDF5/hd5extention/src/_primes.h HDF5/hd5extention/src/H5Dataset.h HDF5/hd5extention/src/H5Datatypes.h HDF5/hd5extention/src/H5Enums.h HDF5/hd5extention/src/H5FileIO.h HDF5/hd5extention/src/H5Properties.h HDF5/hd5extention/src/H5Table.h HDF5/hd5extention/src/primes_table.h HDF5/hd5extention/src/utils.h HDF5/hd5extention/src/H5Dataset.c HDF5/hd5extention/src/H5Datatypes.c HDF5/hd5extention/src/H5Enums.c HDF5/hd5extention/src/H5FileIO.c HDF5/hd5extention/src/H5Properties.c HDF5/hd5extention/src/H5Table.c HDF5/hd5extention/src/primes_table.c HDF5/hd5extention/src/utils.c
+ssdp_SOURCES = lio.c variables.c parser.c configparser.c arrayparser.c topoparser.c simparser.c readlineshell.c util.c epsg.c coordinates.c pngout.c ssdp.c lio.h variables.h parser.h parserutil.h readlineshell.h util.h winunistd.h epsg.h coordinates.h gen_parserflags.sh gen_errorflags.sh collect_datastructs.sh gen_ssdpdoc.sh h5interface.c h5interface.h HDF5/hd5extention/src/_primes.h HDF5/hd5extention/src/H5Dataset.h HDF5/hd5extention/src/H5Datatypes.h HDF5/hd5extention/src/H5Enums.h HDF5/hd5extention/src/H5FileIO.h HDF5/hd5extention/src/H5Properties.h HDF5/hd5extention/src/H5Table.h HDF5/hd5extention/src/primes_table.h HDF5/hd5extention/src/utils.h HDF5/hd5extention/src/H5Dataset.c HDF5/hd5extention/src/H5Datatypes.c HDF5/hd5extention/src/H5Enums.c HDF5/hd5extention/src/H5FileIO.c HDF5/hd5extention/src/H5Properties.c HDF5/hd5extention/src/H5Table.c HDF5/hd5extention/src/primes_table.c HDF5/hd5extention/src/utils.c
 if OPENMP
-ssdp_LDFLAGS= -lreadline -fopenmp -lm -lproj $(GDAL_LDFLAGS)
+ssdp_LDFLAGS= -lreadline -fopenmp -lm -lproj -lpng $(GDAL_LDFLAGS)
 ssdp_CFLAGS = $(AM_CFLAGS) $(GDAL_CFLAGS) -DOPENMP -fopenmp
 else
 ssdp_LDFLAGS= -lreadline
