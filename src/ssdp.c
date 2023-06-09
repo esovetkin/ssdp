@@ -126,7 +126,7 @@ int main(int argc, char **argv)
 {
 	int i=1;
 	InitVars();
-	init_h5interface();
+	if (init_h5interface()) goto einith5interface;
 	if (argc>1)
 	{
 		if (strncmp("-q", argv[1], 3)==0)
@@ -180,6 +180,8 @@ int main(int argc, char **argv)
 	ClearVars();
 	free_h5interface();
 	return 0;
+einith5interface:
+    return 1;
 }
 /*
 int main()

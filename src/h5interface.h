@@ -15,8 +15,10 @@ extern struct supported_type *g_supported_h5types;
 /*
     This function initializes the H5FileIOHandlerPool and all Datatypes via the supported_type struct.
     It must be called at the beginning of the ssdp main.
+
+    The function returns non-zero values when something is wrong.
 */
-void init_h5interface(void);
+int init_h5interface(void);
 
 /*
     This function frees all the resources allocated by init_h5interface.

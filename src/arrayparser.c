@@ -337,6 +337,9 @@ END_DESCRIPTION
 */
 void ReadArraysFromH5(char *in)
 {
+        // QTODO: this function is over 100 lines long. Is there a way
+        // to split it into several functions. Your nested loops start
+        // leaking memory, when some of the malloc fails inside.
 	char **names = NULL;
 	char *word = NULL;
 	char *file = NULL;
@@ -356,6 +359,7 @@ void ReadArraysFromH5(char *in)
 	n_arr_vars=0;
 	names=malloc(Na*sizeof(char *));
 	dataset_name=malloc((strlen(in)+1)*sizeof(char));
+    // QTODO: select the same default value for dataset as in write_h5array
 	if (!GetArg(in, "dataset", dataset_name))
 	{
 		goto end;
@@ -397,7 +401,7 @@ void ReadArraysFromH5(char *in)
 	}
 	if (read_ncols>0)
 	{
-		arrays = malloc(sizeof(array)*read_ncols);
+		arrays = malloc(sizeof(*arrays)*read_ncols);
 		if(NULL == arrays){
 			Warning("Failed to create arrays. Out of malloc memory");
 			goto end;
@@ -416,6 +420,10 @@ void ReadArraysFromH5(char *in)
 		for (int i=0; i<read_nrows; i++)
 		{	
 			for(int j = 0; j<read_ncols; j++){
+                    // QTODO is there some implicit type casting going
+                    // on? If so, perhaps it is worth making it
+                    // obvious:
+                    //        arrays[j].D[i]=(double)data[i*read_ncols+j];
 				arrays[j].D[i]=data[i*read_ncols+j];
 			}
 		}
@@ -438,6 +446,10 @@ void ReadArraysFromH5(char *in)
 		}
 	}
 end:
+    // QTODO: another disavantage of having long function is that you
+    // don't see when things end up here. You have an error in malloc here:
+    //         arrays[i].D = malloc(sizeof(double)*read_nrows);
+    // then you won't clear memory correctly.
 	free(file);
 	free(names);
 	free(data);
@@ -468,6 +480,9 @@ void FlushH5(char *in){
 	}
 	free(filename);
 }
+
+// QTODO: I like write_h5, read_h5 and flush_h5 names better than "*_array_to_H5"
+
 /*
 BEGIN_DESCRIPTION
 SECTION Array
@@ -494,27 +509,26 @@ void WriteArraysToH5(char *in)
 	array *a = NULL;
 	int i, Na=4, N=-1;
 	file=malloc((strlen(in)+1)*sizeof(char));
-	if (!GetArg(in, "file", file))
-	{
-		goto error;
-	}
+	if (!GetArg(in, "file", file)) goto error;
+
 	dataset_name=malloc((strlen(in)+1)*sizeof(char));
-	if (!GetArg(in, "dataset", dataset_name))
-	{
-		goto error;
-	}
+    // QTODO: choose some default value for the dataset. If you choose
+    // a default value for "dataset", "type", and "chunksize" then
+    // write_array and write_h5array are compatible functionalities.
+	if (!GetArg(in, "dataset", dataset_name)) goto error;
+
 	type_name=malloc((strlen(in)+1)*sizeof(char));
-	if (!GetArg(in, "type", type_name))
-	{
-		goto error;
-	}
+    // QTODO: choose some default value for the type, say float64
+	if (!GetArg(in, "type", type_name)) goto error;
+
 	type = map_supported_types_to_h5types(type_name);
 	word=malloc((strlen(in)+1)*sizeof(char));
-	if(FetchInt(in, "chunksize", word, &chunk_size)){
-		goto error;
-	}
+    // QTODO: choose some default value for the chunksize
+	if(FetchInt(in, "chunksize", word, &chunk_size)) goto error;
+
+    // QTODO: perhaps "ncol" instead of "i" makes code more readable
 	i=0;
-	data=malloc(Na*sizeof(double *));
+	data=malloc(Na*sizeof(*data));
 	while(GetNumOption(in, "a", i, word))
 	{
 		
@@ -536,7 +550,8 @@ void WriteArraysToH5(char *in)
 		if (i==Na-1)
 		{
 			Na+=4;
-			data=realloc(data, Na*sizeof(double *));
+			data=realloc(data, Na*sizeof(*data));
+            // QTODO: what happends when this realloc fails?
 		}
 	}
 	if (i==0)
@@ -551,6 +566,14 @@ void WriteArraysToH5(char *in)
 		goto error;
 	}
 	ErrorCode err;
+    // QTODO: perhaps it makes more sense to make
+    // H5FileIOHandler_write_array work with double **. In that case
+    // all this transpose_unravel logic belongs strictly to the
+    // H5*_write_array.
+    //
+    // Perhaps, if you write data in column fashion, you can even save
+    // on allocating double the required amount of memory to write
+    // thing. (You need to call H5Dwrite ncol times).
 	data2 = transpose_unravel(data, N, i);
 	if(NULL == data2){
 		Warning("Error can not malloc to write h5 file.\n");
