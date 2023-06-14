@@ -115,7 +115,7 @@ AC_DEFUN([AX_LIB_GDAL],
     AC_SUBST(GDAL_OGR_ENABLED)
 ])
 
-AC_INIT([libssdp], [ssdp_version])
+AC_INIT([libssdp],[ssdp_version])
 AC_CONFIG_MACRO_DIRS([m4])
 LT_INIT([])
 AC_PROG_SED()
@@ -144,6 +144,17 @@ AC_ARG_ENABLE([fastatan2],
 AS_IF([test "x$enable_fastatan2" != "xno"], [
   AC_DEFINE([FAST_ATAN2], [], [fast atan2 approximation])
 ])
+AX_LIB_HDF5([serial])
+if test "$with_hdf5" = "yes"; then
+        CC="$HDF5_CC"
+        #AC_MSG_NOTICE([cc "$CC"])
+        #AC_MSG_NOTICE([h5cc "$H5CC"])
+        #AC_MSG_NOTICE([libs "$HDF5_LIBS"])
+        #AC_MSG_NOTICE([cflags "$HDF5_CPPFLAGS"])
+        #AC_MSG_NOTICE([ldflags "$HDF5_LDFLAGS"])
+else
+        AC_MSG_ERROR([Unable to find HDF5, serial HDF5 required!])
+fi
 AC_ARG_ENABLE([openmp],
 [  --enable-openmp    enable openmp parallelization],
 [case "${enableval}" in

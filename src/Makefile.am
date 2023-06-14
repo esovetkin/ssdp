@@ -27,11 +27,11 @@ nodist_libssdp_la_SOURCES = errorflags.h errormessages.h libssdp_structs.h
 bin_PROGRAMS = ssdp
 ssdp_SOURCES = lio.c variables.c parser.c configparser.c arrayparser.c topoparser.c simparser.c readlineshell.c util.c epsg.c coordinates.c pngout.c ssdp.c lio.h variables.h parser.h parserutil.h readlineshell.h util.h winunistd.h epsg.h coordinates.h gen_parserflags.sh gen_errorflags.sh collect_datastructs.sh gen_ssdpdoc.sh h5interface.c h5interface.h HDF5/hd5extention/src/_primes.h HDF5/hd5extention/src/H5Dataset.h HDF5/hd5extention/src/H5Datatypes.h HDF5/hd5extention/src/H5Enums.h HDF5/hd5extention/src/H5FileIO.h HDF5/hd5extention/src/H5Properties.h HDF5/hd5extention/src/H5Table.h HDF5/hd5extention/src/primes_table.h HDF5/hd5extention/src/utils.h HDF5/hd5extention/src/H5Dataset.c HDF5/hd5extention/src/H5Datatypes.c HDF5/hd5extention/src/H5Enums.c HDF5/hd5extention/src/H5FileIO.c HDF5/hd5extention/src/H5Properties.c HDF5/hd5extention/src/H5Table.c HDF5/hd5extention/src/primes_table.c HDF5/hd5extention/src/utils.c
 if OPENMP
-ssdp_LDFLAGS= -lreadline -fopenmp -lm -lproj -lpng $(GDAL_LDFLAGS)
-ssdp_CFLAGS = $(AM_CFLAGS) $(GDAL_CFLAGS) -DOPENMP -fopenmp
+ssdp_LDFLAGS= -lreadline -fopenmp -lm -lproj -lpng $(HDF5_LIBS) $(GDAL_LDFLAGS) $(HDF5_LDFLAGS) 
 else
-ssdp_LDFLAGS= -lreadline
+ssdp_LDFLAGS= -lreadline -lm -lproj -lpng $(HDF5_LIBS) $(GDAL_LDFLAGS) $(HDF5_LDFLAGS)
 endif
+ssdp_CFLAGS = $(AM_CFLAGS) $(GDAL_CFLAGS) $(HDF5_CPPFLAGS) -DOPENMP -fopenmp
 ssdp_LDADD = libssdp.la
 man1_MANS = ssdp.man
 # scripts in extra dist
