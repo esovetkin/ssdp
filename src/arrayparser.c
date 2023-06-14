@@ -359,10 +359,10 @@ void ReadArraysFromH5(char *in)
 	n_arr_vars=0;
 	names=malloc(Na*sizeof(char *));
 	dataset_name=malloc((strlen(in)+1)*sizeof(char));
-    // QTODO: select the same default value for dataset as in write_h5array
-	if (!GetArg(in, "dataset", dataset_name))
-	{
-		goto end;
+	if (!GetOption(in, "dataset", dataset_name))
+	{	
+		snprintf(dataset_name, strlen(in)+1, "data");
+		Warning("No argument `dataset` provided! Using default value: `%s`\n", dataset_name);
 	}
 	while(GetNumOption(in, "a", n_arr_vars, word))
 	{
@@ -411,7 +411,6 @@ void ReadArraysFromH5(char *in)
 			arrays[i].N = read_nrows;
 			arrays[i].D = malloc(sizeof(double)*read_nrows);
 			if(NULL == arrays[i].D ){
-				free(arrays);
 				Warning("Failed to create arrays. Out of malloc memory");
 				goto end;
 			}
@@ -424,6 +423,8 @@ void ReadArraysFromH5(char *in)
                     // on? If so, perhaps it is worth making it
                     // obvious:
                     //        arrays[j].D[i]=(double)data[i*read_ncols+j];
+					// No casting going on here. We are taking the columns from the matrix represented as a row major 1d
+					// contiguous array from HDF5 and putting them into multiple contiguous 1d arrays for SSDP
 				arrays[j].D[i]=data[i*read_ncols+j];
 			}
 		}
@@ -512,19 +513,30 @@ void WriteArraysToH5(char *in)
 	if (!GetArg(in, "file", file)) goto error;
 
 	dataset_name=malloc((strlen(in)+1)*sizeof(char));
-    // QTODO: choose some default value for the dataset. If you choose
-    // a default value for "dataset", "type", and "chunksize" then
-    // write_array and write_h5array are compatible functionalities.
-	if (!GetArg(in, "dataset", dataset_name)) goto error;
+	if (!GetOption(in, "dataset", dataset_name)){
+		snprintf(dataset_name, strlen(in)+1, "data");
+		Warning("No argument `dataset` provided! Using default value: `%s`\n", dataset_name);
+	};
 
 	type_name=malloc((strlen(in)+1)*sizeof(char));
-    // QTODO: choose some default value for the type, say float64
-	if (!GetArg(in, "type", type_name)) goto error;
+	if (!GetOption(in, "type", type_name)){
+		snprintf(type_name, strlen(in)+1, "float64");
+		Warning("No argument `type` provided! Using default value: `%s`\n", type_name);
+	};
 
 	type = map_supported_types_to_h5types(type_name);
+	if(H5I_INVALID_HID == type.type_id){
+		Warning("Invalid datatype type: %s\n", type_name);
+		goto error;
+	}
 	word=malloc((strlen(in)+1)*sizeof(char));
-    // QTODO: choose some default value for the chunksize
-	if(FetchInt(in, "chunksize", word, &chunk_size)) goto error;
+	if(FetchOptInt(in, "chunksize", word, &chunk_size)){
+		# define CHUNKSIZE_DEFAULT 1000
+		Warning("No argument `chunksize` provided! Using default value %d."
+		" If HDF5 IO performance is poor consider increasing the chunk size of the chunk cache\n", CHUNKSIZE_DEFAULT);
+		chunk_size = CHUNKSIZE_DEFAULT;
+		// TODO we may need an API call for the chunk cache	in here maybe as an optional argument
+	}
 
     // QTODO: perhaps "ncol" instead of "i" makes code more readable
 	i=0;
