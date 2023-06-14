@@ -10,7 +10,7 @@ struct supported_type {
 };
 
 extern struct H5FileIOHandlerPool* g_h5filepool;
-extern struct supported_type *g_supported_h5types;
+extern struct supported_type g_supported_h5types[];
 
 /*
     This function initializes the H5FileIOHandlerPool and all Datatypes via the supported_type struct.

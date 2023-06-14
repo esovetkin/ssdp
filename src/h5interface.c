@@ -3,12 +3,7 @@
 #include <stdlib.h>
 struct H5FileIOHandlerPool *g_h5filepool = NULL;
 # define N_SUPPORTED_TYPES 4
-struct supported_type *g_supported_h5types;
-// QTODO: if you choose to use arrays, then the following is a valid syntax
-//
-//         struct supported_type g_supported_h5types[N_SUPPORTED_TYPES];
-//
-// since you need the length of the array.
+struct supported_type g_supported_h5types[N_SUPPORTED_TYPES];
 
 struct supported_type build_supported_type(char *type_str, hid_t type_id, int is_custom){
     struct supported_type out = {type_str, type_id, is_custom};
@@ -26,10 +21,6 @@ int init_h5interface(){
     // somewhere in the middle.
     if (NULL == g_h5filepool) goto einit;
 
-    // QTODO: your N_SUPPORTED_TYPES is hardcoded, why not just use
-    // standard array? i.e.
-    //    struct supported_type g_supported_h5types[4];
-    g_supported_h5types = malloc(N_SUPPORTED_TYPES * sizeof(*g_supported_h5types));
     if (NULL == g_supported_h5types) goto einittypes;
 
     g_supported_h5types [0] = build_supported_type("float16", H5T_define_16bit_float(), 1);
@@ -54,10 +45,6 @@ void free_h5interface(){
             H5Tclose(g_supported_h5types[i].type_id);
         }
     }
-    // QTODO: you do malloc of this but I cannot see free. Free must
-    // be somewhere here.
-    // I forgot free of g_supported_h5types whish should happen here.
-    free(g_supported_h5types);
     H5FileIOHandlerPool_free(&g_h5filepool);
 }
 
