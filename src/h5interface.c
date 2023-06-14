@@ -20,8 +20,8 @@ struct supported_type build_supported_type(char *type_str, hid_t type_id, int is
 */
 int init_h5interface(){
     g_h5filepool = H5FileIOHandlerPool_init();
-    // QTODO: I decided to opt for the catching sitation when
-    // something fails, because if a catastroph happens you would like
+    // QTODO: I decided to opt for the catching situation when
+    // something fails, because if a catastrophe happens you would like
     // to know that it happens, instead of getting some weird bug
     // somewhere in the middle.
     if (NULL == g_h5filepool) goto einit;
@@ -38,7 +38,6 @@ int init_h5interface(){
     g_supported_h5types [3] = build_supported_type("int64", H5T_NATIVE_INT64, 0);
 
     return 0;
-    // free(g_supported_h5types);
 einittypes:
     free(g_h5filepool);
 einit:
@@ -52,13 +51,12 @@ einit:
 void free_h5interface(){
     for(int i = 0; i < N_SUPPORTED_TYPES; i++){
         if(g_supported_h5types[i].is_custom){
-                // QTODO: you check the ith is custom, but close the
-                // first. It is something out of ordinary.
-            H5Tclose(g_supported_h5types->type_id);
+            H5Tclose(g_supported_h5types[i].type_id);
         }
     }
     // QTODO: you do malloc of this but I cannot see free. Free must
     // be somewhere here.
+    // I forgot free of g_supported_h5types whish should happen here.
     free(g_supported_h5types);
     H5FileIOHandlerPool_free(&g_h5filepool);
 }
