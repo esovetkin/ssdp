@@ -351,6 +351,10 @@ void ReadArraysFromH5(char *in)
 	array *arrays = NULL;
 	ErrorCode err;
 	file=malloc((strlen(in)+1)*sizeof(char));
+	if(NULL == file){
+        Warning("Out of malloc memory");
+        goto end;
+    }
 	if (!GetArg(in, "file", file))
 	{
 		goto end;
@@ -372,7 +376,15 @@ void ReadArraysFromH5(char *in)
 		if (n_arr_vars==Na-1)
 		{
 			Na+=4;
-			names=realloc(names, Na*sizeof(char *));
+			char **tmp;
+            tmp=realloc(names, Na*sizeof(char *));
+            if(NULL == tmp){
+                Warning("Error: Out of malloc memory");
+                goto end;
+            }else {
+                names = tmp;
+            }
+
 		}
 	}
 	free(word);
@@ -482,7 +494,6 @@ void FlushH5(char *in){
 	free(filename);
 }
 
-// QTODO: I like write_h5, read_h5 and flush_h5 names better than "*_array_to_H5"
 
 /*
 BEGIN_DESCRIPTION
@@ -533,12 +544,12 @@ void WriteArraysToH5(char *in)
 	if(FetchOptInt(in, "chunksize", word, &chunk_size)){
 		# define CHUNKSIZE_DEFAULT 1000
 		Warning("No argument `chunksize` provided! Using default value %d."
-		" If HDF5 IO performance is poor consider increasing the chunk size of the chunk cache\n", CHUNKSIZE_DEFAULT);
+		" If HDF5 IO performance is poor consider increasing the chunk size or the size of the chunk cache\n", CHUNKSIZE_DEFAULT);
 		chunk_size = CHUNKSIZE_DEFAULT;
 		// TODO we may need an API call for the chunk cache	in here maybe as an optional argument
 	}
 
-    // QTODO: perhaps "ncol" instead of "i" makes code more readable
+
 	ncols=0;
 	data=malloc(data_buffer_size*sizeof(*data));
 	while(GetNumOption(in, "a", ncols, word))
@@ -563,8 +574,6 @@ void WriteArraysToH5(char *in)
 		{
 			data_buffer_size+=4;
 			double **tmp;
-			// QTODO: what happens when this realloc fails?
-			// I learned how to check realloc
 			// Note to always create a temporary pointer and not
 			// overwrite the existing one because if realloc fails
 			// it will return null and not free the memory
