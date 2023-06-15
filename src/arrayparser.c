@@ -508,7 +508,7 @@ void WriteArraysToH5(char *in)
 	double *data2 = NULL;
 	int chunk_size;
 	array *a = NULL;
-	int i, Na=4, N=-1;
+	int ncols, data_buffer_size=4, nrows=-1;
 	file=malloc((strlen(in)+1)*sizeof(char));
 	if (!GetArg(in, "file", file)) goto error;
 
@@ -539,9 +539,9 @@ void WriteArraysToH5(char *in)
 	}
 
     // QTODO: perhaps "ncol" instead of "i" makes code more readable
-	i=0;
-	data=malloc(Na*sizeof(*data));
-	while(GetNumOption(in, "a", i, word))
+	ncols=0;
+	data=malloc(data_buffer_size*sizeof(*data));
+	while(GetNumOption(in, "a", ncols, word))
 	{
 		
 		if (!LookupArray(word, &a))
@@ -549,24 +549,36 @@ void WriteArraysToH5(char *in)
 			Warning("Array %s not available\n",word); 
 			goto error;
 		}
-		data[i]=a->D;
-		if (N<0)
-			N=a->N;
-		else if (a->N!=N)
+		data[ncols]=a->D;
+		if (nrows<0)
+			nrows=a->N;
+		else if (a->N!=nrows)
 		{
-			printf("0: %d %d:%d\n", N, i, a->N);
+			printf("0: %d %d:%d\n", nrows, ncols, a->N);
 			Warning("Error: arrays must be of equal length\n"); 
 			goto error;
 		}
-		i++;
-		if (i==Na-1)
+		ncols++;
+		if (ncols==data_buffer_size-1)
 		{
-			Na+=4;
-			data=realloc(data, Na*sizeof(*data));
-            // QTODO: what happends when this realloc fails?
+			data_buffer_size+=4;
+			double **tmp;
+			// QTODO: what happens when this realloc fails?
+			// I learned how to check realloc
+			// Note to always create a temporary pointer and not
+			// overwrite the existing one because if realloc fails
+			// it will return null and not free the memory
+			tmp=realloc(data, data_buffer_size*sizeof(*data));
+			if(NULL == tmp){
+				Warning("Error: Out of malloc memory!");
+				goto error;
+			}else{
+				data = tmp;
+			}
+            
 		}
 	}
-	if (i==0)
+	if (ncols==0)
 	{
 		Warning("Cannot define arrays from file, no array arguments recognized\n"); 
 		goto error;
@@ -586,12 +598,19 @@ void WriteArraysToH5(char *in)
     // Perhaps, if you write data in column fashion, you can even save
     // on allocating double the required amount of memory to write
     // thing. (You need to call H5Dwrite ncol times).
-	data2 = transpose_unravel(data, N, i);
+	//
+	// HDF5 can only write memory if it is contiguous
+	// Bart's Data is not contiguous
+	// I think we can not avoid rearranging Bart's loose columns
+	// into a row major matrix if we wish to write multiple columns into the same dataset
+	// We can create a new dataset for each column but then we will loose compression efficiency
+	// If we were to add columns one by one it would also be more costly in IO compared to a single write of a big matrix.
+	data2 = transpose_unravel(data, nrows, ncols);
 	if(NULL == data2){
 		Warning("Error can not malloc to write h5 file.\n");
 		goto error;
 	}
-	err = H5FileIOHandler_write_array(handler, dataset_name, data2, N, i, chunk_size, type.type_id);
+	err = H5FileIOHandler_write_array(handler, dataset_name, data2, nrows, ncols, chunk_size, type.type_id);
 	if (SUCCESS != err){
 		Warning("Error writing to HDF5 file!\n");
 
