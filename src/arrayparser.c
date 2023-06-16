@@ -374,8 +374,61 @@ error:
 	}
 	free(names);
 	return NULL;
-}	
-// TODO
+}
+
+/*
+	private helper function to create array variables from a 2d matrix of columns
+	args:
+		ncols: number of columns
+		nrows: number of rows
+		names: array of strings
+		data: flattened 2d array of shape nrows x ncols
+	return:
+		SUCCESS if successful
+*/
+static ErrorCode create_arrays(int ncols, int nrows, char **names, double *data){
+	ErrorCode out = SUCCESS;
+	array *arrays = NULL;
+	arrays = malloc(sizeof(*arrays)*ncols);
+	if(NULL == arrays){
+		Warning("Failed to create arrays. Out of malloc memory");
+		out = OUTOFMEMORY;
+		goto end;
+	}
+	// create read_ncols arrays
+	for(int i = 0; i < ncols; i++){
+		arrays[i].N = nrows;
+		arrays[i].D = malloc(sizeof(double)*nrows);
+		if(NULL == arrays[i].D ){
+			Warning("Failed to create arrays. Out of malloc memory");
+			for(int j = 0; j < i; j++){
+				free(arrays[i].D);
+			}
+			out = OUTOFMEMORY;
+			goto end;
+		}
+	}
+	// fill the arrays
+	for (int i=0; i<nrows; i++)
+	{	
+		for(int j = 0; j<ncols; j++){
+			arrays[j].D[i]=data[i*ncols+j];
+		}
+	}
+	for(int i = 0; i < ncols; i++){
+		printf("Creating array %s\n", names[i]);
+		if(AddArray(names[i], arrays[i]))
+		{	
+			Warning("Failed to create array variable");
+			out = FAILURE;
+			free(arrays[i].D);
+		}
+	}
+end:
+	free(arrays);
+	return out;
+}
+
 /*
 BEGIN_DESCRIPTION
 SECTION Array
@@ -397,7 +450,6 @@ void ReadArraysFromH5(char *in)
 	char *dataset_name = NULL;
 	int read_nrows, read_ncols;
 	struct H5FileIOHandler *handler = NULL;
-	array *arrays = NULL;
 	ErrorCode err;
 	file=malloc((strlen(in)+1)*sizeof(char));
 	if(NULL == file){
@@ -439,51 +491,19 @@ void ReadArraysFromH5(char *in)
 		goto end;
 
 	}
+
 	if (read_ncols>0)
-	{
-		arrays = malloc(sizeof(*arrays)*read_ncols);
-		if(NULL == arrays){
-			Warning("Failed to create arrays. Out of malloc memory");
-			goto end;
-		}
-		// create read_ncols arrays
-		for(int i = 0; i < read_ncols; i++){
-			arrays[i].N = read_nrows;
-			arrays[i].D = malloc(sizeof(double)*read_nrows);
-			if(NULL == arrays[i].D ){
-				Warning("Failed to create arrays. Out of malloc memory");
-				goto end;
-			}
-		}
-		// fill the arrays
-		for (int i=0; i<read_nrows; i++)
-		{	
-			for(int j = 0; j<read_ncols; j++){
-                    // QTODO is there some implicit type casting going
-                    // on? If so, perhaps it is worth making it
-                    // obvious:
-                    //        arrays[j].D[i]=(double)data[i*read_ncols+j];
-					// No casting going on here. We are taking the columns from the matrix represented as a row major 1d
-					// contiguous array from HDF5 and putting them into multiple contiguous 1d arrays for SSDP
-				arrays[j].D[i]=data[i*read_ncols+j];
-			}
-		}
-		for(int i = 0; i < read_ncols; i++){
-			printf("Creating array %s\n", names[i]);
-			if(AddArray(names[i], arrays[i]))
-			{	
-				Warning("Failed to create array variable");
-				free(names[i]); // failed to make array
-				free(arrays[i].D);
-			}
-		}
+	{	
+		err = create_arrays(read_ncols, read_nrows, names, data);
 		
-	}else
-	{
-		printf("Could not parse file %s\n", file);
-		for (int i=0; i<n_arr_vars; i++)
-		{
-			free(names[i]);
+	}
+	if (read_ncols <= 0 || err != SUCCESS){
+		Warning("An error while parsing the file has ocurred");
+		if (err != SUCCESS){
+			for (int i=0; i<n_arr_vars; i++)
+			{
+				free(names[i]);
+			}
 		}
 	}
 end:
@@ -495,7 +515,6 @@ end:
 	free(names);
 	free(data);
 	free(dataset_name);
-	free(arrays);
 }
 
 /*
