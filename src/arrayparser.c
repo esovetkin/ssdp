@@ -588,6 +588,10 @@ void WriteArraysToH5(char *in)
 		goto error;
 	}
 	word=malloc((strlen(in)+1)*sizeof(char));
+	if(NULL == word){
+		Warning("Error: Out of malloc memory!");
+		goto error;
+	}
 	if(FetchOptInt(in, "chunksize", word, &chunk_size)){
 		# define CHUNKSIZE_DEFAULT 1000
 		Warning("No argument `chunksize` provided! Using default value %d."
@@ -599,6 +603,10 @@ void WriteArraysToH5(char *in)
 
 	ncols=0;
 	data=malloc(data_buffer_size*sizeof(*data));
+	if(NULL == data){
+		Warning("Error: Out of malloc memory!");
+		goto error;
+	}
 	while(GetNumOption(in, "a", ncols, word))
 	{
 		
