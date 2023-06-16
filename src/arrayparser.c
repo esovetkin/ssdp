@@ -314,17 +314,67 @@ double* transpose_unravel(double** arr, int nrows, int ncols) {
 }
 
 /*
-	map a string to a hid_t of a datatype
+private helper function to find the names of array variables from a given input
 
-	args:
-		type: str that encodes a hdf5 datatype
-		out: location to store id of datatype if a failure occurs this value will be H5I_INVALID_HID
-	return:
-		0 if type is builtin else 1
-		if this function returns 1 remember to free the datatype!
+args:
+	in: user input
+	n_arr_vars: address of int variable to store the number of name variables found
+return:
+	array of strings of length n_arr_vars if successful else NULL
 */
-
-
+char ** get_array_names_from_input(char *in, int *n_arr_vars){
+	char **names = NULL;
+	char *word = NULL;
+	int Na=4;
+	*n_arr_vars = 0;
+	
+	
+	names=malloc(Na*sizeof(char *));
+	if (NULL == names){
+		Warning("Error: Out of malloc memory");
+		goto error;
+	}
+	word = malloc((strlen(in)+1)*sizeof(char));
+	if (NULL == word){
+		Warning("Error: Out of malloc memory");
+		goto error;
+	}
+	while(GetNumOption(in, "a", *n_arr_vars, word))
+	{	
+		names[*n_arr_vars]=word;
+		word = malloc((strlen(in)+1)*sizeof(char));
+		if (NULL == word){
+			Warning("Error: Out of malloc memory");
+			goto error;
+		}
+		*n_arr_vars=(*n_arr_vars)+1;
+		if ((*n_arr_vars)==Na-1)
+		{
+			Na+=4;
+			char **tmp;
+            tmp=realloc(names, Na*sizeof(char *));
+            if(NULL == tmp){
+                Warning("Error: Out of malloc memory");
+                goto error;
+            }else {
+                names = tmp;
+            }
+		}
+	};
+	if ((*n_arr_vars)==0)
+	{
+		Warning("Cannot define arrays from file, no array arguments recognized\n"); 
+		goto error;
+	}
+	return names;
+	
+error:
+	for(int i = 0; i < n_arr_vars; i++){
+		free(names[i]);
+	}
+	free(names);
+	return NULL;
+}	
 // TODO
 /*
 BEGIN_DESCRIPTION
@@ -341,12 +391,11 @@ void ReadArraysFromH5(char *in)
         // to split it into several functions. Your nested loops start
         // leaking memory, when some of the malloc fails inside.
 	char **names = NULL;
-	char *word = NULL;
+	int n_arr_vars;
 	char *file = NULL;
 	double *data = NULL;
 	char *dataset_name = NULL;
 	int read_nrows, read_ncols;
-	int n_arr_vars, Na=4;
 	struct H5FileIOHandler *handler = NULL;
 	array *arrays = NULL;
 	ErrorCode err;
@@ -359,40 +408,19 @@ void ReadArraysFromH5(char *in)
 	{
 		goto end;
 	}
-	word=malloc((strlen(in)+1)*sizeof(char));
-	n_arr_vars=0;
-	names=malloc(Na*sizeof(char *));
+	
 	dataset_name=malloc((strlen(in)+1)*sizeof(char));
 	if (!GetOption(in, "dataset", dataset_name))
 	{	
 		snprintf(dataset_name, strlen(in)+1, "data");
 		Warning("No argument `dataset` provided! Using default value: `%s`\n", dataset_name);
 	}
-	while(GetNumOption(in, "a", n_arr_vars, word))
-	{
-		names[n_arr_vars]=word;
-		n_arr_vars++;
-		word=malloc((strlen(in)+1)*sizeof(char));
-		if (n_arr_vars==Na-1)
-		{
-			Na+=4;
-			char **tmp;
-            tmp=realloc(names, Na*sizeof(char *));
-            if(NULL == tmp){
-                Warning("Error: Out of malloc memory");
-                goto end;
-            }else {
-                names = tmp;
-            }
 
-		}
-	}
-	free(word);
-	if (n_arr_vars==0)
-	{
-		Warning("Cannot define arrays from file, no array arguments recognized\n"); 
+	names = get_array_names_from_input(in, &n_arr_vars);
+	if (NULL == names){
 		goto end;
 	}
+
 	handler = H5FileIOHandlerPool_get_handler(g_h5filepool, file, R);
 	if (NULL == handler){
 		Warning("Error reading H5 file: Could not create handler.!\n");
