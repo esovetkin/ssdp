@@ -418,16 +418,17 @@ end:
 /*
 BEGIN_DESCRIPTION
 SECTION Array
-PARSEFLAG read_h5 ReadArraysFromH5 "file=<file-str> a0=<out-array> a1=<out-array> .. aN=<out-array> dataset=<str>"
+PARSEFLAG read_h5 ReadArraysFromH5 "file=<file-str> a0=<out-array> a1=<out-array> .. aN=<out-array> [dataset=<str>]"
 DESCRIPTION Reads a dataset called `dataset` from an HDF5-file and stores the columns in arrays. The i-th column is stored in the i-th output array. Every array is converted to a 64 bit float for internal processing. Note that you cannot skip columns! This command makes use of the HDF5 file-pool see `flush_h5` for more informations.
 ARGUMENT file input filename
+ARGUMENT dataset optional name of the dataset to read from (default: "data")
 OUTPUT ai the i-th output array
 END_DESCRIPTION
 */
 void ReadArraysFromH5(char *in)
 {
 	char **names = NULL;
-	int n_arr_vars;
+	int n_arr_vars = 0;
 	char *file = NULL;
 	double **data = NULL;
 	char *dataset_name = NULL;
@@ -435,51 +436,48 @@ void ReadArraysFromH5(char *in)
 	struct H5FileIOHandler *handler = NULL;
 	ErrorCode err = SUCCESS;
 	file=malloc((strlen(in)+1)*sizeof(char));
-	if(NULL == file){
+	if(NULL == file) {
         Warning("Out of malloc memory");
         goto end;
     }
-	if (!GetArg(in, "file", file))
-	{
+	if (!GetArg(in, "file", file)) {
 		goto end;
 	}
-	
+
 	dataset_name=malloc((strlen(in)+1)*sizeof(char));
-	if (!GetOption(in, "dataset", dataset_name))
-	{	
+	if (!GetOption(in, "dataset", dataset_name)) {
 		snprintf(dataset_name, strlen(in)+1, "data");
 		Warning("No argument `dataset` provided! Using default value: `%s`\n", dataset_name);
 	}
 
 	names = get_array_names_from_input(in, &n_arr_vars);
-	if (NULL == names){
+	if (NULL == names) {
 		goto end;
 	}
 
 	handler = H5FileIOHandlerPool_get_handler(g_h5filepool, file, R);
-	if (NULL == handler){
+	if (NULL == handler) {
 		Warning("Error reading H5 file: Could not create handler.!\n");
 		goto end;
 	}
 	err = H5FileIOHandler_read_array_of_columns(handler, dataset_name, &data, &read_nrows, &read_ncols);
-	if(SUCCESS != err){
+	if(SUCCESS != err) {
 		Warning("Error reading H5 file could not read dataset\n");
 		goto end;
 	}
 
-	if(n_arr_vars != read_ncols){
+	if(n_arr_vars != read_ncols) {
 		// user didn't provide enough variables
 		Warning("Not enough variables provided to store arrays! Provided Variables: %d Read Arrays: %d\n",
-		n_arr_vars, read_ncols);	
+		n_arr_vars, read_ncols);
 		goto end;
 	}
 
-	if (read_ncols>0)
-	{	
+	if (read_ncols>0) {
 		err = create_arrays(read_ncols, read_nrows, names, data);
 	}
 end:
-	if(SUCCESS != err){
+	if(SUCCESS != err) {
 		Warning("An error while parsing the file has ocurred");
 		for(int i = 0; i < n_arr_vars; i++){
 			if(NULL != data)
@@ -522,18 +520,18 @@ void FlushH5(char *in){
 /*
 BEGIN_DESCRIPTION
 SECTION Array
-PARSEFLAG write_h5 WriteArraysToH5 "a0=<in-array> a1=<in-array> .. aN=<in-array> type=<type-str> file=<file-str> dataset=<str> chunksize=<int>"
+PARSEFLAG write_h5 WriteArraysToH5 "a0=<in-array> a1=<in-array> .. aN=<in-array> file=<file-str> [type=<type-str>] [dataset=<str>] [chunksize=<int>]"
 DESCRIPTION Writes arrays in columns of a HDF5-file in a dataset called 'dataset'. The i-th array is written to the i-th column in the file. Note that you cannot skip columns! The user must provide enough variables to store each column. Each dataset handles a single basic data type. That means if one wishes to store different types different datasets are created. This command makes use of the HDF5 file-pool see `flush_h5` for more informations.
 ARGUMENT ai the i-th input array
-ARGUMENT type str that describes the datatype to save on the disc supported datatypes are: float16, float64, int32, int64
 ARGUMENT file name of file should end with .h5
-ARGUMENT dataset name of dataset 
-ARGUMENT chunksize in number of rows for chunked I/O
+ARGUMENT type optional string that describes the datatype to save on the disc supported datatypes are: float16, float64, int32, int64 (default: float64)
+ARGUMENT dataset optional name of dataset (default "data")
+ARGUMENT chunksize in number of rows for chunked I/O. Chunksize influence the efficiency of the compression (default 1000)
 OUTPUT file output filename
 END_DESCRIPTION
 */
 void WriteArraysToH5(char *in)
-{	
+{
 	char *word = NULL;
 	char *file = NULL;
 	char *dataset_name = NULL;
@@ -559,45 +557,42 @@ void WriteArraysToH5(char *in)
 	};
 
 	type = map_supported_types_to_h5types(type_name);
-	if(H5I_INVALID_HID == type.type_id){
+	if(H5I_INVALID_HID == type.type_id) {
 		Warning("Invalid datatype type: %s\n", type_name);
 		goto error;
 	}
 	word=malloc((strlen(in)+1)*sizeof(char));
-	if(NULL == word){
+	if(NULL == word) {
 		Warning("Error: Out of malloc memory!");
 		goto error;
 	}
-	if(FetchOptInt(in, "chunksize", word, &chunk_size)){
-		# define CHUNKSIZE_DEFAULT 1000
+	if(FetchOptInt(in, "chunksize", word, &chunk_size)) {
+		chunk_size = 1000;
 		Warning("No argument `chunksize` provided! Using default value %d."
-		" If HDF5 IO performance is poor consider increasing the chunk size or the size of the chunk cache\n", CHUNKSIZE_DEFAULT);
-		chunk_size = CHUNKSIZE_DEFAULT;
+		" If HDF5 IO performance is poor consider increasing the chunk size or the size of the chunk cache\n", chunk_size);
 		// TODO we may need an API call for the chunk cache	in here maybe as an optional argument
 	}
 
 
 	ncols=0;
 	data=malloc(data_buffer_size*sizeof(*data));
-	if(NULL == data){
+	if(NULL == data) {
 		Warning("Error: Out of malloc memory!");
 		goto error;
 	}
-	while(GetNumOption(in, "a", ncols, word))
-	{
-		
-		if (!LookupArray(word, &a))
-		{
-			Warning("Array %s not available\n",word); 
+
+	while(GetNumOption(in, "a", ncols, word)) {
+		if (!LookupArray(word, &a)) {
+			Warning("Array %s not available\n",word);
 			goto error;
 		}
+
 		data[ncols]=a->D;
-		if (nrows<0)
+		if (nrows<0) {
 			nrows=a->N;
-		else if (a->N!=nrows)
-		{
+		} else if (a->N!=nrows) {
 			printf("0: %d %d:%d\n", nrows, ncols, a->N);
-			Warning("Error: arrays must be of equal length\n"); 
+			Warning("Error: arrays must be of equal length\n");
 			goto error;
 		}
 		ncols++;
@@ -605,46 +600,32 @@ void WriteArraysToH5(char *in)
 		{
 			data_buffer_size+=4;
 			double **tmp;
-			// Note to always create a temporary pointer and not
-			// overwrite the existing one because if realloc fails
-			// it will return null and not free the memory
 			tmp=realloc(data, data_buffer_size*sizeof(*data));
-			if(NULL == tmp){
+			if(NULL == tmp) {
 				Warning("Error: Out of malloc memory!");
 				goto error;
-			}else{
+			} else {
 				data = tmp;
 			}
-            
+
 		}
 	}
 	if (ncols==0)
 	{
-		Warning("Cannot define arrays from file, no array arguments recognized\n"); 
+		Warning("Cannot define arrays from file, no array arguments recognized\n");
 		goto error;
 	}
 	printf("Preparing to write arrays to H5 file `%s` in dataset `%s`\n", file, dataset_name);
 	struct H5FileIOHandler *handler = H5FileIOHandlerPool_get_handler(g_h5filepool, file, W);
 	if (NULL == handler){
-		Warning("Error creating HDF5 file!\n"); 
+		Warning("Error creating HDF5 file!\n");
 		goto error;
 	}
 	ErrorCode err;
-	/*
-	double *data2 = NULL;
-	data2 = transpose_unravel(data, nrows, ncols);
-	if(NULL == data2){
-		Warning("Error can not malloc to write h5 file.\n");
-		goto error;
-	}
-	err = H5FileIOHandler_write_array(handler, dataset_name, data2, nrows, ncols, chunk_size, type.type_id);
-	free(data2);
-	*/
-	err = H5FileIOHandler_write_array_of_columns(handler, dataset_name, data, nrows, ncols, chunk_size, type.type_id);
-	if (SUCCESS != err){
-		Warning("Error writing to HDF5 file!\n");
 
-	}
+	err = H5FileIOHandler_write_array_of_columns(handler, dataset_name, data, nrows, ncols, chunk_size, type.type_id);
+	if (SUCCESS != err)
+		Warning("Error writing to HDF5 file!\n");
 error:
 	free(file);
 	free(data);

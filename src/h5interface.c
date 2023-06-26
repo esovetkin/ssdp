@@ -15,10 +15,6 @@ struct supported_type build_supported_type(char *type_str, hid_t type_id, int is
 */
 int init_h5interface(){
     g_h5filepool = H5FileIOHandlerPool_init();
-    // QTODO: I decided to opt for the catching situation when
-    // something fails, because if a catastrophe happens you would like
-    // to know that it happens, instead of getting some weird bug
-    // somewhere in the middle.
     if (NULL == g_h5filepool) goto einit;
 
     if (NULL == g_supported_h5types) goto einittypes;
