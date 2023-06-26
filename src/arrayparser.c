@@ -563,7 +563,6 @@ void WriteArraysToH5(char *in)
 	char *type_name = NULL;
 	struct supported_type type;
 	double **data = NULL;
-	double *data2 = NULL;
 	int chunk_size;
 	array *a = NULL;
 	int ncols, data_buffer_size=4, nrows=-1;
@@ -654,27 +653,17 @@ void WriteArraysToH5(char *in)
 		goto error;
 	}
 	ErrorCode err;
-    // QTODO: perhaps it makes more sense to make
-    // H5FileIOHandler_write_array work with double **. In that case
-    // all this transpose_unravel logic belongs strictly to the
-    // H5*_write_array.
-    //
-    // Perhaps, if you write data in column fashion, you can even save
-    // on allocating double the required amount of memory to write
-    // thing. (You need to call H5Dwrite ncol times).
-	//
-	// HDF5 can only write memory if it is contiguous
-	// Bart's Data is not contiguous
-	// I think we can not avoid rearranging Bart's loose columns
-	// into a row major matrix if we wish to write multiple columns into the same dataset
-	// We can create a new dataset for each column but then we will loose compression efficiency
-	// If we were to add columns one by one it would also be more costly in IO compared to a single write of a big matrix.
+	/*
+	double *data2 = NULL;
 	data2 = transpose_unravel(data, nrows, ncols);
 	if(NULL == data2){
 		Warning("Error can not malloc to write h5 file.\n");
 		goto error;
 	}
 	err = H5FileIOHandler_write_array(handler, dataset_name, data2, nrows, ncols, chunk_size, type.type_id);
+	free(data2);
+	*/
+	err = H5FileIOHandler_write_array_of_columns(handler, dataset_name, data, nrows, ncols, chunk_size, type.type_id);
 	if (SUCCESS != err){
 		Warning("Error writing to HDF5 file!\n");
 
@@ -684,7 +673,6 @@ error:
 	free(data);
 	free(type_name);
 	free(dataset_name);
-	free(data2);
 	free(word);
 }
 
