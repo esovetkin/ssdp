@@ -33,6 +33,7 @@ AC_ARG_ENABLE([fastatan2],
 AS_IF([test "x$enable_fastatan2" != "xno"], [
   AC_DEFINE([FAST_ATAN2], [], [fast atan2 approximation])
 ])
+
 AX_LIB_HDF5([serial])
 if test "$with_hdf5" = "yes"; then
         CC="$HDF5_CC"
