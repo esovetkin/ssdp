@@ -377,7 +377,7 @@ error:
 }
 
 /*
-	private helper function to create array variables from a 2d matrix of columns
+	private helper function to create array variables from an array of columns
 	args:
 		ncols: number of columns
 		nrows: number of rows
@@ -386,7 +386,7 @@ error:
 	return:
 		SUCCESS if successful
 */
-static ErrorCode create_arrays(int ncols, int nrows, char **names, double *data){
+static ErrorCode create_arrays(int ncols, int nrows, char **names, double **data){
 	ErrorCode out = SUCCESS;
 	array *arrays = NULL;
 	arrays = malloc(sizeof(*arrays)*ncols);
@@ -398,30 +398,16 @@ static ErrorCode create_arrays(int ncols, int nrows, char **names, double *data)
 	// create read_ncols arrays
 	for(int i = 0; i < ncols; i++){
 		arrays[i].N = nrows;
-		arrays[i].D = malloc(sizeof(double)*nrows);
-		if(NULL == arrays[i].D ){
-			Warning("Failed to create arrays. Out of malloc memory");
-			for(int j = 0; j < i; j++){
-				free(arrays[i].D);
-			}
-			out = OUTOFMEMORY;
-			goto end;
-		}
+		arrays[i].D = data[i];
 	}
-	// fill the arrays
-	for (int i=0; i<nrows; i++)
-	{	
-		for(int j = 0; j<ncols; j++){
-			arrays[j].D[i]=data[i*ncols+j];
-		}
-	}
+	
+
 	for(int i = 0; i < ncols; i++){
 		printf("Creating array %s\n", names[i]);
 		if(AddArray(names[i], arrays[i]))
 		{	
 			Warning("Failed to create array variable");
 			out = FAILURE;
-			free(arrays[i].D);
 		}
 	}
 end:
@@ -440,17 +426,14 @@ END_DESCRIPTION
 */
 void ReadArraysFromH5(char *in)
 {
-        // QTODO: this function is over 100 lines long. Is there a way
-        // to split it into several functions. Your nested loops start
-        // leaking memory, when some of the malloc fails inside.
 	char **names = NULL;
 	int n_arr_vars;
 	char *file = NULL;
-	double *data = NULL;
+	double **data = NULL;
 	char *dataset_name = NULL;
 	int read_nrows, read_ncols;
 	struct H5FileIOHandler *handler = NULL;
-	ErrorCode err;
+	ErrorCode err = SUCCESS;
 	file=malloc((strlen(in)+1)*sizeof(char));
 	if(NULL == file){
         Warning("Out of malloc memory");
@@ -478,39 +461,33 @@ void ReadArraysFromH5(char *in)
 		Warning("Error reading H5 file: Could not create handler.!\n");
 		goto end;
 	}
-	err = H5FileIOHandler_read_array(handler, dataset_name, &data, &read_nrows, &read_ncols);
+	err = H5FileIOHandler_read_array_of_columns(handler, dataset_name, &data, &read_nrows, &read_ncols);
 	if(SUCCESS != err){
 		Warning("Error reading H5 file could not read dataset\n");
 		goto end;
 	}
-	//data=ReadArrays(file, i, &N);
+
 	if(n_arr_vars != read_ncols){
 		// user didn't provide enough variables
 		Warning("Not enough variables provided to store arrays! Provided Variables: %d Read Arrays: %d\n",
-		n_arr_vars, read_ncols);
+		n_arr_vars, read_ncols);	
 		goto end;
-
 	}
 
 	if (read_ncols>0)
 	{	
 		err = create_arrays(read_ncols, read_nrows, names, data);
-		
-	}
-	if (read_ncols <= 0 || err != SUCCESS){
-		Warning("An error while parsing the file has ocurred");
-		if (err != SUCCESS){
-			for (int i=0; i<n_arr_vars; i++)
-			{
-				free(names[i]);
-			}
-		}
 	}
 end:
-    // QTODO: another disavantage of having long function is that you
-    // don't see when things end up here. You have an error in malloc here:
-    //         arrays[i].D = malloc(sizeof(double)*read_nrows);
-    // then you won't clear memory correctly.
+	if(SUCCESS != err){
+		Warning("An error while parsing the file has ocurred");
+		for(int i = 0; i < n_arr_vars; i++){
+			if(NULL != data)
+				free(data[i]);
+			if(NULL != names)
+				free(names[i]);
+		}
+	}
 	free(file);
 	free(names);
 	free(data);
