@@ -361,6 +361,7 @@ char ** get_array_names_from_input(char *in, int *n_arr_vars){
             }
 		}
 	};
+	free(word);
 	if ((*n_arr_vars)==0)
 	{
 		Warning("Cannot define arrays from file, no array arguments recognized\n"); 
@@ -369,7 +370,7 @@ char ** get_array_names_from_input(char *in, int *n_arr_vars){
 	return names;
 	
 error:
-	for(int i = 0; i < n_arr_vars; i++){
+	for(int i = 0; i < *n_arr_vars; i++){
 		free(names[i]);
 	}
 	free(names);
@@ -407,6 +408,8 @@ static ErrorCode create_arrays(int ncols, int nrows, char **names, double **data
 		if(AddArray(names[i], arrays[i]))
 		{	
 			Warning("Failed to create array variable");
+			free(names[i]);
+			free(arrays[i].D);
 			out = FAILURE;
 		}
 	}
@@ -474,7 +477,10 @@ void ReadArraysFromH5(char *in)
 	}
 
 	if (read_ncols>0) {
+		// this function frees memory if it failed to create a variable
+		// thus it has its own goto tag
 		err = create_arrays(read_ncols, read_nrows, names, data);
+		goto end_create_arrays;
 	}
 end:
 	if(SUCCESS != err) {
@@ -486,6 +492,7 @@ end:
 				free(names[i]);
 		}
 	}
+end_create_arrays:
 	free(file);
 	free(names);
 	free(data);
