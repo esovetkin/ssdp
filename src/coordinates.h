@@ -89,4 +89,22 @@ struct coordinates* box2coordinates(double x1, double y1,
 void bbox2poly4(struct poly4* op,
                 double x1, double y1, double x2, double y2);
 
+
+/**
+ * place template at a location with rotated with azimuth
+ *
+ * despite a simple formulation, the rotation happens in the given
+ * epsg coordinate system. In that coordinate system going up in x
+ * coordinate does not necessarily means going north. this function
+ * does the check.
+ *
+ * @pc: epsg projection context.
+ * @lat,@lon: latitude and longitude of the origin of the template
+ * @azi: azimuth in radians: 0 North, pi/2 East, ...
+ * @x,@y,@N: input and output double and its size
+ *
+ */
+void placetemplate(struct epsg* pc, double lat, double lon,
+                   double azi, double* x, double* y, int N);
+
 #endif

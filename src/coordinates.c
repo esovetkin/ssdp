@@ -222,6 +222,27 @@ eprojc:
 }
 
 
+void placetemplate(struct epsg* pc, double lat, double lon,
+                   double azi, double* x, double* y, int N)
+{
+        // q points north from origin
+        struct point p = { .x = lat, .y = lon},
+                q = { .x = lat + 0.001, .y = lon};
+        convert_point(pc, &p, -1); convert_point(pc, &q, -1);
+
+        // adjust bearing to the coordinate system
+        azi += atan2(q.y-p.y, q.x-p.x);
+
+        double c = cos(azi), s = sin(azi);
+        for (int i=0; i < N; ++i) {
+                q.x = p.x + x[i]*c - y[i]*s;
+                q.y = p.y + x[i]*s + y[i]*c;
+                convert_point(pc, &q, 1);
+                x[i] = q.x; y[i] = q.y;
+        }
+}
+
+
 #ifdef RUNTEST
 
 #include <stdio.h>
@@ -261,12 +282,60 @@ void test_box2coordinates(void)
 }
 
 
+double _bearing(double lat0, double lon0, double lat1, double lon1)
+{
+        lon0 *= M_PI/180;
+        lon1 *= M_PI/180;
+        lat0 *= M_PI/180;
+        lat1 *= M_PI/180;
+
+        double dLon = lon1 - lon0;
+
+        return atan2(sin(dLon)*cos(lat1),
+                     cos(lat0)*sin(lat1) - sin(lat0)*cos(lat1)*cos(dLon));
+}
+
+
+void _test_placetemplate(double lat, double lon, double azi)
+{
+        double x[2] = {0.,1.};
+        double y[2] = {0.,1.};
+        int i = 0, N = 2, epsg = determine_utm(lat, lon);
+        struct epsg *pc = epsg_init_epsg(epsg, 4326);
+        if (NULL == pc) goto eepsg;
+
+        double v = azi + atan2(x[1]-x[0], y[1]-y[0]);
+
+        placetemplate(pc,lat,lon,azi,x,y,N);
+
+        v -= _bearing(x[0],y[0],x[1],y[1]);
+        assert(fmod(v,2*M_PI) > 2*M_PI - 0.01 || fmod(v,2*M_PI) < 0.01);
+eepsg:
+        epsg_free(pc);
+}
+
+
+void test_placetemplate(void)
+{
+        int i,j;
+        double b = 0;
+        double lat[4] = {5, -5, 50, -50};
+        double lon[4] = {5, -5, 50, -50};
+
+        for (i=0; i < 4; ++i)
+                for (j=0; j<4; ++j)
+                        for (b = 0; b < 2*M_PI; b+=2*M_PI/60)
+                                _test_placetemplate(lat[i], lon[j], b);
+}
+
+
 int main(void)
 {
         printf("testing coordinates ...");
 
         test_coords_init();
         test_box2coordinates();
+        test_placetemplate();
 
         printf("PASSED\n");
         return 0;

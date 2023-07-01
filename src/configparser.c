@@ -1058,3 +1058,59 @@ epars:
 eword:
         return;
 }
+/*
+BEGIN_DESCRIPTION
+SECTION Coordinate System
+PARSEFLAG place_template PlaceTemplate "x=<in/out-array> y=<in/out-array> lat=<float-value> lon=<float-value> [azimuth=<float-value>] [epsg=<int-value>]"
+DESCRIPTION Rotate template coordinates and place it at a given location. The given coordinates are rotated wrt to the origin in the provided coordinates. The units of the input coordinates are interpreted in the units of the selected epsg coordinate system. The output coordinates are given in WGS84 (epsg:4326) system.
+ARGUMENT x,y first and second input coordinates. Output coordiantes are in WGS84, epsg:4326
+ARGUMENT lat latitude (in WGS84, epsg:4326)
+ARGUMENT lon longitude (in WGS84, epsg:4326)
+ARGUMENT azimuth azimuth angle in degrees(default: 0, North)
+ARGUMENT epsg optional coordinate system (default UTM according to lat and lon is selected)
+OUTPUT x,y output coordinates
+END_DESCRIPTION
+*/
+void PlaceTemplate(char *in)
+{
+        int epsg;
+        double lat, lon, azi;
+        array *x, *y;
+        char *word;
+        word=malloc((strlen(in)+1)*sizeof(*word));
+        if (NULL == word) goto eword;
+
+        if (FetchArray(in, "x", word, &x)) goto epars;
+        if (FetchArray(in, "y", word, &y)) goto epars;
+        if (x->N != y->N) {
+                Warning("arrays have different lengths!\n"
+                        "\tlen(x) = %d\n"
+                        "\tlen(y) = %d\n",
+                        x->N, y->N);
+                goto epars;
+        }
+
+        if (FetchFloat(in, "lat", word, &lat)) goto epars;
+        if (FetchFloat(in, "lon", word, &lon)) goto epars;
+
+        if (FetchOptFloat(in, "azi", word, &azi))
+                azi = 0;
+        azi = deg2rad(azi);
+
+        if (FetchOptInt(in, "epsg", word, &epsg))
+                epsg = determine_utm(lat, lon);
+        struct epsg *pc = epsg_init_epsg(epsg, 4326);
+        if (NULL == pc) {
+                Warning("failed to init epsg context"
+                        "\t epsg = %d", epsg);
+                goto epars;
+        }
+
+        placetemplate(pc, lat, lon, azi, x->D, y->D, x->N);
+
+        epsg_free(pc);
+epars:
+        free(word);
+eword:
+        return;
+}
