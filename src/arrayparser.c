@@ -422,7 +422,7 @@ end:
 BEGIN_DESCRIPTION
 SECTION Array
 PARSEFLAG read_h5 ReadArraysFromH5 "file=<file-str> a0=<out-array> a1=<out-array> .. aN=<out-array> [dataset=<str>]"
-DESCRIPTION Reads a dataset called `dataset` from an HDF5-file and stores the columns in arrays. The i-th column is stored in the i-th output array. Every array is converted to a 64 bit float for internal processing. Note that you cannot skip columns! This command makes use of the HDF5 file-pool see `flush_h5` for more informations.
+DESCRIPTION Read a dataset from an HDF5-file and stores the columns in arrays. The i-th column is stored in the i-th output array. Every array is converted to a 64-bit float for internal processing. Note that you cannot skip columns! This command uses the HDF5 file pool. See `flush_h5` for more information.
 ARGUMENT file input filename
 ARGUMENT dataset optional name of the dataset to read from (default: "data")
 OUTPUT ai the i-th output array
@@ -503,7 +503,7 @@ end_create_arrays:
 BEGIN_DESCRIPTION
 SECTION Array
 PARSEFLAG flush_h5 FlushH5 "[f0=<file-str>, f1=<file-str>, .., fN=<file-str>]"
-DESCRIPTION This library handles all HDF5-files it reads and writes using a resource pool. Whenever an HDF5-file is created and opened for writing or opened for reading it is added to the pool. Files are opened until the end of the SSDP program or until they are flushed using this command. Only once a file is flushed its contents are stored on the hard drive. If no file-string is provides flush_h5 closes all currently opened files. Otherwise only the specified files are flushed. Flushing a HDF5-file does not affect variables created by reading the file. If one wishes to read an HDF5-file previously created by SSDP in the same script it must be flushed first. If a one wishes to write multiple datasets to a file it should only be flushed after all write_h5 calls.
+DESCRIPTION This library handles all HDF5-files it reads and writes using a resource pool. Whenever an HDF5-file is created and opened for writing or opened for reading, it is added to the pool. Files are opened until the end of the SSDP program or until they are flushed using this command. Only once a file is flushed, its contents are stored on the hard drive. If no file string is provided, flush_h5 closes all currently opened files. Otherwise, only the specified files are flushed. Flushing an HDF5-file does not affect variables created by reading the file. If one wishes to read an HDF5-file previously created by SSDP in the same script, it must be flushed first. If one wishes to write multiple datasets to a file, it should only be flushed after all write_h5 calls.
 END_DESCRIPTION
 */
 void FlushH5(char *in){
@@ -528,10 +528,10 @@ void FlushH5(char *in){
 BEGIN_DESCRIPTION
 SECTION Array
 PARSEFLAG write_h5 WriteArraysToH5 "a0=<in-array> a1=<in-array> .. aN=<in-array> file=<file-str> [type=<type-str>] [dataset=<str>] [chunksize=<int>]"
-DESCRIPTION Writes arrays in columns of a HDF5-file in a dataset called 'dataset'. The i-th array is written to the i-th column in the file. Note that you cannot skip columns! The user must provide enough variables to store each column. Each dataset handles a single basic data type. That means if one wishes to store different types different datasets are created. This command makes use of the HDF5 file-pool see `flush_h5` for more informations.
+DESCRIPTION Write arrays in columns of an HDF5-file in a dataset. The i-th array is written to the i-th column in the file. Note that you cannot skip columns! The user must provide enough variables to store each column. Each dataset handles a single basic data type.  That means different datasets must be created if one wishes to store different types. This command uses the HDF5 file pool. See `flush_h5` for more information.
 ARGUMENT ai the i-th input array
 ARGUMENT file name of file should end with .h5
-ARGUMENT type optional string that describes the datatype to save on the disc supported datatypes are: float16, float64, int32, int64 (default: float64)
+ARGUMENT type optional the datatype of the dataset saved on the disc. Supported datatypes are: "float16", "float64", "int32", "int64" (default: "float64")
 ARGUMENT dataset optional name of dataset (default "data")
 ARGUMENT chunksize in number of rows for chunked I/O. Chunksize influence the efficiency of the compression (default 1000)
 OUTPUT file output filename
