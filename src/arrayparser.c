@@ -458,7 +458,7 @@ void ReadArraysFromH5(char *in)
 		goto end;
 	}
 
-	handler = H5FileIOHandlerPool_get_handler(g_h5filepool, file, R);
+	handler = H5FileIOHandlerPool_get_handler(g_h5filepool, file, IO_A);
 	if (NULL == handler) {
 		Warning("Error reading H5 file: Could not create handler.!\n");
 		goto end;
@@ -623,7 +623,7 @@ void WriteArraysToH5(char *in)
 		goto error;
 	}
 	printf("Preparing to write arrays to H5 file `%s` in dataset `%s`\n", file, dataset_name);
-	struct H5FileIOHandler *handler = H5FileIOHandlerPool_get_handler(g_h5filepool, file, W);
+	struct H5FileIOHandler *handler = H5FileIOHandlerPool_get_handler(g_h5filepool, file, IO_A);
 	if (NULL == handler){
 		Warning("Error creating HDF5 file!\n");
 		goto error;
