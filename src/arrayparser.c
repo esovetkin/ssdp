@@ -597,6 +597,8 @@ void WriteArraysToH5(char *in)
 		data[ncols]=a->D;
 		if (nrows<0) {
 			nrows=a->N;
+            // make sure chunk_size smaller than number of rows
+            chunk_size = (chunk_size < nrows) ? chunk_size : nrows;
 		} else if (a->N!=nrows) {
 			printf("0: %d %d:%d\n", nrows, ncols, a->N);
 			Warning("Error: arrays must be of equal length\n");
