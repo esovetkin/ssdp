@@ -32,6 +32,8 @@ as implemented by freespa [3]
 	* only computes irradiance at specified locations
 * 2.5D topography
 	* Supports both unstructured and regular meshes for the topography
+    * Supports topography specification using georasters with GDAL
+* input/output in tab-separated and HDF5 formats
 
 ## Examples
 As a validation of the irradiance and transposition models in ssdp we 
