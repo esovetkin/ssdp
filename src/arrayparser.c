@@ -573,7 +573,7 @@ void WriteArraysToH5(char *in)
 		Warning("Error: Out of malloc memory!");
 		goto error;
 	}
-	if(FetchOptInt(in, "chunksize", word, &chunk_size)) {
+	if(FetchInt(in, "chunksize", word, &chunk_size)) {
 		chunk_size = 1000;
 		Warning("No argument `chunksize` provided! Using default value %d."
 		" If HDF5 IO performance is poor consider increasing the chunk size or the size of the chunk cache\n", chunk_size);
@@ -674,7 +674,7 @@ void WritePng(char *in)
         if (FetchArray(in, "nx", word, &nx)) goto efetch;
         if (FetchArray(in, "ny", word, &ny)) goto efetch;
 
-        if (FetchOptInt(in, "normalise", word, &n))
+        if (FetchInt(in, "normalise", word, &n))
                 n = 1;
 
         if (0==n)

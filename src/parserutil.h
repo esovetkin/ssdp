@@ -36,12 +36,9 @@ int GetNumOption(const char *in, const char *opt, int i, char *word);
 
 int FetchConfig(const char *in, const char *pat, char *str, simulation_config **a);
 int FetchArray(const char *in, const char *pat, char *str, array **a);
-int FetchOptArray(const char *in, const char *pat, char *str, array **a);
 
 int FetchFloat(const char *in, const char *pat, char *str, double *a);
-int FetchOptFloat(const char *in, const char *pat, char *str, double *a);
 int FetchInt(const char *in, const char *pat, char *str, int *a);
-int FetchOptInt(const char *in, const char *pat, char *str, int *a);
 
 void InitConfigMask(simulation_config *C);
 void InitConfigMaskNoH(simulation_config *C);

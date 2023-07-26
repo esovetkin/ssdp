@@ -90,7 +90,7 @@ void ConfigCoord (char *in)
 	C->lat=l->D[0];
 	printf("set latitude to %e degrees (%e rad)\n", rad2deg(C->lat), C->lat);
 	
-	if (FetchOptArray(in, "E", word, &l))
+	if (FetchArray(in, "E", word, &l))
 	{
 		C->E=0;	
 	}
@@ -636,7 +636,7 @@ void ConfigTOPOGDAL (char *in)
                 if (read_filelist(word, fns))
                         goto efnlist;
 
-        if (FetchOptArray(in, "epsg", word, &fepsg)
+        if (FetchArray(in, "epsg", word, &fepsg)
             || 1 != fepsg->N || fepsg->D[0] < 0)
                 epsg = determine_utm((x1+x2)/2, (y1+y2)/2);
         else
@@ -1093,11 +1093,11 @@ void PlaceTemplate(char *in)
         if (FetchFloat(in, "lat", word, &lat)) goto epars;
         if (FetchFloat(in, "lon", word, &lon)) goto epars;
 
-        if (FetchOptFloat(in, "azi", word, &azi))
+        if (FetchFloat(in, "azi", word, &azi))
                 azi = 0;
         azi = deg2rad(azi);
 
-        if (FetchOptInt(in, "epsg", word, &epsg))
+        if (FetchInt(in, "epsg", word, &epsg))
                 epsg = determine_utm(lat, lon);
         struct epsg *pc = epsg_init_epsg(epsg, 4326);
         if (NULL == pc) {

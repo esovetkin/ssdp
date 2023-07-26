@@ -89,14 +89,14 @@ void SimStatic(char *in)
 		free(word);
 		return;
 	}	
-	if (FetchOptArray(in, "p", word, &p))
+	if (FetchArray(in, "p", word, &p))
 	{
 		pp.N=1;
 		pp.D=malloc(sizeof(double));
 		pp.D[0]=1010.0;
 		p=&pp;
 	}	
-	if (FetchOptArray(in, "T", word, &T))
+	if (FetchArray(in, "T", word, &T))
 	{
 		TT.N=1;
 		TT.D=malloc(sizeof(double));
@@ -266,7 +266,7 @@ void SimStaticInt(char *in)
 		return;
 	}
 		
-	if (FetchOptArray(in, "p", word, &p))
+	if (FetchArray(in, "p", word, &p))
 	{
 		pp.N=t->N;
 		pp.D=malloc(t->N*sizeof(double));
@@ -274,7 +274,7 @@ void SimStaticInt(char *in)
 			pp.D[i]=1010.0;
 		p=&pp;
 	}	
-	if (FetchOptArray(in, "T", word, &T))
+	if (FetchArray(in, "T", word, &T))
 	{
 		TT.N=t->N;
 		TT.D=malloc(t->N*sizeof(double));
@@ -434,14 +434,14 @@ void SimRoute(char *in)
 		return;
 	}	
 	
-	if (FetchOptArray(in, "p", word, &p))
+	if (FetchArray(in, "p", word, &p))
 	{
 		pp.N=1;
 		pp.D=malloc(sizeof(double));
 		pp.D[0]=1010.0;
 		p=&pp;
 	}	
-	if (FetchOptArray(in, "T", word, &T))
+	if (FetchArray(in, "T", word, &T))
 	{
 		TT.N=1;
 		TT.D=malloc(sizeof(double));
@@ -606,14 +606,14 @@ void SimStaticUniform(char *in)
 		free(word);
 		return;
 	}
-	if (FetchOptArray(in, "p", word, &p))
+	if (FetchArray(in, "p", word, &p))
 	{
 		pp.N=1;
 		pp.D=malloc(sizeof(double));
 		pp.D[0]=1010.0;
 		p=&pp;
 	}	
-	if (FetchOptArray(in, "T", word, &T))
+	if (FetchArray(in, "T", word, &T))
 	{
 		TT.N=1;
 		TT.D=malloc(sizeof(double));
@@ -755,10 +755,10 @@ void SolarPos(char *in)
 	}
 	lon=deg2rad(lon);
 	lat=deg2rad(lat);
-	if (FetchOptFloat(in, "E", word, &E))
+	if (FetchFloat(in, "E", word, &E))
 		E=0;
 		
-	if (FetchOptArray(in, "p", word, &p))
+	if (FetchArray(in, "p", word, &p))
 	{
 		// make a scalar array
 		pp.N=1;
@@ -766,7 +766,7 @@ void SolarPos(char *in)
 		pp.D[0]=1010.0;
 		p=&pp;
 	}
-	if (FetchOptArray(in, "T", word, &T))
+	if (FetchArray(in, "T", word, &T))
 	{
 		// make a scalar array
 		TT.N=1;
@@ -915,10 +915,10 @@ void SolarTimes(char *in)
 	}
 	lat=deg2rad(lat);
 	
-	if (FetchOptFloat(in, "E", word, &E))
+	if (FetchFloat(in, "E", word, &E))
 		E=0;
 		
-	if (FetchOptArray(in, "p", word, &p))
+	if (FetchArray(in, "p", word, &p))
 	{
 		// make a scalar array
 		pp.N=1;
@@ -926,7 +926,7 @@ void SolarTimes(char *in)
 		pp.D[0]=1010.0;
 		p=&pp;
 	}
-	if (FetchOptArray(in, "T", word, &T))
+	if (FetchArray(in, "T", word, &T))
 	{
 		// make a scalar array
 		TT.N=1;
@@ -1137,14 +1137,14 @@ void ExportSky(char *in)
 		free(word);
 		return;
 	}	
-	if (FetchOptArray(in, "p", word, &p))
+	if (FetchArray(in, "p", word, &p))
 	{
 		pp.N=1;
 		pp.D=malloc(sizeof(double));
 		pp.D[0]=1010.0;
 		p=&pp;
 	}	
-	if (FetchOptArray(in, "T", word, &T))
+	if (FetchArray(in, "T", word, &T))
 	{
 		TT.N=1;
 		TT.D=malloc(sizeof(double));
