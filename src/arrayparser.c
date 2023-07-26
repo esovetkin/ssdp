@@ -463,15 +463,15 @@ void ReadArraysFromH5(char *in)
 		Warning("Error reading H5 file: Could not create handler.!\n");
 		goto end;
 	}
-	err = H5FileIOHandler_read_array_of_columns(handler, dataset_name, &data, &read_nrows, &read_ncols);
+	err = H5FileIOHandler_read_array_of_columns(handler, dataset_name, &data, &read_nrows, &read_ncols, n_arr_vars);
 	if(SUCCESS != err) {
 		Warning("Error reading H5 file could not read dataset\n");
 		goto end;
 	}
 
-	if(n_arr_vars != read_ncols) {
+	if(n_arr_vars > read_ncols) {
 		// user didn't provide enough variables
-		Warning("Not enough variables provided to store arrays! Provided Variables: %d Read Arrays: %d\n",
+		Warning("Not enough columns in the provided h5 dataset! Provided Variables: %d Read Arrays: %d\n",
 		n_arr_vars, read_ncols);
 		goto end;
 	}
@@ -484,7 +484,7 @@ void ReadArraysFromH5(char *in)
 	}
 end:
 	if(SUCCESS != err) {
-		Warning("An error while parsing the file has ocurred");
+		Warning("An error while parsing the file has occurred!\n");
 		for(int i = 0; i < n_arr_vars; i++){
 			if(NULL != data)
 				free(data[i]);
