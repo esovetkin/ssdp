@@ -20,7 +20,7 @@
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation
-PARSEFLAG sim_static SimStatic "C=<in-config> t=<in-array> p=<in-array> T=<in-array> GHI=<in-array> DHI=<in-array> POA=<out-array>"
+PARSEFLAG sim_static SimStatic "C=<in-config> t=<in-array> [p=<in-array>] [T=<in-array>] GHI=<in-array> DHI=<in-array> POA=<out-array>"
 DESCRIPTION Computes the POA irradiance time series for all configured locations using the Perez All Weather Sky Model. 
 ARGUMENT C Simulation config variable
 ARGUMENT t unix time array.
@@ -190,7 +190,7 @@ void SimStatic(char *in)
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation
-PARSEFLAG sim_static_integral SimStaticInt "C=<in-config> t=<in-array> p=<in-array> T=<in-array> GHI=<in-array> DHI=<in-array> POA=<out-array>"
+PARSEFLAG sim_static_integral SimStaticInt "C=<in-config> t=<in-array> [p=<in-array>] [T=<in-array>] GHI=<in-array> DHI=<in-array> POA=<out-array>"
 DESCRIPTION Computes the integrated POA irradiance for all configured locations using the Perez All Weather Sky Model.
 ARGUMENT C Simulation config variable
 ARGUMENT t unix time array.
@@ -367,7 +367,7 @@ void SimStaticInt(char *in)
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation
-PARSEFLAG sim_route SimRoute "C=<in-config> t=<in-array> p=<in-array> T=<in-array> GHI=<in-array> DHI=<in-array> POA=<out-array>"
+PARSEFLAG sim_route SimRoute "C=<in-config> t=<in-array> [p=<in-array>] [T=<in-array>] GHI=<in-array> DHI=<in-array> POA=<out-array>"
 DESCRIPTION Computes the POA irradiance along a route along all configured locations using the Perez All Weather Sky Model.
 ARGUMENT C Simulation config variable
 ARGUMENT t unix time array. As t progresses from t0-tn we move through locations l0-lm
@@ -536,7 +536,7 @@ void SimRoute(char *in)
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation
-PARSEFLAG sim_static_uniform SimStaticUniform "C=<in-config> t=<in-array> p=<in-array> T=<in-array> GHI=<in-array> DHI=<in-array> POA=<out-array>"
+PARSEFLAG sim_static_uniform SimStaticUniform "C=<in-config> t=<in-array> [p=<in-array>] [T=<in-array>] GHI=<in-array> DHI=<in-array> POA=<out-array>"
 DESCRIPTION Computes the POA irradiance time series for all configured locations using a uniform sky. 
 ARGUMENT C Simulation config variable
 ARGUMENT t unix time array.
@@ -712,11 +712,11 @@ void SimStaticUniform(char *in)
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation
-PARSEFLAG solpos SolarPos "t=<in-array> lon=<in-float> lat=<in-float> E=<in-float> p=<in-array> T=<in-array> azimuth=<out-array> zenith=<out-array>"
+PARSEFLAG solpos SolarPos "t=<in-array> lon=<float-value> lat=<float-value> [E=<float-value>] [p=<in-array>] [T=<in-array>] azimuth=<out-array> zenith=<out-array>"
 DESCRIPTION Computes the solar position using freespa [2]. Computation includes atmopheric refraction effects, (true solar position may be obtained by setting p=0).
 ARGUMENT t unix time array
-ARGUMENT lon longitude float
-ARGUMENT lat latitude float
+ARGUMENT lon longitude float (in degrees)
+ARGUMENT lat latitude float (in degrees)
 ARGUMENT E elevation (m) float (default 0)
 ARGUMENT p pressure in mb array (default 1010)
 ARGUMENT T temperature in C array (default 10)
@@ -869,11 +869,11 @@ void SolarPos(char *in)
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation
-PARSEFLAG suntimes SolarTimes "t=<in-array> lon=<in-float> lat=<in-float> E=<in-float> p=<in-array> T=<in-array> sunrise=<out-array> sunset=<out-array> transit=<out-array>"
+PARSEFLAG suntimes SolarTimes "t=<in-array> lon=<float-value> lat=<float-value> [E=<float-value>] [p=<in-array>] [T=<in-array>] sunrise=<out-array> sunset=<out-array> transit=<out-array>"
 DESCRIPTION Computes sunrise, transit and sunset times using freespa [2]. Computation includes atmopheric refraction effects and the effect of observer elevation. Note that the solar times are computed w.r.t. the solar transit on the specified UTC date. The sunrise and sunset times signify the period with sunlight. This means that in case of a polar night sunset and sunset coincide at the solar transit (when the sun's altitude is highest). For a midnight sun, sunrise and sunset are 24 hours apart centered around the solar transit with the highest altitude.
 ARGUMENT t unix time array
-ARGUMENT lon longitude float
-ARGUMENT lat latitude float
+ARGUMENT lon longitude float (in degrees)
+ARGUMENT lat latitude float (in degrees)
 ARGUMENT E elevation (m) float (default 0)
 ARGUMENT p pressure in mb array (default 1010)
 ARGUMENT T temperature in C array (default 10)
@@ -1071,7 +1071,7 @@ void SolarTimes(char *in)
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation
-PARSEFLAG export_sky ExportSky "C=<in-config> t=<in-array> p=<in-array> T=<in-array> GHI=<in-array> DHI=<in-array> index=<in-int> file=<in-string>"
+PARSEFLAG export_sky ExportSky "C=<in-config> t=<in-array> [p=<in-array>] [T=<in-array>] GHI=<in-array> DHI=<in-array> index=<int-value> file=<in-string>"
 DESCRIPTION Exports a 3D polar plot of a sky according to the Perez All Weather Sky model. It only exports one location. You need to specify the index of the location (starting at index 0).
 ARGUMENT C config-variable
 ARGUMENT t single value unix time
@@ -1269,7 +1269,7 @@ void ExportSky(char *in)
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation
-PARSEFLAG export_horizon ExportHorizon "C=<in-config> index=<in-int> file=<in-string>"
+PARSEFLAG export_horizon ExportHorizon "C=<in-config> index=<int-value> file=<in-string>"
 DESCRIPTION Exports the horizon at a certain location.
 ARGUMENT C config-variable
 ARGUMENT index index of the location

@@ -161,20 +161,20 @@ void ListVars()
 
 int lookupvar(char *name)
 {
-	int i=0;
-	int lk;
-	lk=strlen(name);
+        int i=0;
+        int lk;
+        lk=strlen(name);
 
-    if (name[0] <= '@')
+        if (name[0] <= '@')
+                return -1;
+
+        for (i=0;i<Nvar;i++)
+        {
+                if (strlen(variables[i].name)==lk)
+                        if (strncmp(variables[i].name, name, lk)==0)
+                                return i;
+        }
         return -1;
-
-	for (i=0;i<Nvar;i++)
-	{
-		if (strlen(variables[i].name)==lk)
-			if (strncmp(variables[i].name, name, lk)==0)
-				return i;
-	}
-	return -1;	
 }
 
 /* to define search functions we use a macro
