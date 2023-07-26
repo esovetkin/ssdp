@@ -44,7 +44,7 @@ void InitConfig(char *in)
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation Configuration
-PARSEFLAG config_coord ConfigCoord "C=<out-config> lat=<float> lon=<float> E=<float>"
+PARSEFLAG config_coord ConfigCoord "C=<out-config> lat=<float-value> lon=<float-value> E=<float-value>"
 DESCRIPTION Setup the coordinate in the configuration variable.
 ARGUMENT lat latitude (in radians)
 ARGUMENT lon longitude (in radians)
@@ -55,7 +55,7 @@ END_DESCRIPTION
 void ConfigCoord (char *in)
 {
 	simulation_config *C;
-	array *l;
+    double l;
 	char *word;
 	word=malloc((strlen(in)+1)*sizeof(char));
 	if (FetchConfig(in, "C", word, &C))
@@ -63,47 +63,25 @@ void ConfigCoord (char *in)
 		free(word);
 		return;
 	}
-	if (FetchArray(in, "lon", word, &l))
+	if (FetchFloat(in, "lon", word, &l))
 	{
 		free(word);
 		return;
 	}
-	if (l->N!=1)
-	{
-		Warning("config_coord expects a scalar value (array length 1) as longitude\n");
-		free(word);
-		return;
-	}
-	C->lon=l->D[0];
+	C->lon=l;
 	printf("set longitude to %e degrees (%e rad)\n", rad2deg(C->lon), C->lon);
-	if (FetchArray(in, "lat", word, &l))
+	if (FetchFloat(in, "lat", word, &l))
 	{
 		free(word);
 		return;
 	}
-	if (l->N!=1)
-	{
-		Warning("config_coord expects a scalar value (array length 1) as latitude\n");
-		free(word);
-		return;
-	}
-	C->lat=l->D[0];
+	C->lat=l;
 	printf("set latitude to %e degrees (%e rad)\n", rad2deg(C->lat), C->lat);
 	
-	if (FetchArray(in, "E", word, &l))
-	{
-		C->E=0;	
-	}
-	else
-	{
-		C->E=l->D[0];
-		if (l->N!=1)
-		{
-			Warning("config_coord expects a scalar value (array length 1) as longitude\n");
-			free(word);
-			return;
-		}
-	}
+	if (FetchFloat(in, "E", word, &l))
+        l = 0;
+
+    C->E=l;
 	printf("set elevation to %e m\n", C->E);	
 	free(word);
 }
@@ -111,7 +89,7 @@ void ConfigCoord (char *in)
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation Configuration
-PARSEFLAG config_aoi ConfigAOI "C=<out-config> model=<none/front-cover/anti-reflect/user> [nf=<in-float> [nar=<in-float>]] [file=<in-file>]"
+PARSEFLAG config_aoi ConfigAOI "C=<out-config> model=<none/front-cover/anti-reflect/user> [nf=<float-value>] [nar=<float-value>] [file=<in-file>]"
 DESCRIPTION Setup the Angle of Incidence model to model angular dependent relection. The model can be one of "none" (no angularly dependent reflection), "front-cover" (simple refractive index), "anti-relect" (two layer front), and "user" (tabular data).
 ARGUMENT model string to identify which model to use
 ARGUMENT nf front-cover refractive index
@@ -377,7 +355,7 @@ void InitConfigMaskNoH(simulation_config *C) // same as above but without horizo
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation Configuration
-PARSEFLAG config_sky ConfigSKY "C=<out-config> N=<int>"
+PARSEFLAG config_sky ConfigSKY "C=<out-config> N=<int-value>"
 DESCRIPTION Setup the sky. This commands allocates space and initializes the sky data.
 ARGUMENT N The number of zenith discretizations. The total number of sky patches equals Ntotal(N)=3N(N-1)+1, e.g. with Ntotal(7)=127
 OUTPUT C configuration variable
@@ -594,7 +572,7 @@ void ConfigTOPOGrid (char *in)
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation Configuration
-PARSEFLAG config_topogdal ConfigTOPOGDAL "C=<out-config> lat1=<float-value> lon1=<float-value> lat2=<float-value> lon2=<float-value> step=<float-value> f0=<file-str> f1=<file-str> .. fN=<file-str> [flist=<file-str>] [epsg=<1-float-array>]"
+PARSEFLAG config_topogdal ConfigTOPOGDAL "C=<out-config> lat1=<float-value> lon1=<float-value> lat2=<float-value> lon2=<float-value> step=<float-value> f0=<file-str> f1=<file-str> .. fN=<file-str> [flist=<file-str>] [epsg=<int-value>]"
 DESCRIPTION Setup the topogrid. Load the z data (column major, from the south-west corner to the north-east corner).
 ARGUMENT lat1 latitude of the south-west corner (in WGS84, epsg:4326)
 ARGUMENT lon1 longitude of the south-west corner (in WGS84, epsg:4326)
@@ -611,7 +589,6 @@ void ConfigTOPOGDAL (char *in)
 {
         simulation_config *C;
         double x1, y1, x2, y2, step;
-        array *fepsg;
         int i = 0, epsg = -1;
         char *word;
         word=malloc((strlen(in)+1)*sizeof(*word));
@@ -636,11 +613,8 @@ void ConfigTOPOGDAL (char *in)
                 if (read_filelist(word, fns))
                         goto efnlist;
 
-        if (FetchArray(in, "epsg", word, &fepsg)
-            || 1 != fepsg->N || fepsg->D[0] < 0)
+        if (FetchInt(in, "epsg", word, &epsg))
                 epsg = determine_utm((x1+x2)/2, (y1+y2)/2);
-        else
-                epsg = (int)(fepsg->D[0]);
 
         printf("Sampling with step=%.3f epsg=%d\n"
                "\tbox: %.5f %.5f %.5f %.5f\n"
@@ -679,7 +653,7 @@ eword:
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation Configuration
-PARSEFLAG config_locations ConfigLoc "C=<out-config> x=<in-array> y=<in-array> z=<in-array> azimuth=<in-array> zenith=<in-array> [type=<topology/topogrid> [albedo=<in-float>]"
+PARSEFLAG config_locations ConfigLoc "C=<out-config> x=<in-array> y=<in-array> z=<in-array> azimuth=<in-array> zenith=<in-array> [type=<topology/topogrid> [albedo=<float-value>]"
 DESCRIPTION Setup the topography. Load the x, y, and z data of the unstructured topography mesh into the configuration data.
 ARGUMENT x x coordinates
 ARGUMENT y y coordinates
@@ -759,10 +733,9 @@ void ConfigLoc (char *in)
 		if (C->grid_init==0)
 			Warning("No topology or topogrid available\n");
 	}
-	if (GetOption(in, "albedo", word))
-	{
-		C->albedo=atof(word);
-	}
+	if (FetchFloat(in, "albedo", word, &(C->albedo)))
+		C->albedo=0.0;
+
 	free(word);
 	if (x->N!=y->N)
 	{
@@ -993,7 +966,7 @@ eword:
 /*
 BEGIN_DESCRIPTION
 SECTION Coordinate System
-PARSEFLAG convert_epsg ConvertEPSG "x=<in/out-array> y=<in/out-array> epsg_src=<1-element-array> epsg_dst=<1-element-array>"
+PARSEFLAG convert_epsg ConvertEPSG "x=<in/out-array> y=<in/out-array> epsg_src=<int-value> epsg_dst=<int-value>"
 DESCRIPTION Convert coordinate from one projection to another
 ARGUMENT x first (latitude) coordinate (in epsg_src)
 ARGUMENT y second (longitude) coordinate (in epsg_dst)
@@ -1009,11 +982,12 @@ void ConvertEPSG(char *in)
         word=malloc((strlen(in)+1)*sizeof(*word));
         if (NULL == word) goto eword;
 
-        array *x, *y, *es, *ed;
+        int es, ed;
+        array *x, *y;
         if (FetchArray(in, "x", word, &x)) goto epars;
         if (FetchArray(in, "y", word, &y)) goto epars;
-        if (FetchArray(in, "epsg_src", word, &es)) goto epars;
-        if (FetchArray(in, "epsg_dst", word, &ed)) goto epars;
+        if (FetchInt(in, "epsg_src", word, &es)) goto epars;
+        if (FetchInt(in, "epsg_dst", word, &ed)) goto epars;
 
         if (x->N != y->N) {
                 Warning("arrays have different lengths!\n"
@@ -1023,26 +997,16 @@ void ConvertEPSG(char *in)
                 goto epars;
         }
 
-        if (1 != es->N || 1 != ed->N) {
-                Warning("epsg array is not size 1!\n"
-                       "\t len(epsg_src) = %d\n"
-                       "\t len(epsg_dst) = %d\n",
-                       es->N, ed->N);
-                goto epars;
-        }
-
-        struct epsg *pc = epsg_init_epsg((int)es->D[0],(int)ed->D[0]);
+        struct epsg *pc = epsg_init_epsg(es, ed);
         if (NULL == pc) {
                 Warning("failed to init epsg context"
                        "\t epsg_src = %d"
-                       "\t epsg_dst = %d",
-                       (int)es->D[0], (int)ed->D[0]);
+                       "\t epsg_dst = %d", es, ed);
                 goto epars;
         }
 
         struct point p;
-        printf("Converting coordinates from epsg:%d to epsg:%d\n",
-               (int)es->D[0], (int)ed->D[0]);
+        printf("Converting coordinates from epsg:%d to epsg:%d\n", es, ed);
         for (i=0; i<x->N;++i) {
                 p.x = x->D[i];
                 p.y = y->D[i];

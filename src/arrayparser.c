@@ -527,7 +527,7 @@ void FlushH5(char *in){
 /*
 BEGIN_DESCRIPTION
 SECTION Array
-PARSEFLAG write_h5 WriteArraysToH5 "a0=<in-array> a1=<in-array> .. aN=<in-array> file=<file-str> [type=<type-str>] [dataset=<str>] [chunksize=<int>]"
+PARSEFLAG write_h5 WriteArraysToH5 "a0=<in-array> a1=<in-array> .. aN=<in-array> file=<file-str> [type=<type-str>] [dataset=<str>] [chunksize=<int-value>]"
 DESCRIPTION Write arrays in columns of an HDF5-file in a dataset. The i-th array is written to the i-th column in the file. Note that you cannot skip columns! The user must provide enough variables to store each column. Each dataset handles a single basic data type.  That means different datasets must be created if one wishes to store different types. This command uses the HDF5 file pool. See `flush_h5` for more information.
 ARGUMENT ai the i-th input array
 ARGUMENT file name of file should end with .h5
@@ -646,7 +646,7 @@ error:
 /*
 BEGIN_DESCRIPTION
 SECTION Array
-PARSEFLAG write_png WritePng "z=<in-array> nx=<1-dim array> ny=<1-dim array> ofn=<file> [normalise=1]"
+PARSEFLAG write_png WritePng "z=<in-array> nx=<int-value> ny=<int-value> ofn=<file> [normalise=<int-value>]"
 DESCRIPTION Writes 2d array to a png image. The output file contains 3 channels, though only grayscale images are possible to write.
 ARGUMENT z the 2d array
 ARGUMENT nx the width of the image
@@ -658,9 +658,9 @@ END_DESCRIPTION
 */
 void WritePng(char *in)
 {
-        int n;
+        int norm, nx, ny;
         char *word, *ofn;
-        array *z, *nx, *ny;
+        array *z;
         enum normalisation normalise;
 
         ofn = malloc((strlen(in)+1)*sizeof(*ofn));
@@ -671,30 +671,22 @@ void WritePng(char *in)
         if (NULL == word) goto eword;
 
         if (FetchArray(in, "z", word, &z)) goto efetch;
-        if (FetchArray(in, "nx", word, &nx)) goto efetch;
-        if (FetchArray(in, "ny", word, &ny)) goto efetch;
+        if (FetchInt(in, "nx", word, &nx)) goto efetch;
+        if (FetchInt(in, "ny", word, &ny)) goto efetch;
+        if (FetchInt(in, "normalise", word, &norm))
+                norm = 1;
 
-        if (FetchInt(in, "normalise", word, &n))
-                n = 1;
-
-        if (0==n)
+        if (0==norm)
                 normalise = NORM_NONE;
         else
                 normalise = NORM_MAXMIN;
 
-        if (nx->N != 1 || ny->N != 1) {
-                Warning("nx and ny must be 1 dimensional arrays!\n");
-                goto enxny;
-        }
-
-        int Nx = (int)(round(nx->D[0]));
-        int Ny = (int)(round(ny->D[0]));
-        if (z->N != Nx * Ny) {
+        if (z->N != nx * ny) {
                 Warning("length(z) != nx*ny!\n");
                 goto enxny;
         }
 
-        if (write_png((const char*)ofn, z->D, Nx, Ny, normalise))
+        if (write_png((const char*)ofn, z->D, nx, ny, normalise))
                 Warning("Failed writing the png file!\n");
 
 enxny:
@@ -710,7 +702,7 @@ eofn:
 /*
 BEGIN_DESCRIPTION
 SECTION Array
-PARSEFLAG make_array MakeArray "x=<out-array> x1=<float> x2=<float> Nx=<int>"
+PARSEFLAG make_array MakeArray "x=<out-array> x1=<float-value> x2=<float-value> Nx=<int-value>"
 DESCRIPTION Creates an array with Nx+1 elements ranging from x1 to and including x2.
 ARGUMENT x1 Start float value
 ARGUMENT x2 End float value
@@ -776,7 +768,7 @@ void MakeArray(char *in)
 /*
 BEGIN_DESCRIPTION
 SECTION Array
-PARSEFLAG make_grid MakeGrid "x=<out-array> y=<out-array> x1=<float> x2=<float> y1=<float> y2=<float> Nx=<int> Ny=<int>"
+PARSEFLAG make_grid MakeGrid "x=<out-array> y=<out-array> x1=<float-value> x2=<float-value> y1=<float-value> y2=<float-value> Nx=<int-value> Ny=<int-value>"
 DESCRIPTION Creates two arrays with a regular grid with (Nx+1)*(Ny+1) elements.
 ARGUMENT x1 Start float x value
 ARGUMENT x2 End float x value
@@ -999,7 +991,7 @@ void GetGrid(char *in)
 /*
 BEGIN_DESCRIPTION
 SECTION Array
-PARSEFLAG make_scalar MakeScalar "x=<out-array> val=<float>"
+PARSEFLAG make_scalar MakeScalar "x=<out-array> val=<float-value>"
 DESCRIPTION Creates an array with length 1 (simply a shorter way to create a 1 valued array than using the make_array command)
 ARGUMENT val float value
 OUTPUT x output array
@@ -1178,7 +1170,7 @@ void Cos(char *in)
 /*
 BEGIN_DESCRIPTION
 SECTION Array
-PARSEFLAG perturb Perturb "x=<in/out-array> [releps=<float value>] [abseps=<float value>]"
+PARSEFLAG perturb Perturb "x=<in/out-array> [releps=<float-value>] [abseps=<float-value>]"
 DESCRIPTION Make infinitesimal random changes.
 ARGUMENT x input array
 ARGUMENT releps relative magnitude of perturbations (default 0)
@@ -1189,34 +1181,32 @@ END_DESCRIPTION
 void Perturb(char *in)
 {
 	char *word;
-	double releps = 0;
-	double abseps = 0;
+	double releps = 0.0;
+	double abseps = 0.0;
 	int i;
 	array *x;
 	word=malloc((strlen(in)+1)*sizeof(char));
-	if (GetOption(in, "releps", word))
-	{
-		releps = atof(word);
-	}
+	if (FetchFloat(in, "releps", word, &releps))
+            releps = 0.0;
 	releps=fabs(releps);
-	if (GetOption(in, "abseps", word))
-	{
-		abseps = atof(word);
-	}
-	abseps=fabs(abseps);	
+
+	if (FetchFloat(in, "abseps", word, &abseps))
+            abseps = 0.0;
+	abseps=fabs(abseps);
+
 	if (FetchArray(in, "x", word, &x))
 	{
 		free(word);
 		return;
-	}	
+	}
 	printf("perturbing %s by %e (relative) and %e (absolute)\n",
 		word,releps,abseps);
-	
+
 	srand(time(NULL));
 	for(i=0;i<x->N;i++)
 	{
 		x->D[i]*=(1.0+releps*(((double)rand())/RAND_MAX-0.5));
 		x->D[i]+=abseps*(((double)rand())/RAND_MAX-0.5);
 	}
-	return;	
+	return;
 }
