@@ -164,6 +164,10 @@ int lookupvar(char *name)
 	int i=0;
 	int lk;
 	lk=strlen(name);
+
+    if (name[0] <= '@')
+        return -1;
+
 	for (i=0;i<Nvar;i++)
 	{
 		if (strlen(variables[i].name)==lk)
