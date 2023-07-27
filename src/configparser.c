@@ -588,7 +588,7 @@ END_DESCRIPTION
 void ConfigTOPOGDAL (char *in)
 {
         simulation_config *C;
-        double x1, y1, x2, y2, step;
+        double x1, y1, x2, y2, step, dt;
         int i = 0, epsg = -1;
         char *word;
         word=malloc((strlen(in)+1)*sizeof(*word));
@@ -628,11 +628,14 @@ void ConfigTOPOGDAL (char *in)
         else
                 C->grid_init = 1;
 
+        TIC();
         C->Tx = ssdp_make_topogdal(x1, y1, x2, y2, fns->s, fns->n, step, epsg);
         if (ssdp_error_state) goto emaketopogdal;
 
         InitConfigGridMask(C);
         if (ssdp_error_state) goto emaketopogdal;
+        dt = TOC();
+        printf("Sampled topography from GDAL in %g s\n", dt);
 
         cvec_free(fns);
         return;
