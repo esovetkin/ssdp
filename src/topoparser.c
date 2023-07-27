@@ -154,7 +154,7 @@ void SampleTopography(char *in)
 /*
 BEGIN_DESCRIPTION
 SECTION Topography
-PARSEFLAG offset_topo OffsetTopography "C=<in-config>  o=<in-array> x=<in-array> y=<in-array> type=<topology/topogrid> xoff=<out-array> yoff=<out-array> zoff=<out-array>"
+PARSEFLAG offset_topo OffsetTopography "C=<in-config> o=<in-array> x=<in-array> y=<in-array> type=<topology/topogrid> xoff=<out-array> yoff=<out-array> zoff=<out-array>"
 DESCRIPTION Computes a topography offset in the direction of the surface normal
 ARGUMENT C config-variable
 ARGUMENT o offset value
@@ -308,11 +308,22 @@ void OffsetTopography(char *in)
 	if (word)
 		free(word);
 }
+
+
+static int checkdims(int a, int b)
+{
+        if (a != b && 1 != a && 1 != b)
+                return -1;
+
+        return a >= b ? a : b;
+}
+
+
 /*
 BEGIN_DESCRIPTION
 SECTION Topography
-PARSEFLAG rotate_POA_to_surface RotatePOA "poa_a=<in-array>  poa_z=<in-array> surf_a=<in-array> surf_z=<in-array> out_a=<out-array> out_z=<out-array>"
-DESCRIPTION Rotate the plane of array (tilted surface) along the surface normal, e.g. a surface on a vehicle changes its tilt an orientation depending on the sufrace nomal.
+PARSEFLAG rotate_POA_to_surface RotatePOA "poa_a=<in-array> poa_z=<in-array> surf_a=<in-array> surf_z=<in-array> out_a=<out-array> out_z=<out-array>"
+DESCRIPTION Rotate the plane of array (tilted surface) along the surface normal, e.g. a surface on a vehicle changes its tilt an orientation depending on the sufrace nomal. All input array lengths must be equal or it must be a unit length array.
 ARGUMENT poa_a azimuth angle of the tilted surface (for a horizonal surface)
 ARGUMENT poa_z zenith angle of the tilted surface (for a horizonal surface)
 ARGUMENT surf_a azimuth angle of the surface normal
@@ -323,102 +334,72 @@ END_DESCRIPTION
 */
 void RotatePOA(char *in)
 {
-	int i;
-	char *word;
-	array *rot_a, *rot_z, azi, zen;
-	array *azi_in, *zen_in;
-	sky_pos poa, poa0;
-	sky_pos sn;
-	word=malloc((strlen(in)+1)*sizeof(char));
-	
-	if (FetchArray(in, "poa_a", word, &azi_in))
-	{
-		free(word);
-		return;
-	}
-	if (FetchArray(in, "poa_z", word, &zen_in))
-	{
-		free(word);
-		return;
-	}
-	if (FetchArray(in, "surf_a", word, &rot_a))
-	{
-		free(word);
-		return;
-	}
-	if (FetchArray(in, "surf_z", word, &rot_z))
-	{
-		free(word);
-		return;
-	}
-	
-	if (rot_a->N!=rot_z->N)
-	{
-		Warning("Length of azimuth and zenith of the surface normal do not match\n");
-		free(word);
-		return;
-	}
-	if (zen_in->N!=azi_in->N)
-	{
-		Warning("Length of azimuth and zenith of the base module orientation do not match\n");
-		free(word);
-		return;
-	}
-	if ((rot_a->N!=zen_in->N)&&(zen_in->N!=1))
-	{
-		Warning("Length of the base module orientation must be equal to 1 or the length of the surface orientations\n");
-		free(word);
-		return;
-	}
-	
-	
-	
-	azi.D=malloc(rot_a->N*sizeof(double));
-	azi.N=rot_a->N;
-	zen.D=malloc(rot_a->N*sizeof(double));
-	zen.N=rot_a->N;
-	printf("rotating the POA along the surface normal\n");
-	for (i=0;i<rot_a->N;i++)
-	{
-		sn.a=rot_a->D[i];
-		sn.z=rot_z->D[i];
-		poa0.a=azi_in->D[i%azi_in->N];
-		poa0.z=zen_in->D[i%zen_in->N];
-		ssdp_poa_to_surface_normal(poa0, sn, &poa); // orient module w.r.t ground orientation
-		azi.D[i]=poa.a;
-		zen.D[i]=poa.z;
-	}
-	
-	
-	if (!GetArg(in, "out_a", word))
-	{
-		free(word);
-		return;
-	}
-	printf("Creating array %s\n",word);
-	if(AddArray(word, azi))
-	{
-		Warning("Failed to create array %s\n",word);
-		free(azi.D);	
-	}
-	else
-		word=malloc((strlen(in)+1)*sizeof(char));
-		
-	if (!GetArg(in, "out_z", word))
-	{
-		free(word);
-		return;
-	}	
-	printf("Creating array %s\n",word);
-	if(AddArray(word, zen))
-	{
-		Warning("Failed to create array %s\n",word);
-		free(zen.D);	
-	}
-	else
-		word=NULL;
-	if (word)
-		free(word);
+        int i, Nsurf, Npoa, N;
+        char *word;
+        array *rot_a, *rot_z, azi, zen;
+        array *azi_in, *zen_in;
+        sky_pos poa, poa0;
+        sky_pos sn;
+        word=malloc((strlen(in)+1)*sizeof(char));
+
+        if (FetchArray(in, "poa_a", word, &azi_in)) goto earg;
+        if (FetchArray(in, "poa_z", word, &zen_in)) goto earg;
+        if (FetchArray(in, "surf_a", word, &rot_a)) goto earg;
+        if (FetchArray(in, "surf_z", word, &rot_z)) goto earg;
+
+        if ((Nsurf = checkdims(rot_a->N, rot_z->N)) < 0) {
+                Warning("len(surf_a) != len(surf_z) and neither is unit\n");
+                goto earg;
+        }
+        if ((Npoa = checkdims(azi_in->N, zen_in->N)) < 0) {
+                Warning("len(poa_a) != len(poa_z) and neither is unit\n");
+                goto earg;
+        }
+        if ((N = checkdims(Npoa, Nsurf)) < 0) {
+                Warning("len(poa) != len(surf) and neither is unit\n");
+                goto earg;
+        }
+
+        if (NULL == (azi.D=malloc(N*sizeof(*azi.D)))) goto eoutazi;
+        azi.N = N;
+        if (NULL == (zen.D=malloc(N*sizeof(*zen.D)))) goto eoutzen;
+        zen.N = N;
+
+        printf("rotating the POA along the surface normal\n");
+        for (i=0; i < N; ++i) {
+                sn.a=rot_a->D[i % rot_a->N];
+                sn.z=rot_z->D[i % rot_z->N];
+                poa0.a=azi_in->D[i % azi_in->N];
+                poa0.z=zen_in->D[i % zen_in->N];
+                ssdp_poa_to_surface_normal(poa0, sn, &poa); // orient module w.r.t ground orientation
+                azi.D[i]=poa.a;
+                zen.D[i]=poa.z;
+        }
+
+        if (!GetArg(in, "out_a", word)) goto eoutarg;
+        printf("Creating array %s\n",word);
+        if(AddArray(word, azi)) {
+                Warning("Failed to create array %s\n",word);
+                goto eoutarg;
+        }
+
+        if (NULL == (word=malloc((strlen(in)+1)*sizeof(char)))) goto eoutarg;
+        if (!GetArg(in, "out_z", word)) goto eoutarg;
+
+        printf("Creating array %s\n",word);
+        if(AddArray(word, zen)) {
+                Warning("Failed to create array %s\n",word);
+                goto eoutarg;
+        }
+
+        return;
+eoutarg:
+        free(zen.D);
+eoutzen:
+        free(azi.D);
+eoutazi:
+earg:
+        free(word);
 }
 
 /*
