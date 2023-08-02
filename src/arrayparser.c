@@ -187,7 +187,9 @@ void ReadArraysFromFile(char *in)
 		free(file);
 		return;
 	}
+	TIC();
 	data=ReadArrays(file, i, &N);
+	printf("Read from %s in %g s\n", file, TOC());
 	if (N>0)
 	{
 		array a;
@@ -281,9 +283,9 @@ void WriteArraysToFile(char *in)
 		return;
 	}
 	printf("writing arrays to file %s\n", file);
-    TIC();
+	TIC();
 	WriteArrays(file,data,i,N);
-    printf("Wrote to %s in %g s\n", file, TOC());
+	printf("Wrote to %s in %g s\n", file, TOC());
 	free(file);
 	free(data);
 }
@@ -438,7 +440,9 @@ void ReadArraysFromH5(char *in)
 		Warning("Error reading H5 file: Could not create handler.!\n");
 		goto end;
 	}
+	TIC();
 	err = H5FileIOHandler_read_array_of_columns(handler, dataset_name, &data, &read_nrows, &read_ncols, n_arr_vars);
+	printf("Read %s from %s in %g s\n", dataset_name, file, TOC());
 	if(SUCCESS != err) {
 		Warning("Error reading H5 file could not read dataset\n");
 		goto end;
@@ -607,9 +611,11 @@ void WriteArraysToH5(char *in)
 	}
 	ErrorCode err;
 
+	TIC();
 	err = H5FileIOHandler_write_array_of_columns(handler, dataset_name, data, nrows, ncols, chunk_size, type.type_id);
 	if (SUCCESS != err)
             Warning("Error writing to HDF5 file: %s\n", ErrorCode_to_string(err));
+	printf("Wrote %s to %s in %g s\n", dataset_name, file, TOC());
 error:
 	free(file);
 	free(data);
