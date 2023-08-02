@@ -281,36 +281,11 @@ void WriteArraysToFile(char *in)
 		return;
 	}
 	printf("writing arrays to file %s\n", file);
+    TIC();
 	WriteArrays(file,data,i,N);
+    printf("Wrote to %s in %g s\n", file, TOC());
 	free(file);
 	free(data);
-}
-
-/*
-	Transpose a 2d array into a 1d array.
-	This function allocates memory that must be freed.
-
-	args:
-		arr: 2d array of size ncols x nrows
-		nrows: number of rows in arr
-		ncols: number of columns in arr
-	return:
-		pointer to transposed and unraveled/flattened array or NULL if this function fails
-*/
-double* transpose_unravel(double** arr, int nrows, int ncols) {
-    // Allocate memory for the transposed array
-    double* transposed = (double*)malloc(nrows * ncols * sizeof(double));
-	if(NULL == transposed){
-		return NULL;
-	}
-    // Transpose the array
-    for (int i = 0; i < nrows; i++) {
-        for (int j = 0; j < ncols; j++) {
-            double yeet = arr[j][i];
-			transposed[i * ncols + j] = yeet;
-        }
-    }
-    return transposed;
 }
 
 /*
@@ -634,7 +609,7 @@ void WriteArraysToH5(char *in)
 
 	err = H5FileIOHandler_write_array_of_columns(handler, dataset_name, data, nrows, ncols, chunk_size, type.type_id);
 	if (SUCCESS != err)
-		Warning("Error writing to HDF5 file!\n");
+            Warning("Error writing to HDF5 file: %s\n", ErrorCode_to_string(err));
 error:
 	free(file);
 	free(data);
