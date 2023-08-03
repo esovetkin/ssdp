@@ -13,6 +13,7 @@
 #include "parser.h"
 #include "parserutil.h"
 #include "h5interface.h"
+#include "h5io.h"
 
 typedef enum arrayops{ARR_PLUS,ARR_MINUS,ARR_MULT,ARR_DIV} arrayops;
 /*
@@ -290,6 +291,255 @@ void WriteArraysToFile(char *in)
 	free(data);
 }
 
+
+static int reallocate_data(double ***data, int n, int *bs)
+{
+        if (n < *bs - 1)
+                return 0;
+
+        double **tmp;
+        *bs += 4;
+        if (NULL == (tmp=realloc(*data, *bs*sizeof(*tmp)))) goto erealloc;
+        *data = tmp;
+
+        return 0;
+erealloc:
+        return -1;
+}
+
+
+static int reallocate_names(char ***data, int n, int *bs)
+{
+        if (n < *bs - 1)
+                return 0;
+
+        char **tmp;
+        *bs += 4;
+        if (NULL == (tmp=realloc(*data, *bs*sizeof(*tmp)))) goto erealloc;
+        *data = tmp;
+
+        return 0;
+erealloc:
+        return -1;
+}
+
+
+static int getnames(char *in, char ***names, int *len)
+{
+        char *word;
+        int n = 0, bs = 4;
+
+        if (NULL == (word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
+        if (NULL == (*names=malloc(bs*sizeof(**names)))) goto ename;
+        *len = -1;
+
+        while (GetNumOption(in, "a", n, word)) {
+                (*names)[n] = word;
+                n++;
+                if (NULL == (word=malloc((strlen(in)+1)*sizeof(*word)))) goto eloop;
+                if (reallocate_names(names, n, &bs)) goto eloop;
+        }
+
+        *len=n;
+        free(word);
+        return 0;
+eloop:
+        int i;
+        for (i=0; i < n; ++i)
+                free((*names)[i]);
+        free(*names);
+ename:
+        free(word);
+eword:
+        return -1;
+}
+
+
+static int getarrays(char *in, double ***data, int *len, int *narr)
+{
+        char *word;
+        int ncols = 0, bs=4;
+        array *a;
+        *len = -1;
+
+        if (NULL == (word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
+        if (NULL == (*data=malloc(bs*sizeof(**data)))) goto edata;
+
+        while (GetNumOption(in, "a", ncols, word)) {
+                if (!LookupArray(word, &a)) goto earray;
+                (*data)[ncols] = a->D;
+                if (*len < 0) *len = a->N;
+
+                if (*len != a->N) {
+                        Warning("Error: len(%s) differs from others\n", word);
+                        goto elen;
+                }
+                ncols++;
+                if (reallocate_data(data, ncols, &bs)) goto eralloc;
+        }
+
+        *narr=ncols;
+        free(word);
+        return 0;
+eralloc:
+elen:
+earray:
+        free(*data);
+edata:
+        free(word);
+eword:
+        return -1;
+}
+
+
+static int addarray(double *data, int n, const char* name)
+{
+        array *a = malloc(sizeof(*a));
+        if (NULL == a) goto ea;
+
+        a->D = data;
+        a->N = n;
+
+        if (AddArray((char*)name, *a)) goto eadd;
+
+        return 0;
+eadd:
+        free(a);
+ea:
+        return -1;
+}
+
+
+/*
+BEGIN_DESCRIPTION
+SECTION Array
+PARSEFLAG write_h5 WriteH5 "a0=<in-array> a1=<in-array> .. aN=<in-array> file=<file-str> [dataset=<str>] [type=<str>] [gzip=<int-value>] [chunksize=<int-value>] [cachemb=<int-value>] [cacheslots=<int-value>]"
+DESCRIPTION Write arrays in columns of an HDF5-file in a dataset. The i-th array is written to the i-th column in the file. Note that you cannot skip columns! The user must provide enough variables to store each column. Each dataset handles a single basic data type.  That means different datasets must be created if one wishes to store different types.
+ARGUMENT ai the i-th input array
+ARGUMENT file name of file should end with .h5
+ARGUMENT type optional the data type that is stored in h5. Supported datatypes are: "float{16,32,64}", "u?int{16,32,64}" (default: "float64")
+ARGUMENT dataset optional name of dataset (default "data")
+ARGUMENT gzip level of compression to use (default "0")
+ARGUMENT chunksize optional number of arrays kept in one chunk (default "1"). If 0 the array is written contigiously.
+ARGUMENT cachemb,cacheslots optional size of h5 cache (default: cachemb=64, cacheslots=12421).
+OUTPUT file output filename
+END_DESCRIPTION
+*/
+void WriteH5(char *in)
+{
+        int narr, arrlen;
+        char *word;
+        double **data;
+
+        if (NULL == (word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
+        if (!GetArg(in, "file", word)) {
+                Warning("Error: file argument is missing!\n");
+                goto efile;
+        }
+        printf("Writing to %s\n", word);
+        struct h5io* io = h5io_init(word);
+        if (NULL == io) goto eio;
+
+        if (getarrays(in, &data, &arrlen, &narr)) goto edata;
+        if (!GetOption(in, "dataset", word)) snprintf(word, strlen(in), "data");
+        h5io_setdataset(io, word);
+
+        if (h5io_isin(io)) {
+                Warning("Error: dataset %s exists!\n", io->dataset);
+                goto eexist;
+        }
+
+        if (!GetOption(in, "type", word)) snprintf(word, strlen(in), "float64");
+        h5io_setdtype(io, word);
+        if (FetchInt(in, "gzip", word, &io->compression)) io->compression = 0;
+        if (FetchInt(in, "chunksize", word, &io->chunkarr)) io->chunkarr = 1;
+        if (FetchInt(in, "cachemb", word, &io->cachemb)) io->cachemb = 64;
+        if (FetchInt(in, "cacheslots", word, &io->cacheslots)) io->cacheslots = 12421;
+
+        TIC();
+        if (h5io_write(io, data, arrlen, narr)) goto ewrite;
+        printf("Wrote %s in %g s\n", io->dataset, TOC());
+
+        h5io_free(io);
+        free(data);
+        free(word);
+        return;
+ewrite:
+eexist:
+        free(data);
+edata:
+        h5io_free(io);
+eio:
+efile:
+        free(word);
+eword:
+        Warning("Error: write_h5 failed!\n");
+        return;
+}
+
+/*
+BEGIN_DESCRIPTION
+SECTION Array
+PARSEFLAG read_h5 ReadH5 "file=<file-str> a0=<out-array> a1=<out-array> .. aN=<out-array> [dataset=<str>]"
+DESCRIPTION Read a dataset from an HDF5-file and stores the columns in arrays. The i-th column is stored in the i-th output array. Every array is converted to a 64-bit float for internal processing. Note that you cannot skip columns!
+ARGUMENT file input filename
+ARGUMENT dataset optional name of the dataset to read from (default: "data")
+OUTPUT ai the i-th output array
+END_DESCRIPTION
+*/
+void ReadH5(char *in)
+{
+        int i, arrlen, narr;
+        double **data;
+        char *word, **names;
+
+        if (NULL == (word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
+        if (!GetArg(in, "file", word)) {
+                Warning("Error: file argument is missing!\n");
+                goto efile;
+        }
+        printf("Reading from %s\n", word);
+
+        struct h5io* io = h5io_init(word);
+        if (NULL == io) goto eio;
+
+        if (!GetOption(in, "dataset", word)) snprintf(word, strlen(in), "data");
+        h5io_setdataset(io, word);
+        if (getnames(in, &names, &narr)) goto enames;
+
+        TIC();
+        if (h5io_read(io, &data, &arrlen, narr)) goto eread;
+        printf("Read %s in %g s\n", io->dataset, TOC());
+
+        for (i=0; i < narr; ++i)
+                if (addarray(data[i], arrlen, names[i])) goto eadd;
+
+        free(names);
+        free(data);
+        h5io_free(io);
+        free(word);
+        return;
+eadd:
+        // cleanup data for failed array
+        int j;
+        for (j=i; j < narr; ++j) {
+                free(data[j]);
+                free(names[j]);
+        }
+        free(data);
+eread:
+        free(names);
+enames:
+        h5io_free(io);
+eio:
+efile:
+        free(word);
+eword:
+        Warning("Error: read_h5 failed!\n");
+        return;
+}
+
+
 /*
 private helper function to find the names of array variables from a given input
 
@@ -304,8 +554,8 @@ char ** get_array_names_from_input(char *in, int *n_arr_vars){
 	char *word = NULL;
 	int Na=4;
 	*n_arr_vars = 0;
-	
-	
+
+
 	names=malloc(Na*sizeof(char *));
 	if (NULL == names){
 		Warning("Error: Out of malloc memory");
@@ -317,7 +567,7 @@ char ** get_array_names_from_input(char *in, int *n_arr_vars){
 		goto error;
 	}
 	while(GetNumOption(in, "a", *n_arr_vars, word))
-	{	
+	{
 		names[*n_arr_vars]=word;
 		word = malloc((strlen(in)+1)*sizeof(char));
 		if (NULL == word){
@@ -341,11 +591,11 @@ char ** get_array_names_from_input(char *in, int *n_arr_vars){
 	free(word);
 	if ((*n_arr_vars)==0)
 	{
-		Warning("Cannot define arrays from file, no array arguments recognized\n"); 
+		Warning("Cannot define arrays from file, no array arguments recognized\n");
 		goto error;
 	}
 	return names;
-	
+
 error:
 	for(int i = 0; i < *n_arr_vars; i++){
 		free(names[i]);
@@ -378,12 +628,12 @@ static ErrorCode create_arrays(int ncols, int nrows, char **names, double **data
 		arrays[i].N = nrows;
 		arrays[i].D = data[i];
 	}
-	
+
 
 	for(int i = 0; i < ncols; i++){
 		printf("Creating array %s\n", names[i]);
 		if(AddArray(names[i], arrays[i]))
-		{	
+		{
 			Warning("Failed to create array variable");
 			free(names[i]);
 			free(arrays[i].D);
@@ -395,11 +645,12 @@ end:
 	return out;
 }
 
+
 /*
 BEGIN_DESCRIPTION
 SECTION Array
-PARSEFLAG read_h5 ReadArraysFromH5 "file=<file-str> a0=<out-array> a1=<out-array> .. aN=<out-array> [dataset=<str>]"
-DESCRIPTION Read a dataset from an HDF5-file and stores the columns in arrays. The i-th column is stored in the i-th output array. Every array is converted to a 64-bit float for internal processing. Note that you cannot skip columns! This command uses the HDF5 file pool. See `flush_h5` for more information.
+PARSEFLAG read_h5_ ReadArraysFromH5 "file=<file-str> a0=<out-array> a1=<out-array> .. aN=<out-array> [dataset=<str>]"
+DESCRIPTION Read a dataset from an HDF5-file and stores the columns in arrays. The i-th column is stored in the i-th output array. Every array is converted to a 64-bit float for internal processing. Note that you cannot skip columns! This command uses the HDF5 file pool. See `flush_h5_` for more information.
 ARGUMENT file input filename
 ARGUMENT dataset optional name of the dataset to read from (default: "data")
 OUTPUT ai the i-th output array
@@ -481,8 +732,8 @@ end_create_arrays:
 /*
 BEGIN_DESCRIPTION
 SECTION Array
-PARSEFLAG flush_h5 FlushH5 "[f0=<file-str>, f1=<file-str>, .., fN=<file-str>]"
-DESCRIPTION This library handles all HDF5-files it reads and writes using a resource pool. Whenever an HDF5-file is created and opened for writing or opened for reading, it is added to the pool. Files are opened until the end of the SSDP program or until they are flushed using this command. Only once a file is flushed, its contents are stored on the hard drive. If no file string is provided, flush_h5 closes all currently opened files. Otherwise, only the specified files are flushed. Flushing an HDF5-file does not affect variables created by reading the file. If one wishes to read an HDF5-file previously created by SSDP in the same script, it must be flushed first. If one wishes to write multiple datasets to a file, it should only be flushed after all write_h5 calls.
+PARSEFLAG flush_h5_ FlushH5 "[f0=<file-str>, f1=<file-str>, .., fN=<file-str>]"
+DESCRIPTION This library handles all HDF5-files it reads and writes using a resource pool. Whenever an HDF5-file is created and opened for writing or opened for reading, it is added to the pool. Files are opened until the end of the SSDP program or until they are flushed using this command. Only once a file is flushed, its contents are stored on the hard drive. If no file string is provided, flush_h5_ closes all currently opened files. Otherwise, only the specified files are flushed. Flushing an HDF5-file does not affect variables created by reading the file. If one wishes to read an HDF5-file previously created by SSDP in the same script, it must be flushed first. If one wishes to write multiple datasets to a file, it should only be flushed after all write_h5_ calls.
 END_DESCRIPTION
 */
 void FlushH5(char *in){
@@ -502,12 +753,11 @@ void FlushH5(char *in){
 	free(filename);
 }
 
-
 /*
 BEGIN_DESCRIPTION
 SECTION Array
-PARSEFLAG write_h5 WriteArraysToH5 "a0=<in-array> a1=<in-array> .. aN=<in-array> file=<file-str> [type=<type-str>] [dataset=<str>] [chunksize=<int-value>]"
-DESCRIPTION Write arrays in columns of an HDF5-file in a dataset. The i-th array is written to the i-th column in the file. Note that you cannot skip columns! The user must provide enough variables to store each column. Each dataset handles a single basic data type.  That means different datasets must be created if one wishes to store different types. This command uses the HDF5 file pool. See `flush_h5` for more information.
+PARSEFLAG write_h5_ WriteArraysToH5 "a0=<in-array> a1=<in-array> .. aN=<in-array> file=<file-str> [type=<type-str>] [dataset=<str>] [chunksize=<int-value>]"
+DESCRIPTION Write arrays in columns of an HDF5-file in a dataset. The i-th array is written to the i-th column in the file. Note that you cannot skip columns! The user must provide enough variables to store each column. Each dataset handles a single basic data type.  That means different datasets must be created if one wishes to store different types. This command uses the HDF5 file pool. See `flush_h5_` for more information.
 ARGUMENT ai the i-th input array
 ARGUMENT file name of file should end with .h5
 ARGUMENT type optional the datatype of the dataset saved on the disc. Supported datatypes are: "float16", "float64", "int32", "int64" (default: "float64")

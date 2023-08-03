@@ -1,4 +1,4 @@
-bin_PROGRAMS = edt epsg coords topogdal pngout
+bin_PROGRAMS = edt epsg coords topogdal pngout h5io
 
 edt_SOURCES = $(top_builddir)/src/edt.c
 edt_CFLAGS = -DRUNTEST
@@ -11,6 +11,10 @@ epsg_LDADD = libcoordinates.la
 pngout_SOURCES = $(top_builddir)/src/pngout.c
 pngout_CFLAGS = -DRUNTEST
 pngout_LDFLAGS = -lpng
+
+h5io_SOURCES = $(top_builddir)/src/h5io.c
+h5io_CFLAGS = -DRUNTEST $(HDF5_CPPFLAGS)
+h5io_LDFLAGS = $(HDF5_LIBS) $(HDF5_LDFLAGS)
 
 coords_SOURCES = $(top_builddir)/src/coordinates.c
 coords_CFLAGS = -DRUNTEST
@@ -27,4 +31,4 @@ libcoordinates_la_SOURCES = $(top_builddir)/src/coordinates.c
 libepsg_la_SOURCES = $(top_builddir)/src/epsg.c
 libedt_la_SOURCES = $(top_builddir)/src/edt.c
 
-TESTS=edt epsg coords topogdal pngout
+TESTS=edt epsg coords topogdal pngout h5io
