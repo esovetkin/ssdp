@@ -436,20 +436,20 @@ double SampleTopo(double x, double y, topology *T, sky_pos *sn)
 	return z;	
 }
 
-inline int YINDEX(int N, int Ny)
+static inline int YINDEX(int N, int Ny)
 {
 	return N%Ny;
 } 
-inline int XINDEX(int N, int Ny)
+static inline int XINDEX(int N, int Ny)
 {
 	return N/Ny;
 } 
-inline int INDEX(int x, int y, int Ny)
+static inline int INDEX(int x, int y, int Ny)
 {
 	return x*Ny+y;
 } 
 
-inline int IndexGridX(double x, topogrid *T, int *o)
+static inline int IndexGridX(double x, topogrid *T, int *o)
 {
 	double dx=(T->x2-T->x1)/((double)T->Nx);
 	double nx;
@@ -464,7 +464,7 @@ inline int IndexGridX(double x, topogrid *T, int *o)
 	return (int)nx;
 }
 
-inline int IndexGridY(double y, topogrid *T, int *o)
+static inline int IndexGridY(double y, topogrid *T, int *o)
 {
 	double dy=(T->y2-T->y1)/((double)T->Ny);
 	double ny;
@@ -479,12 +479,12 @@ inline int IndexGridY(double y, topogrid *T, int *o)
 	return (int)ny;
 }
 
-inline double YVALUE(int i,topogrid *T)
+static inline double YVALUE(int i,topogrid *T)
 {
 	double dy=(T->y2-T->y1)/((double)T->Ny);
 	return T->y1+((double)i)*dy;
 } 
-inline double XVALUE(int i,topogrid *T)
+static inline double XVALUE(int i,topogrid *T)
 {
 	double dx=(T->x2-T->x1)/((double)T->Nx);
 	return T->x1+((double)i)*dx;

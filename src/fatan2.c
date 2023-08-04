@@ -9,17 +9,17 @@
  * combinations and select the best precision
 */
 // 2 terms order 4
-inline double subatan_2_4(double a) // 3 digits
+static inline double subatan_2_4(double a) // 3 digits
 {
 	return (0.152578515549353*a -0.366840729424806)*a*a*a+a;
 }
 
-inline double subatan_5_9(double a) // 6 digits
+static inline double subatan_5_9(double a) // 6 digits
 {
 	return ((((-0.033340276431366*a+0.140924407553154)*a -0.191655659596189)*a*a + 0.202922388831609)*a*a -0.333452613665954)*a*a*a+a;
 }
 
-inline double subatan_9_10(double a) // 8 digits
+static inline double subatan_9_10(double a) // 8 digits
 {
 	return ((((((((0.021320677603614*a -0.130029802390657)*a + 0.321042974564416)*a -0.368370428974842)*a + 0.096998715843775)*a + 0.173898218191358)*a + 0.004227037834855)*a -0.333702137561143)*a + 0.000012909580497)*a*a+a;
 }
