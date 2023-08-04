@@ -1,6 +1,3 @@
 [submodule "src/freespa"]
 	path = src/freespa
 	url = https://github.com/IEK-5/freespa.git
-[submodule "src/HDF5"]
-	path = src/HDF5
-	url = https://github.com/IEK-5/ssdp_hdf5_extention.git
