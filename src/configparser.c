@@ -78,7 +78,7 @@ void ConfigCoord (char *in)
 	C->lat=l;
 	printf("set latitude to %e degrees (%e rad)\n", rad2deg(C->lat), C->lat);
 	
-	if (FetchFloat(in, "E", word, &l))
+	if (FetchOptFloat(in, "E", word, &l))
         l = 0;
 
     C->E=l;
@@ -613,7 +613,7 @@ void ConfigTOPOGDAL (char *in)
                 if (read_filelist(word, fns))
                         goto efnlist;
 
-        if (FetchInt(in, "epsg", word, &epsg))
+        if (FetchOptInt(in, "epsg", word, &epsg))
                 epsg = determine_utm((x1+x2)/2, (y1+y2)/2);
 
         printf("Sampling with step=%.3f epsg=%d\n"
@@ -736,7 +736,7 @@ void ConfigLoc (char *in)
 		if (C->grid_init==0)
 			Warning("No topology or topogrid available\n");
 	}
-	if (FetchFloat(in, "albedo", word, &(C->albedo)))
+	if (FetchOptFloat(in, "albedo", word, &(C->albedo)))
 		C->albedo=0.0;
 
 	free(word);
@@ -1060,11 +1060,11 @@ void PlaceTemplate(char *in)
         if (FetchFloat(in, "lat", word, &lat)) goto epars;
         if (FetchFloat(in, "lon", word, &lon)) goto epars;
 
-        if (FetchFloat(in, "azi", word, &azi))
+        if (FetchOptFloat(in, "azi", word, &azi))
                 azi = 0;
         azi = deg2rad(azi);
 
-        if (FetchInt(in, "epsg", word, &epsg))
+        if (FetchOptInt(in, "epsg", word, &epsg))
                 epsg = determine_utm(lat, lon);
         struct epsg *pc = epsg_init_epsg(epsg, 4326);
         if (NULL == pc) {

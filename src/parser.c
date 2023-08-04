@@ -223,10 +223,10 @@ int FetchArray(const char *in, const char *pat, char *str, array **a)
 	Warning("Input array %s is not specified\n",pat);
 	return 1;
 }
-int FetchFloat(const char *in, const char *pat, char *str, double *a)
+int FetchOptFloat(const char *in, const char *pat, char *str, double *a)
 {
         array *x;
-        if (! GetArg(in, pat, str))
+        if (! GetOption(in, pat, str))
                 goto noarg;
 
         if (LookupArray(str, &x))
@@ -240,13 +240,19 @@ array:
         (*a) = x->D[0];
         return 0;
 noarg:
-        Warning("Input float %s is not specified\n", pat);
         return 1;
 }
-int FetchInt(const char *in, const char *pat, char *str, int *a)
+int FetchFloat(const char *in, const char *pat, char *str, double *a)
+{
+        int x = FetchOptFloat(in, pat, str, a);
+        if (x)
+                Warning("Error: input float %s is not specified\n", pat);
+        return x;
+}
+int FetchOptInt(const char *in, const char *pat, char *str, int *a)
 {
         array *x;
-        if (! GetArg(in, pat, str))
+        if (! GetOption(in, pat, str))
                 goto noarg;
 
         if (LookupArray(str, &x))
@@ -256,12 +262,18 @@ int FetchInt(const char *in, const char *pat, char *str, int *a)
         return 0;
 array:
         if (1 != x->N)
-                Warning("non-unit array provided for %s\n", pat);
+                Warning("Warning: non-unit array provided for %s\n", pat);
         (*a) = (int) x->D[0];
         return 0;
 noarg:
-        Warning("Input int %s is not specified\n", pat);
         return 1;
+}
+int FetchInt(const char *in, const char *pat, char *str, int *a)
+{
+        int x = FetchOptInt(in, pat, str, a);
+        if (x)
+                Warning("Error: input integer %s is not specified\n", pat);
+        return x;
 }
 
 /* 

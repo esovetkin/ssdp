@@ -450,10 +450,10 @@ void WriteH5(char *in)
 
         if (!GetOption(in, "type", word)) snprintf(word, strlen(in), "float64");
         h5io_setdtype(io, word);
-        if (FetchInt(in, "gzip", word, &io->compression)) io->compression = 0;
-        if (FetchInt(in, "chunksize", word, &io->chunkarr)) io->chunkarr = 1;
-        if (FetchInt(in, "cachemb", word, &io->cachemb)) io->cachemb = 64;
-        if (FetchInt(in, "cacheslots", word, &io->cacheslots)) io->cacheslots = 12421;
+        if (FetchOptInt(in, "gzip", word, &io->compression)) io->compression = 0;
+        if (FetchOptInt(in, "chunksize", word, &io->chunkarr)) io->chunkarr = 1;
+        if (FetchOptInt(in, "cachemb", word, &io->cachemb)) io->cachemb = 64;
+        if (FetchOptInt(in, "cacheslots", word, &io->cacheslots)) io->cacheslots = 12421;
 
         TIC();
         if (h5io_write(io, data, arrlen, narr)) goto ewrite;
@@ -568,7 +568,7 @@ void WritePng(char *in)
         if (FetchArray(in, "z", word, &z)) goto efetch;
         if (FetchInt(in, "nx", word, &nx)) goto efetch;
         if (FetchInt(in, "ny", word, &ny)) goto efetch;
-        if (FetchInt(in, "normalise", word, &norm))
+        if (FetchOptInt(in, "normalise", word, &norm))
                 norm = 1;
 
         if (0==norm)
@@ -1081,11 +1081,11 @@ void Perturb(char *in)
 	int i;
 	array *x;
 	word=malloc((strlen(in)+1)*sizeof(char));
-	if (FetchFloat(in, "releps", word, &releps))
+	if (FetchOptFloat(in, "releps", word, &releps))
             releps = 0.0;
 	releps=fabs(releps);
 
-	if (FetchFloat(in, "abseps", word, &abseps))
+	if (FetchOptFloat(in, "abseps", word, &abseps))
             abseps = 0.0;
 	abseps=fabs(abseps);
 
