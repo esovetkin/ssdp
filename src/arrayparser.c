@@ -291,35 +291,18 @@ void WriteArraysToFile(char *in)
 }
 
 
-static int reallocate_data(double ***data, int n, int *bs)
+static void* reallocate(void *data, size_t size, int n, int *bs)
 {
         if (n < *bs - 1)
-                return 0;
+                return data;
 
-        double **tmp;
         *bs += 4;
-        if (NULL == (tmp=realloc(*data, *bs*sizeof(*tmp)))) goto erealloc;
-        *data = tmp;
+        void *tmp;
+        if (NULL == (tmp=realloc(data, *bs*size))) goto erealloc;
 
-        return 0;
+        return tmp;
 erealloc:
-        return -1;
-}
-
-
-static int reallocate_names(char ***data, int n, int *bs)
-{
-        if (n < *bs - 1)
-                return 0;
-
-        char **tmp;
-        *bs += 4;
-        if (NULL == (tmp=realloc(*data, *bs*sizeof(*tmp)))) goto erealloc;
-        *data = tmp;
-
-        return 0;
-erealloc:
-        return -1;
+        return NULL;
 }
 
 
@@ -336,7 +319,8 @@ static int getnames(char *in, char ***names, int *len)
                 (*names)[n] = word;
                 n++;
                 if (NULL == (word=malloc((strlen(in)+1)*sizeof(*word)))) goto eloop;
-                if (reallocate_names(names, n, &bs)) goto eloop;
+                *names = (char **) reallocate(*names, sizeof(**names), n, &bs);
+                if (NULL == *names) goto eloop;
         }
 
         *len=n;
@@ -374,7 +358,8 @@ static int getarrays(char *in, double ***data, int *len, int *narr)
                         goto elen;
                 }
                 ncols++;
-                if (reallocate_data(data, ncols, &bs)) goto eralloc;
+                *data = (double**) reallocate(*data, sizeof(**data), ncols, &bs);
+                if (NULL == *data) goto eralloc;
         }
 
         *narr=ncols;
