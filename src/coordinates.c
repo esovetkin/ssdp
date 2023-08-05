@@ -300,7 +300,7 @@ void _test_placetemplate(double lat, double lon, double azi)
 {
         double x[2] = {0.,1.};
         double y[2] = {0.,1.};
-        int i = 0, N = 2, epsg = determine_utm(lat, lon);
+        int N = 2, epsg = determine_utm(lat, lon);
         struct epsg *pc = epsg_init_epsg(epsg, 4326);
         if (NULL == pc) goto eepsg;
 

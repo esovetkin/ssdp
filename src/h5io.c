@@ -365,20 +365,16 @@ double** test_data_init(int ncol, int nrow)
 {
         int i, j;
         double **data;
-        assert(data=malloc(ncol*sizeof(*data)));
+        assert((data=malloc(ncol*sizeof(*data))));
 
         for (i=0; i<ncol; ++i) {
-                assert(data[i] = malloc(nrow*sizeof(*(data[i]))));
+                assert((data[i] = malloc(nrow*sizeof(*(data[i])))));
 
                 for (j=0; j<nrow; ++j)
                         data[i][j] = (double)(i*j);
         }
 
         return data;
-edata:
-        printf("Error: malloc failed in test_data_init\n");
-        exit(1);
-        return NULL;
 }
 
 
@@ -396,6 +392,7 @@ void test_write(int ncol, int nrow, const char* fn, const char *dt)
         struct h5io* io = h5io_init(fn);
         assert(io);
         h5io_setdataset(io, "data/test");
+        h5io_setdtype(io, dt);
         double** data = test_data_init(ncol, nrow);
         assert(data);
         assert(0 == h5io_write(io, data, nrow, ncol));

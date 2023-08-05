@@ -243,24 +243,6 @@ void edt_compute(struct edt* self)
 #include <assert.h>
 
 
-void print_a(void *a, int sa, int nx, int ny, const char *name)
-{
-        int i, row, n = nx*ny;
-        printf("%s:\n", name);
-        for (row=nx-1; row >= 0; --row) {
-                for (i=0; i<n; ++i)
-                        if (i % nx == row) {
-                                if (sizeof(double) == sa)
-                                        printf(" %8.0f", *(double*)(a + i*sa));
-                                else
-                                        printf(" %8d", *(int*)(a + i*sa));
-                        }
-                printf("\n");
-        }
-        printf("\n");
-}
-
-
 void assert_zero(struct edt *dt)
 {
         int i;

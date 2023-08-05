@@ -44,7 +44,7 @@ static void norm(double *src, struct bitmap* dst, double m, double M)
         uint8_t v;
         struct pixel *p;
 
-        for (i = 0; i < dst->height*dst->width; ++i) {
+        for (i = 0; i < (int)(dst->height*dst->width); ++i) {
                 v = d2i(round(255*(src[i]-m)/(M-m)));
                 // transpose to maintain north-west is top-left corner
                 // (debugged into existence...)

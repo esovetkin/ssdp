@@ -187,8 +187,7 @@ static int getnames(char *in, char ***names, int *len)
         return 0;
 enoargs:
 eloop:
-        int i;
-        for (i=0; i < n; ++i)
+        for (int i=0; i < n; ++i)
                 free((*names)[i]);
         free(*names);
 ename:
@@ -295,8 +294,7 @@ void ReadArraysFromFile(char *in)
         free(file);
         return;
 eadd:
-        int j;
-        for (j=i; j < narr; ++j) {
+        for (int j=i; j < narr; ++j) {
                 free(data[j]);
                 free(names[j]);
         }
@@ -461,8 +459,7 @@ void ReadH5(char *in)
         return;
 eadd:
         // cleanup data for failed array
-        int j;
-        for (j=i; j < narr; ++j) {
+        for (int j=i; j < narr; ++j) {
                 free(data[j]);
                 free(names[j]);
         }
