@@ -162,7 +162,8 @@ int h5io_isin(struct h5io* self)
         // from the first one.  see:
         // https://docs.hdfgroup.org/hdf5/v1_12/group___h5_l.html#title11
         int res=1;
-        int n = strlen(self->dataset);
+        // ensure appending delimeter last '/' is okay
+        int n = strlen(self->dataset) + 1;
         char *token, *x, *p, delim[] = "/";
         if (NULL == (x=malloc((n+1)*sizeof(*x)))) goto ex;
         if (NULL == (p=malloc((n+1)*sizeof(*p)))) goto ep;
@@ -394,6 +395,7 @@ void test_write(int ncol, int nrow, const char* fn, const char *dt)
 {
         struct h5io* io = h5io_init(fn);
         assert(io);
+        h5io_setdataset(io, "data/test");
         double** data = test_data_init(ncol, nrow);
         assert(data);
         assert(0 == h5io_write(io, data, nrow, ncol));
@@ -405,7 +407,8 @@ void test_write(int ncol, int nrow, const char* fn, const char *dt)
 void test_read(int ncol, int nrow, const char* fn)
 {
         struct h5io* io = h5io_init(fn);
-
+        assert(io);
+        h5io_setdataset(io,"data/test");
         int n,i,j;
         double **data;
         assert(0 == h5io_read(io, &data, &n, ncol));
@@ -508,11 +511,12 @@ void test1()
         assert(1 == test_isin("test.h5","//"));
         assert(1 == test_isin("test.h5","///"));
         assert(1 == test_isin("test.h5","data"));
+        assert(1 == test_isin("test.h5","data/test"));
         assert(0 == remove("test.h5"));
 }
 
 
-int main(int argc, char* argv)
+int main(int argc, char** argv)
 {
         printf("testing h5io ...\n");
 
