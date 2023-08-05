@@ -588,7 +588,7 @@ END_DESCRIPTION
 void ConfigTOPOGDAL (char *in)
 {
         simulation_config *C;
-        double x1, y1, x2, y2, step, dt;
+        double x1, y1, x2, y2, step;
         int i = 0, epsg = -1;
         char *word;
         word=malloc((strlen(in)+1)*sizeof(*word));
@@ -602,6 +602,7 @@ void ConfigTOPOGDAL (char *in)
         if (FetchFloat(in, "step", word, &step)) goto epars;
 
         struct cvec *fns = cvec_init(4);
+        if (NULL == fns) goto ecvec;
         while(GetNumOption(in, "f", i, word)) {
                 if (cvec_push(fns, word)) goto efnspush;
                 word=malloc((strlen(in)+1)*sizeof(*word));
@@ -610,8 +611,10 @@ void ConfigTOPOGDAL (char *in)
         }
 
         if (GetOption(in, "flist", word))
-                if (read_filelist(word, fns))
+                if (read_filelist(word, fns)) {
+                        Warning("Error: Failed to read path list from the file!\n");
                         goto efnlist;
+                }
 
         if (FetchOptInt(in, "epsg", word, &epsg))
                 epsg = determine_utm((x1+x2)/2, (y1+y2)/2);
@@ -631,13 +634,12 @@ void ConfigTOPOGDAL (char *in)
         TIC();
         C->Tx = ssdp_make_topogdal(x1, y1, x2, y2, fns->s, fns->n, step, epsg);
         if (ssdp_error_state) goto emaketopogdal;
-
         InitConfigGridMask(C);
         if (ssdp_error_state) goto emaketopogdal;
-        dt = TOC();
-        printf("Sampled topography from GDAL in %g s\n", dt);
+        printf("Initialised topogrid in %g s\n", TOC());
 
         cvec_free(fns);
+        free(word);
         return;
 emaketopogdal:
         ssdp_print_error_messages();
@@ -645,12 +647,13 @@ emaketopogdal:
         C->grid_init=0;
         ssdp_reset_errors();
 efnlist:
-        fprintf(stderr, "Failed to read path list from the file!\n");
 efnspush:
         cvec_free(fns);
+ecvec:
 epars:
         free(word);
 eword:
+        Warning("Error: config_topogdal failed!\n");
         return;
 }
 /*

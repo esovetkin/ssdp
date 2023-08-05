@@ -252,6 +252,7 @@ static int addarray(double *data, int n, const char* name)
         if (AddArray((char*)name, *a)) goto eadd;
         printf("Created array %s\n", name);
 
+        free(a);
         return 0;
 eadd:
         free(a);
@@ -338,8 +339,10 @@ void WriteArraysToFile(char *in)
         WriteArrays(file, data, narr, arrlen);
         printf("Wrote to %s in %g s\n", file, TOC());
 
+        free(data);
         free(file);
         return;
+        free(data);
 edata:
 efile:
         free(file);

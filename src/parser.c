@@ -375,9 +375,8 @@ int GetNumOption(const char *in, const char *opt, int i, char *word)
 
 
 struct cvec* cvec_init(int a) {
-        struct cvec *self;
-        self = malloc(sizeof(*self));
-        if (NULL == self) goto cvec_init_eself;
+        struct cvec *self = malloc(sizeof(*self));
+        if (NULL==self) goto cvec_init_eself;
 
         self->astep = a > 0 ? a : 1;
         self->n = 0;
@@ -412,8 +411,9 @@ void cvec_free(struct cvec *self)
 int cvec_push(struct cvec *self, char *word)
 {
         if (self->n == self->a) {
-                self->s = realloc(self->s, (self->a + self->astep)*sizeof(*self->s));
-                if (NULL == self->s) goto cvec_push_erealloc;
+                char **tmp = realloc(self->s, (self->a + self->astep)*sizeof(*self->s));
+                if (NULL == tmp) goto cvec_push_erealloc;
+                self->s = tmp;
                 self->a += self->astep;
         }
 
@@ -432,16 +432,19 @@ int read_filelist(char *fn, struct cvec *dst)
         if (NULL == (fd=fopen(fn, "rb"))) goto efopen;
         while (-1 != (read = getline(&line, &len, fd))) {
                 x = malloc((read+1)*sizeof(*x));
-                if (NULL == x) goto epush;
+                if (NULL == x) goto ex;
                 strncpy(x, line, read);
                 x[strcspn(x, "\r\n")] = 0;
                 if (cvec_push(dst, x)) goto epush;
         }
 
+        free(line);
         fclose(fd);
         return 0;
 epush:
         free(x);
+ex:
+        free(line);
         fclose(fd);
 efopen:
         return -1;
