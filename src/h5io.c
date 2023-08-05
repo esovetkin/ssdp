@@ -16,8 +16,8 @@
 #include "h5io.h"
 
 static hid_t h5io_fopen(const char *);
-static hid_t subgroups();
-static hid_t float16();
+static hid_t subgroups(void);
+static hid_t float16(void);
 static hid_t chunks(int, int, int);
 static hid_t cache(int,int);
 static hid_t str2dtype(const char*);
@@ -79,7 +79,7 @@ int h5io_read(struct h5io* self, double ***data, int* arrlen, int narr)
         if (H5I_INVALID_HID == dst) goto edst;
         if (H5I_INVALID_HID == (dsp=H5Dget_space(dst))) goto edsp;
         if (H5Sget_simple_extent_dims(dsp, dim, mdim) < 0) goto edim;
-        if (dim[0] < narr) {
+        if ((int)dim[0] < narr) {
                 printf("Error: not enough arrays available in the chosen file!\n");
                 goto enarr;
         }
@@ -201,7 +201,7 @@ static hid_t h5io_fopen(const char *fn)
 }
 
 
-static hid_t subgroups()
+static hid_t subgroups(void)
 {
         hid_t x;
         if (H5I_INVALID_HID == (x = H5Pcreate(H5P_LINK_CREATE))) goto ecreate;
@@ -215,7 +215,7 @@ ecreate:
 }
 
 
-static hid_t float16()
+static hid_t float16(void)
 {
         hid_t x = H5Tcopy(H5T_NATIVE_FLOAT);
         if (H5Tset_fields(x, 15, 10, 5, 0, 10) < 0) goto err;
