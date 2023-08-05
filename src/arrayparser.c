@@ -14,6 +14,8 @@
 #include "parserutil.h"
 #include "h5io.h"
 
+#define ARRAY_BS 4
+
 typedef enum arrayops{ARR_PLUS,ARR_MINUS,ARR_MULT,ARR_DIV} arrayops;
 /*
 BEGIN_DESCRIPTION
@@ -143,160 +145,12 @@ void array_comp(char *in)
 	}	
 }
 
-/*
-BEGIN_DESCRIPTION
-SECTION Array
-PARSEFLAG read_array ReadArraysFromFile "file=<file-str> a0=<out-array> a1=<out-array> .. aN=<out-array>"
-DESCRIPTION Reads columns from a file and stores them in arrays. The i-th column is stored in the i-th output array. Note that you cannot skip columns!
-ARGUMENT file input filename
-OUTPUT ai the i-th output array
-END_DESCRIPTION
-*/
-void ReadArraysFromFile(char *in)
-{
-	char **names;
-	char *word;
-	char *file;
-	double **data;
-	int i, k=0, Na=4, N;
-	file=malloc((strlen(in)+1)*sizeof(char));
-	if (!GetArg(in, "file", file))
-	{
-		free(file);
-		return;
-	}
-	word=malloc((strlen(in)+1)*sizeof(char));
-	i=0;
-	names=malloc(Na*sizeof(char *));
-	while(GetNumOption(in, "a", i, word))
-	{
-		names[i]=word;
-		i++;
-		word=malloc((strlen(in)+1)*sizeof(char));
-		if (i==Na-1)
-		{
-			Na+=4;
-			names=realloc(names, Na*sizeof(char *));
-		}
-	}
-	free(word);
-	if (i==0)
-	{
-		Warning("Cannot define arrays from file, no array arguments recognized\n"); 
-		free(names);
-		free(file);
-		return;
-	}
-	TIC();
-	data=ReadArrays(file, i, &N);
-	printf("Read from %s in %g s\n", file, TOC());
-	if (N>0)
-	{
-		array a;
-		a.N=N;
-		// create i arrays
-		for (k=0;k<i;k++)
-		{
-			a.D=data[k];
-			printf("Creating array %s\n", names[k]);
-			if(AddArray(names[k], a))
-			{
-				free(names[k]); // failed to make array
-				free(a.D);
-			}
-		}
-	}
-	else
-	{
-		printf("Could not parse file %s\n", file);
-		for (k=0;k<i;k++)
-		{
-			free(data[k]);
-			free(names[k]);
-		}
-	}
-	free(file);
-	free(names);
-	free(data);
-}
-/*
-BEGIN_DESCRIPTION
-SECTION Array
-PARSEFLAG write_array WriteArraysToFile "a0=<in-array> a1=<in-array> .. aN=<in-array> file=<file-str>"
-DESCRIPTION Writes arrays in columns of a file. The i-th array is written to the i-th column in the file. Note that you cannot skip columns!
-ARGUMENT ai the i-th input array
-OUTPUT file output filename
-END_DESCRIPTION
-*/
-void WriteArraysToFile(char *in)
-{
-	char *word;
-	char *file;
-	double **data;
-	array *a;
-	int i, Na=4, N=-1;
-	file=malloc((strlen(in)+1)*sizeof(char));
-	if (!GetArg(in, "file", file))
-	{
-		free(file);
-		return;
-	}
-	word=malloc((strlen(in)+1)*sizeof(char));
-	i=0;
-	data=malloc(Na*sizeof(double *));
-	while(GetNumOption(in, "a", i, word))
-	{
-		
-		if (!LookupArray(word, &a))
-		{
-			Warning("Array %s not available\n",word); 
-			free(word);
-			free(data);
-			free(file);
-			return;
-		}
-		data[i]=a->D;
-		if (N<0)
-			N=a->N;
-		else if (a->N!=N)
-		{
-			printf("0: %d %d:%d\n", N, i, a->N);
-			Warning("Error: arrays must be of equal length\n"); 
-			free(word);
-			free(data);
-			free(file);
-			return;
-		}
-		i++;
-		if (i==Na-1)
-		{
-			Na+=4;
-			data=realloc(data, Na*sizeof(double *));
-		}
-	}
-	free(word);
-	if (i==0)
-	{
-		Warning("Cannot define arrays from file, no array arguments recognized\n"); 
-		free(data);
-		free(file);
-		return;
-	}
-	printf("writing arrays to file %s\n", file);
-	TIC();
-	WriteArrays(file,data,i,N);
-	printf("Wrote to %s in %g s\n", file, TOC());
-	free(file);
-	free(data);
-}
-
-
 static void* reallocate(void *data, size_t size, int n, int *bs)
 {
         if (n < *bs - 1)
                 return data;
 
-        *bs += 4;
+        *bs += ARRAY_BS;
         void *tmp;
         if (NULL == (tmp=realloc(data, *bs*size))) goto erealloc;
 
@@ -309,7 +163,7 @@ erealloc:
 static int getnames(char *in, char ***names, int *len)
 {
         char *word;
-        int n = 0, bs = 4;
+        int n = 0, bs = ARRAY_BS;
 
         if (NULL == (word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
         if (NULL == (*names=malloc(bs*sizeof(**names)))) goto ename;
@@ -323,9 +177,15 @@ static int getnames(char *in, char ***names, int *len)
                 if (NULL == *names) goto eloop;
         }
 
+        if (0 == n) {
+                Warning("Error: array names arguments is missing!\n");
+                goto enoargs;
+        }
+
         *len=n;
         free(word);
         return 0;
+enoargs:
 eloop:
         int i;
         for (i=0; i < n; ++i)
@@ -341,7 +201,7 @@ eword:
 static int getarrays(char *in, double ***data, int *len, int *narr)
 {
         char *word;
-        int ncols = 0, bs=4;
+        int ncols = 0, bs=ARRAY_BS;
         array *a;
         *len = -1;
 
@@ -362,9 +222,15 @@ static int getarrays(char *in, double ***data, int *len, int *narr)
                 if (NULL == *data) goto eralloc;
         }
 
+        if (0 == ncols) {
+                Warning("Error: array names arguments is missing!\n");
+                goto enoargs;
+        }
+
         *narr=ncols;
         free(word);
         return 0;
+enoargs:
 eralloc:
 elen:
 earray:
@@ -385,6 +251,7 @@ static int addarray(double *data, int n, const char* name)
         a->N = n;
 
         if (AddArray((char*)name, *a)) goto eadd;
+        printf("Created array %s\n", name);
 
         return 0;
 eadd:
@@ -393,6 +260,95 @@ ea:
         return -1;
 }
 
+/*
+BEGIN_DESCRIPTION
+SECTION Array
+PARSEFLAG read_array ReadArraysFromFile "file=<file-str> a0=<out-array> a1=<out-array> .. aN=<out-array>"
+DESCRIPTION Reads columns from a file and stores them in arrays. The i-th column is stored in the i-th output array. Note that you cannot skip columns!
+ARGUMENT file input filename
+OUTPUT ai the i-th output array
+END_DESCRIPTION
+*/
+void ReadArraysFromFile(char *in)
+{
+        int i, arrlen, narr;
+        double **data;
+        char *file, **names;
+
+        if (NULL == (file=malloc((strlen(in)+1)*sizeof(*file)))) goto eword;
+        if (!GetArg(in, "file", file)) {
+                Warning("Error: file argument is missing!\n");
+                goto efile;
+        }
+        printf("Reading from %s\n", file);
+
+        if (getnames(in, &names, &narr)) goto enames;
+        TIC();
+        if (NULL==(data=ReadArrays(file, narr, &arrlen))) goto eread;
+        printf("Read from %s in %g s\n", file, TOC());
+
+        for (i=0; i < narr; ++i)
+                if (addarray(data[i], arrlen, names[i])) goto eadd;
+
+        free(names);
+        free(data);
+        free(file);
+        return;
+eadd:
+        int j;
+        for (j=i; j < narr; ++j) {
+                free(data[j]);
+                free(names[j]);
+        }
+        free(data);
+eread:
+        free(names);
+enames:
+efile:
+        free(file);
+eword:
+        Warning("Error: read_array failed!\n");
+        return;
+}
+
+/*
+BEGIN_DESCRIPTION
+SECTION Array
+PARSEFLAG write_array WriteArraysToFile "a0=<in-array> a1=<in-array> .. aN=<in-array> file=<file-str>"
+DESCRIPTION Writes arrays in columns of a file. The i-th array is written to the i-th column in the file. Note that you cannot skip columns!
+ARGUMENT ai the i-th input array
+OUTPUT file output filename
+END_DESCRIPTION
+*/
+void WriteArraysToFile(char *in)
+{
+        int narr, arrlen;
+        char *file;
+        double **data;
+
+        if (NULL==(file=malloc((strlen(in)+1)*sizeof(*file)))) goto eword;
+        if (!GetArg(in, "file", file))
+        {
+                Warning("Error: file argument is missing!\n");
+                goto efile;
+        }
+        printf("Writing arrays to file %s\n", file);
+
+        if (getarrays(in, &data, &arrlen, &narr)) goto edata;
+
+        TIC();
+        WriteArrays(file, data, narr, arrlen);
+        printf("Wrote to %s in %g s\n", file, TOC());
+
+        free(file);
+        return;
+edata:
+efile:
+        free(file);
+eword:
+        Warning("Error: write_array failed!\n");
+        return;
+}
 
 /*
 BEGIN_DESCRIPTION
