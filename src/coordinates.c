@@ -40,26 +40,6 @@ void convert_point(struct epsg *pc, struct point *p, int fwd)
 }
 
 
-static void convert_array(struct epsg *pc, double *a, int na, double b, int iffirst, int fwd)
-{
-        int i;
-        struct point p;
-
-        for (i=0; i<na; ++i) {
-                if (iffirst > 0) {
-                        p.x = a[i];
-                        p.y = b;
-                } else {
-                        p.x = b;
-                        p.y = a[i];
-                }
-
-                convert_point(pc, &p, fwd);
-                a[i] = (iffirst > 0) ? p.x : p.y;
-        }
-}
-
-
 struct coordinates* coordinates_init(int n)
 {
         if (n <= 0)
@@ -103,8 +83,7 @@ struct mesh {
 };
 
 
-static struct mesh* mesh_init(struct epsg *pc,
-                              double x1, double y1,
+static struct mesh* mesh_init(double x1, double y1,
                               double x2, double y2,
                               double step)
 {
@@ -112,7 +91,6 @@ static struct mesh* mesh_init(struct epsg *pc,
         self = malloc(sizeof(*self));
         if (NULL == self)
                 goto self_emalloc;
-
 
         self->nlat = (int) ceil(fabs(x2-x1)/step);
         self->nlon = (int) ceil(fabs(y2-y1)/step);
@@ -127,9 +105,6 @@ static struct mesh* mesh_init(struct epsg *pc,
 
         arange(self->lat, self->nlat, x1, x2, step);
         arange(self->lon, self->nlon, y1, y2, step);
-
-        convert_array(pc, self->lat, self->nlat, y1, 1, -1);
-        convert_array(pc, self->lon, self->nlon, x1, 0, -1);
 
         return self;
 lon_emalloc:
@@ -157,7 +132,7 @@ static void mesh_free(struct mesh *self)
 }
 
 
-static struct coordinates* product_mesh(struct mesh *m)
+static struct coordinates* product_mesh(struct epsg *pc, struct mesh *m)
 {
         int i;
 
@@ -169,10 +144,16 @@ static struct coordinates* product_mesh(struct mesh *m)
         for (i=0; i < self->np; ++i) {
                 self->p[i].x = m->lat[i % m->nlat];
                 self->p[i].y = m->lon[i / m->nlat];
+				convert_point(pc, self->p + i, -1);
         }
 
-        bbox2poly4(&self->br, m->lat[0], m->lon[0],
-                   m->lat[m->nlat-1], m->lon[m->nlon-1]);
+		struct point p = { .x = m->lat[0], .y = m->lon[0]},
+                q = { .x = m->lat[m->nlat-1], .y = m->lon[m->nlon-1]};
+
+		convert_point(pc, &p, -1);
+		convert_point(pc, &q, -1);
+
+        bbox2poly4(&self->br, p.x, p.y, q.x, q.y);
         self->nx = m->nlat;
         self->ny = m->nlon;
 
@@ -199,10 +180,10 @@ struct coordinates* box2coordinates(double x1, double y1,
 
         convert_point(pc, &bl, 1); convert_point(pc, &tr, 1);
 
-        struct mesh *m = mesh_init(pc, bl.x, bl.y, tr.x, tr.y, step);
+        struct mesh *m = mesh_init(bl.x, bl.y, tr.x, tr.y, step);
         if (NULL == m) goto emesh;
 
-        struct coordinates *self = product_mesh(m);
+        struct coordinates *self = product_mesh(pc, m);
         if (NULL == self) goto eproduct_mesh;
 
         self->x1 = bl.x;
