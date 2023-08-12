@@ -573,7 +573,7 @@ void ConfigTOPOGrid (char *in)
 BEGIN_DESCRIPTION
 SECTION Simulation Configuration
 PARSEFLAG config_topogdal ConfigTOPOGDAL "C=<out-config> lat1=<float-value> lon1=<float-value> lat2=<float-value> lon2=<float-value> step=<float-value> f0=<file-str> f1=<file-str> .. fN=<file-str> [flist=<file-str>] [epsg=<int-value>]"
-DESCRIPTION Setup the topogrid. Load the z data (column major, from the south-west corner to the north-east corner).
+DESCRIPTION Setup the topogrid using Georasters
 ARGUMENT lat1 latitude of the south-west corner (in WGS84, epsg:4326)
 ARGUMENT lon1 longitude of the south-west corner (in WGS84, epsg:4326)
 ARGUMENT lat2 latitude of the north-east corner (in WGS84, epsg:4326)

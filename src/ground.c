@@ -33,6 +33,7 @@
 #include "config.h"
 #include "fatan2.h"
 #include "epsg.h"
+#include "iset.h"
 #include "topogdal.h"
 // sort triangle list by height
 int tcomp(const void *a, const void *b)
@@ -553,6 +554,37 @@ double SampleTopoGrid(double x, double y, topogrid *T, sky_pos *sn)
 	}
 	return z;	
 }
+
+
+int AddHeightTopoGrid(topogrid *T, double *x, double *y, double *z, int n, int nz)
+{
+		int i, ix, iy, iz, t;
+		struct iset *set;
+		if (NULL==(set=iset_init(2*n))) goto eset;
+
+		for (i=0; i < n; ++i) {
+				ix = IndexGridX(x[i], T, &t);
+				iy = IndexGridY(y[i], T, &t);
+
+				// do not alter height at borders
+				if (ix<=0 || ix>=T->Nx-1 ||
+					iy<=0 || iy>=T->Ny-1)
+						continue;
+
+				iz = INDEX(ix, iy, T->Ny);
+
+				// do not alter height at already altered pixels
+				if (iset_isin(set, (unsigned int) iz)) continue;
+
+				T->z[iz] += z[i % nz];
+				if (iset_insert(set, (unsigned int) iz)) goto eset;
+		}
+
+		return 0;
+eset:
+		return -1;
+}
+
 
 topology CreateRandomTopology(double dx, double dy, double dz, int N1, int N2)
 {

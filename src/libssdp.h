@@ -77,7 +77,7 @@ void ssdp_free_topogrid(topogrid *T);
 // you can use this to rotate the POA using ssdp_poa_to_surface_normal(...)
 double ssdp_sample_topology(double x, double y, topology *T, sky_pos *sn);
 double ssdp_sample_topogrid(double x, double y, topogrid *T, sky_pos *sn);
-
+int ssdp_addheight_topogrid(topogrid *T,double *x, double *y, double *z, int nx, int nz);
 
 sky_pos ssdp_sunpos(time_t t, double lat, double lon, double E, double p, double T); // lat & lon in radians
 int ssdp_suntimes(time_t t, double lat, double lon, double e, double p, double T, time_t *sunrise, time_t *transit, time_t *sunset);

@@ -309,6 +309,59 @@ void OffsetTopography(char *in)
 		free(word);
 }
 
+/*
+BEGIN_DESCRIPTION
+SECTION Topography
+PARSEFLAG addheight_topo AddHeight "C=<in-config> x=<in-array> y=<in-array> z=<in-array>
+DESCRIPTION Add height in topography for the specified locations. Only Topogrid topography is supported. In locations resulting in duplicate pixels are ignored
+ARGUMENT C config-variable
+ARGUMENT x topogrid x coordinates
+ARGUMENT y topogrid y coordinates
+ARGUMENT z value to add
+END_DESCRIPTION
+*/
+void AddHeight(char *in)
+{
+		simulation_config *C;
+		char *word;
+		array *x, *y, *z;
+
+		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
+
+		if (FetchConfig(in, "C", word, &C)) goto econfig;
+		if (C->topo_init) {
+				Warning("Error: addheight_topo supports only topogrid\n");
+				goto etopo;
+		}
+
+		if (!C->grid_init) {
+				Warning("Error: simulation config has no topogrid initialized\n");
+				goto etopo;
+		}
+		if (FetchArray(in, "x", word, &x)) goto earr;
+		if (FetchArray(in, "y", word, &y)) goto earr;
+		if (FetchArray(in, "z", word, &z)) goto earr;
+		if (x->N != y->N || (x->N != z->N && 1 != z->N)) {
+				Warning("Error: x,y,z do not have equal length and 1!=len(z)\n");
+				goto earr;
+		}
+
+		TIC();
+		if (ssdp_addheight_topogrid(&(C->Tx), x->D, y->D, z->D, x->N, z->N))
+				goto eaddheight;
+		printf("addheight_topo: added %d location in %g s\n", x->N, TOC());
+
+		free(word);
+		return;
+eaddheight:
+earr:
+etopo:
+econfig:
+		free(word);
+eword:
+		Warning("Error: addheight_topo failed!\n");
+}
+
 
 static int checkdims(int a, int b)
 {
