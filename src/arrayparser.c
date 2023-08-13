@@ -522,9 +522,11 @@ void WritePng(char *in)
                 goto enxny;
         }
 
+        TIC();
         if (write_png((const char*)ofn, z->D, nx, ny, normalise))
                 Warning("Failed writing the png file!\n");
-
+        printf("Wrote %s in %g s\n",ofn,TOC());
+		
 enxny:
 efetch:
         free(word);
