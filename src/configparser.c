@@ -1064,7 +1064,7 @@ void PlaceTemplate(char *in)
         if (FetchFloat(in, "lat", word, &lat)) goto epars;
         if (FetchFloat(in, "lon", word, &lon)) goto epars;
 
-        if (FetchOptFloat(in, "azi", word, &azi))
+        if (FetchOptFloat(in, "azimuth", word, &azi))
                 azi = 0;
         azi = deg2rad(azi);
 
