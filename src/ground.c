@@ -593,10 +593,13 @@ int AddHeightTopoGrid(topogrid *T, double *x, double *y, double *z, int n, int n
 				if (iset_isin(set, (unsigned int) iz)) continue;
 
 				T->z[iz] += z[i % nz];
-				if (iset_insert(set, (unsigned int) iz)) goto eset;
+				if (iset_insert(set, (unsigned int) iz)) goto einsert;
 		}
 
+		iset_free(set);
 		return 0;
+einsert:
+		iset_free(set);
 eset:
 		return -1;
 }

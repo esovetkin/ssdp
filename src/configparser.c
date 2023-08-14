@@ -1021,6 +1021,7 @@ void ConvertEPSG(char *in)
                 y->D[i] = p.y;
         }
 
+        free(word);
         epsg_free(pc);
         return;
 epars:

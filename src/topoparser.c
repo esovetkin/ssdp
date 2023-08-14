@@ -342,6 +342,7 @@ void FillMissing(char *in)
 				goto emissing;
 		printf("fillmissing_topo: filled missing values (smaller than %g) in %g s\n", na, TOC());
 
+		free(word);
 		return;
 emissing:
 ena:
