@@ -1033,7 +1033,7 @@ eword:
 BEGIN_DESCRIPTION
 SECTION Coordinate System
 PARSEFLAG place_template PlaceTemplate "x=<in/out-array> y=<in/out-array> lat=<float-value> lon=<float-value> [azimuth=<float-value>] [epsg=<int-value>]"
-DESCRIPTION Rotate template coordinates and place it at a given location. The given coordinates are rotated wrt to the origin in the provided coordinates. The units of the input coordinates are interpreted in the units of the selected epsg coordinate system. The output coordinates are given in WGS84 (epsg:4326) system.
+DESCRIPTION Rotate template coordinates and place them at a given location. The given coordinates are rotated wrt to the origin in the provided coordinates. The units of the input coordinates are interpreted in the units of the selected epsg coordinate system. The output coordinates are given in WGS84 (epsg:4326) system.
 ARGUMENT x,y first and second input coordinates. Output coordiantes are in WGS84, epsg:4326
 ARGUMENT lat latitude (in WGS84, epsg:4326)
 ARGUMENT lon longitude (in WGS84, epsg:4326)
@@ -1084,4 +1084,159 @@ epars:
         free(word);
 eword:
         return;
+}
+
+
+static double* array_copy_at(array *src, int N, double *dst, int at)
+{
+		int i;
+		for (i=0; i < N; ++i)
+				dst[at + i] = src->D[i % src->N];
+
+		return dst + at;
+}
+
+/*
+BEGIN_DESCRIPTION
+SECTION Coordinate System
+PARSEFLAG place_body PlaceBody "lat=<in-array> lon=<in-array> bearing=<in-array> x/ox=<in/out-array> y/oy=<in/out-array> [z/oz=<in/out-array>] [azimuth/oazimuth=<in/out-array>] [zenith/ozenith=<in/out-array>] [epsg=<int-value>]"
+DESCRIPTION Rotate a template of a body coordinates at a given location and direction (bearing). The units of the input coordinates are interpreted in the units of the selected epsg coordinate system. The output coordinates are given in WGS84 (epsg:4326) system. The oazimuth vector is replicated and adjusted by the given bearing. The oz, ozenith vectors are copied without a change. z,oz,azimuth,oazimuth,zenith,ozenith are optional vectors.
+ARGUMENT lat,lon latitude and longitude arrays (in WGS84, epsg:4326)
+ARGUMENT bearing azimuth at the specific location (in degrees)
+ARGUMENT x,y,z,azimuth,zenith input arrays for 3d coordinate and observer orientation (azimuth and zenith are given in degrees)
+ARGUMENT ox,oy,oz,oazimuth,ozenith output arrays. len(ox)=len(x)*len(lat). ox[0:len(x)] gives locations for the whole body for the first coordinate. len(ox)=len(oy)=len(oz)=len(oazimuth)=len(ozenith)
+ARGUMENT epsg optional coordinate system (default UTM according to lat[0] and lon[0] is selected)
+OUTPUT x,y output coordinates
+END_DESCRIPTION
+*/
+void PlaceBody(char *in)
+{
+		int i, j, epsg;
+		double *x, *y;
+		char *word, *nox, *noy, *noz, *noazi, *nozen;
+		array *lat, *lon, *beta, *ix, *iy, *iz, *iazi, *izen;
+		array ox, oy, oz, oazi, ozen;
+		ox.D=NULL; oy.D=NULL; oz.D=NULL; oazi.D=NULL; ozen.D=NULL;
+		nox=NULL; noy=NULL; noz=NULL; noazi=NULL; nozen=NULL;
+
+		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
+
+		if (FetchArray(in, "lat", word, &lat)) goto epars;
+		if (FetchArray(in, "lon", word, &lon)) goto epars;
+		if (FetchArray(in, "bearing", word, &beta))
+				goto epars;
+		if (lat->N != lon->N || 0==lat->N
+			|| (beta->N != lat->N && 1 != beta->N)) {
+				Warning("Error: invalid lat,lon,bearing array lengths\n");
+				goto epars;
+		}
+
+		if (FetchArray(in, "x", word, &ix)) goto epars;
+		if (FetchArray(in, "y", word, &iy)) goto epars;
+		if (FetchOptArray(in, "z", word, &iz))
+				iz = NULL;
+		if (FetchOptArray(in, "azimuth", word, &iazi))
+				iazi = NULL;
+		if (FetchOptArray(in, "zenith", word, &izen))
+				izen = NULL;
+		if (ix->N!=iy->N || 0==ix->N
+			|| (iz && iz->N!=ix->N && 1!=iz->N)
+			|| (iazi && iazi->N!=ix->N && 1!=iazi->N)
+			|| (izen && izen->N!=ix->N && 1!=izen->N)) {
+				Warning("Error: invalid x,y,z,azi,zen array length\n");
+				goto epars;
+		}
+
+		if (NULL==(nox=malloc((strlen(in)+1)*sizeof(*nox)))) goto enox;
+		if (NULL==(noy=malloc((strlen(in)+1)*sizeof(*noy)))) goto enoy;
+		if (iz && NULL==(noz=malloc((strlen(in)+1)*sizeof(*noz)))) goto enoz;
+		if (iazi && NULL==(noazi=malloc((strlen(in)+1)*sizeof(*noazi))))
+				goto enoazi;
+		if (izen && NULL==(nozen=malloc((strlen(in)+1)*sizeof(*nozen))))
+				goto enozen;
+
+		if (!GetArg(in, "ox", nox)) goto eopars;
+		if (!GetArg(in, "oy", noy)) goto eopars;
+		if (iz && !GetArg(in, "oz", noz)) goto eopars;
+		if (iazi && !GetArg(in, "oazimuth", noazi)) goto eopars;
+		if (izen && !GetArg(in, "ozenith", nozen)) goto eopars;
+
+		if (FetchOptInt(in, "epsg", word, &epsg))
+				epsg = determine_utm(lat->D[0], lon->D[0]);
+
+		struct epsg *pc = epsg_init_epsg(epsg, 4326);
+		if (NULL == pc) {
+				Warning("Error: failed to init epsg context"
+						"\t epsg = %d", epsg);
+				goto eepsg;
+		}
+
+		if (NULL==(ox.D=malloc(lat->N*ix->N*sizeof(*ox.D)))) goto eox;
+		if (NULL==(oy.D=malloc(lat->N*ix->N*sizeof(*oy.D)))) goto eoy;
+		if (iz && NULL==(oz.D=malloc(lat->N*ix->N*sizeof(*oz.D)))) goto eoz;
+		if (iazi && NULL==(oazi.D=malloc(lat->N*ix->N*sizeof(*oazi.D))))
+				goto eoazi;
+		if (izen && NULL==(ozen.D=malloc(lat->N*ix->N*sizeof(*ozen.D))))
+				goto eozen;
+		ox.N = oy.N = oz.N = oazi.N = ozen.N = lat->N*ix->N;
+
+		for (i=0; i<lat->N; ++i) {
+				x = array_copy_at(ix, ix->N, ox.D, i * ix->N);
+				y = array_copy_at(iy, ix->N, oy.D, i * ix->N);
+				if (iz)
+						array_copy_at(iz, ix->N, oz.D, i * ix->N);
+				if (iazi)
+						array_copy_at(iazi, ix->N, oazi.D, i * ix->N);
+				if (izen)
+						array_copy_at(izen, ix->N, ozen.D, i * ix->N);
+
+				for (j=0; iazi && j < ix->N; ++j)
+						oazi.D[i*ix->N + j] += beta->D[i%beta->N];
+
+				placetemplate(pc, lat->D[i], lon->D[i],
+							  deg2rad(beta->D[i%beta->N]), x, y, ix->N);
+		}
+
+		if (izen && AddArray(nozen, ozen)) goto eozen;
+		if (iazi && AddArray(noazi, oazi)) goto enozen;
+		if (iz && AddArray(noz, oz)) goto enoazi;
+		if (AddArray(noy, oy)) goto enoz;
+		if (AddArray(nox, ox)) goto enoy;
+
+		epsg_free(pc);
+		free(word);
+		return;
+		free(ozen.D); ozen.D=NULL;
+eozen:
+		free(oazi.D); oazi.D=NULL;
+eoazi:
+		free(oz.D); oz.D=NULL;
+eoz:
+		free(oy.D); oy.D=NULL;
+eoy:
+		free(ox.D); ox.D=NULL;
+eox:
+		epsg_free(pc);
+eepsg:
+eopars:
+		free(nozen);
+		free(ozen.D);
+enozen:
+		free(noazi);
+		free(oazi.D);
+enoazi:
+		free(noz);
+		free(oz.D);
+enoz:
+		free(noy);
+		free(oy.D);
+enoy:
+		free(nox);
+		free(ox.D);
+enox:
+		free(word);
+epars:
+eword:
+		Warning("Error: place_body failed!\n");
+		return;
 }
