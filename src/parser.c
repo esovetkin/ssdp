@@ -209,19 +209,27 @@ int FetchConfig(const char *in, const char *pat, char *str, simulation_config **
 	}
 	return 1;
 }
+int FetchOptArray(const char *in, const char *pat, char *str, array **a)
+{
+		if (! GetOption(in, pat, str))
+				return -1;
+
+		if (!LookupArray(str, a))
+				return -2;
+
+		return 0;
+}
 int FetchArray(const char *in, const char *pat, char *str, array **a)
 {
-	if (GetArg(in, pat, str))
-	{
-		if (!LookupArray(str, a))
-		{
-			Warning("Input array %s=%s, %s is not available\n",pat, str, str);
-			return 1;
-		}
-		return 0;
-	}
-	Warning("Input array %s is not specified\n",pat);
-	return 1;
+		int i = FetchOptArray(in, pat, str, a);
+
+		if (-1 == i)
+				Warning("Input array %s is not specified\n",pat);
+
+		if (-2 == i)
+				Warning("Input array %s=%s, %s is not available\n", pat, str, str);
+
+		return i;
 }
 int FetchOptFloat(const char *in, const char *pat, char *str, double *a)
 {

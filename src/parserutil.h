@@ -35,6 +35,7 @@ int GetArg(const char *in, const char *opt, char *word);
 int GetNumOption(const char *in, const char *opt, int i, char *word);
 
 int FetchConfig(const char *in, const char *pat, char *str, simulation_config **a);
+int FetchOptArray(const char *in, const char *pat, char *str, array **a);
 int FetchArray(const char *in, const char *pat, char *str, array **a);
 
 int FetchFloat(const char *in, const char *pat, char *str, double *a);
