@@ -312,7 +312,50 @@ void OffsetTopography(char *in)
 /*
 BEGIN_DESCRIPTION
 SECTION Topography
-PARSEFLAG addheight_topo AddHeight "C=<in-config> x=<in-array> y=<in-array> z=<in-array>
+PARSEFLAG fillmissing_topo FillMissing "C=<in-config> na=<float-value>"
+DESCRIPTION Fill missing values by its closest non-missing value using euclidean distance transform. Only supported by topogrid.
+ARGUMENT C config-variable
+ARGUMENT na smaller topography values than this is considered to be missing
+END_DESCRIPTION
+*/
+void FillMissing(char *in)
+{
+		simulation_config *C;
+		char *word;
+		double na;
+
+		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
+		if (FetchConfig(in, "C", word, &C)) goto econfig;
+		if (C->topo_init) {
+				Warning("Error: addheight_topo supports only topogrid\n");
+				goto etopo;
+		}
+
+		if (!C->grid_init) {
+				Warning("Error: simulation config has no topogrid initialized\n");
+				goto etopo;
+		}
+		if (FetchFloat(in, "na", word, &na)) goto ena;
+
+		TIC();
+		if (ssdp_fillmissing_topogrid(&(C->Tx), na))
+				goto emissing;
+		printf("fillmissing_topo: filled missing values (smaller than %g) in %g s\n", na, TOC());
+
+		return;
+emissing:
+ena:
+econfig:
+etopo:
+		free(word);
+eword:
+		Warning("Error: fillmissing_topo failed!\n");
+}
+
+/*
+BEGIN_DESCRIPTION
+SECTION Topography
+PARSEFLAG addheight_topo AddHeight "C=<in-config> x=<in-array> y=<in-array> z=<in-array>"
 DESCRIPTION Add height in topography for the specified locations. Only Topogrid topography is supported. In locations resulting in duplicate pixels are ignored
 ARGUMENT C config-variable
 ARGUMENT x topogrid x coordinates

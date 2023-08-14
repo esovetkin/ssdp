@@ -34,6 +34,7 @@
 #include "fatan2.h"
 #include "epsg.h"
 #include "iset.h"
+#include "edt.h"
 #include "topogdal.h"
 // sort triangle list by height
 int tcomp(const void *a, const void *b)
@@ -553,6 +554,21 @@ double SampleTopoGrid(double x, double y, topogrid *T, sky_pos *sn)
 		(*sn)=vecdir(nn);
 	}
 	return z;	
+}
+
+
+int FillMissingTopoGrid(topogrid *T, double na)
+{
+		struct edt *dt;
+		if (NULL==(dt=edt_init(T->z, T->Nx*T->Ny, T->Ny, T->Nx, na)))
+				goto edt;
+
+		edt_compute(dt);
+		edt_fill(dt);
+		edt_free(dt);
+		return 0;
+edt:
+		return -1;
 }
 
 
