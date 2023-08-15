@@ -16,6 +16,9 @@
 #include "parserutil.h"
 
 
+#define AT(arr, i) (arr->D[i % arr->N])
+
+
 static int check_simconfig(simulation_config *C, int ok_notopo, int ok_nosky)
 {
 		if (ok_nosky && (!C->sky_init)) {
@@ -49,6 +52,52 @@ static int check_simconfig(simulation_config *C, int ok_notopo, int ok_nosky)
 		return 0;
 }
 
+
+static int check_shapes(int n, array* arrs[])
+{
+		int i, N = -1;
+
+		for (i=0; i < n; ++i)
+				N = N > arrs[i]->N ? N : arrs[i]->N;
+
+		for (i=0; i < n; ++i) {
+				if (N != arrs[i]->N && 1 != arrs[i]->N) {
+						Warning("Error: invalid length of input arrays\n");
+						return -1;
+				}
+		}
+
+		return N;
+}
+
+
+static int default_array(array **arr, double value)
+{
+		if (NULL==(*arr=malloc(sizeof(**arr))))
+				goto earr;
+
+		if (NULL==((*arr)->D = malloc(sizeof(*((*arr)->D)))))
+				goto eD;
+
+		(*arr)->N = 1;
+		(*arr)->D[0] = value;
+		return 1;
+eD:
+		free((*arr));
+earr:
+		return -1;
+}
+
+
+static void free_default_array(array **arr, int iffree)
+{
+		if (0 == iffree) return;
+
+		free((*arr)->D);
+		(*arr)->D = NULL;
+		free((*arr));
+		(*arr) = NULL;
+}
 
 /*
 BEGIN_DESCRIPTION
@@ -667,15 +716,14 @@ void SimStaticUniform(char *in)
 }
 
 
-
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation
-PARSEFLAG solpos SolarPos "t=<in-array> lon=<float-value> lat=<float-value> [E=<float-value>] [p=<in-array>] [T=<in-array>] azimuth=<out-array> zenith=<out-array>"
+PARSEFLAG solpos SolarPos "t=<in-array> lon=<in-array> lat=<in-array> [E=<in-array>] [p=<in-array>] [T=<in-array>] azimuth=<out-array> zenith=<out-array>"
 DESCRIPTION Computes the solar position using freespa [2]. Computation includes atmopheric refraction effects, (true solar position may be obtained by setting p=0).
 ARGUMENT t unix time array
-ARGUMENT lon longitude float (in degrees)
-ARGUMENT lat latitude float (in degrees)
+ARGUMENT lon longitude array (in degrees)
+ARGUMENT lat latitude array (in degrees)
 ARGUMENT E elevation (m) float (default 0)
 ARGUMENT p pressure in mb array (default 1010)
 ARGUMENT T temperature in C array (default 10)
@@ -685,144 +733,75 @@ END_DESCRIPTION
 */
 void SolarPos(char *in)
 {
-	int i;
-	char *word;
-	sky_pos s;
-	array *t, azi, zen, *p, *T;
-	array pp, TT;
-	double lon, lat, E;
-	pp.N=0;
-	pp.D=NULL;
-	TT.N=0;
-	TT.D=NULL;
-	word=malloc((strlen(in)+1)*sizeof(char));
-	if (FetchArray(in, "t", word, &t))
-	{
-		free(word);
-		return;
-	}
-	
-	if (FetchFloat(in, "lon", word, &lon))
-	{
-		free(word);
-		return;
-	}
-	if (FetchFloat(in, "lat", word, &lat))
-	{
-		free(word);
-		return;
-	}
-	lon=deg2rad(lon);
-	lat=deg2rad(lat);
-	if (FetchFloat(in, "E", word, &E))
-		E=0;
-		
-	if (FetchArray(in, "p", word, &p))
-	{
-		// make a scalar array
-		pp.N=1;
-		pp.D=malloc(sizeof(double));
-		pp.D[0]=1010.0;
-		p=&pp;
-	}
-	if (FetchArray(in, "T", word, &T))
-	{
-		// make a scalar array
-		TT.N=1;
-		TT.D=malloc(sizeof(double));
-		TT.D[0]=10.0;
-		T=&TT;
-	}
-	
-	if ((p->N>1)&&(p->N!=t->N))
-	{
-		Warning("The p-array must either have length one or be equal in length as the t-array\n");
-		free(word);
-		if (pp.D)
-			free(pp.D);
-		if (TT.D)
-			free(TT.D);
-		return;
-	}	
-	if ((T->N>1)&&(T->N!=t->N))
-	{
-		Warning("The T-array must either have length one or be equal in length as the t-array\n");
-		free(word);
-		if (pp.D)
-			free(pp.D);
-		if (TT.D)
-			free(TT.D);
-		return;
-	}	
-	
-	azi.D=malloc(t->N*sizeof(double));
-	if (azi.D==NULL)
-	{
-		Warning("Could not allocate memory for the solar azimuth\n");
-		free(word);
-		if (pp.D)
-			free(pp.D);
-		if (TT.D)
-			free(TT.D);
-		return;
-	}	
-	azi.N=t->N;
-	zen.D=malloc(t->N*sizeof(double));
-	if (zen.D==NULL)
-	{
-		Warning("Could not allocate memory for the solar zenith\n");
-		free(word);
-		if (pp.D)
-			free(pp.D);
-		if (TT.D)
-			free(TT.D);
-		return;
-	}	
-	zen.N=t->N;
-	printf("Computing the solar position at %d instances\n",t->N);
-	for (i=0;i<t->N;i++)
-	{
-		s=ssdp_sunpos((time_t)t->D[i], lat, lon, E, p->D[i%p->N], T->D[i%T->N]);
-		azi.D[i]=s.a;
-		zen.D[i]=s.z;
-	}
-	if (pp.D)
-		free(pp.D);
-	if (TT.D)
-		free(TT.D);
-	
-	if (!GetArg(in, "azimuth", word))
-	{
-		free(word);
-		free(azi.D);
-	}
-	else
-	{
-		printf("Creating array %s\n",word);
-		if(AddArray(word, azi))
-		{
-			free(word); // failed to make array
-			free(azi.D);
-			free(zen.D);
-			return;
+		int i, N, fE = 0, fp = 0, fT = 0;
+		char *word, *nazi, *nzen;
+		sky_pos s;
+		array *t, *lon, *lat, *E, *p, *T, azi, zen;
+
+		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
+		if (NULL==(nazi=malloc((strlen(in)+1)*sizeof(*nazi)))) goto enazi;
+		if (NULL==(nzen=malloc((strlen(in)+1)*sizeof(*nzen)))) goto enzen;
+
+		if (!GetArg(in, "azimuth", nazi)) goto earg;
+		if (!GetArg(in, "zenith", nzen)) goto earg;
+		if (FetchArray(in, "t", word, &t)) goto earg;
+		if (FetchArray(in, "lon", word, &lon)) goto earg;
+		if (FetchArray(in, "lat", word, &lat)) goto earg;
+
+		if (FetchOptArray(in, "E", word, &E))
+				if ((fE=default_array(&E, 1)) < 0) goto eargE;
+		if (FetchOptArray(in, "p", word, &p))
+				if ((fp=default_array(&p, 1010.0)) < 0) goto eargp;
+		if (FetchOptArray(in, "T", word, &T))
+				if ((fT=default_array(&T, 10.0)) < 0) goto eargT;
+
+		N = check_shapes(6,(array*[]){t, lon, lat, E, p, T});
+		if (N < 0) goto eshapes;
+
+		if (NULL==(azi.D=malloc(N*sizeof(*azi.D)))) goto eazi;
+		if (NULL==(zen.D=malloc(N*sizeof(*zen.D)))) goto ezen;
+		azi.N = N; zen.N = N;
+
+		printf("Computing the solar position at %d instances\n", N);
+		for (i=0; i<N; ++i) {
+				s=ssdp_sunpos((time_t)AT(t,i),
+							  deg2rad(AT(lat,i)), deg2rad(AT(lon,i)),
+							  AT(E,i), AT(p,i), AT(T,i));
+				azi.D[i]=s.a;
+				zen.D[i]=s.z;
 		}
-		word=malloc((strlen(in)+1)*sizeof(char));
-	}
-	if (!GetArg(in, "zenith", word))
-	{
+
+		if(AddArray(nzen, zen)) goto ezenadd;
+		if(AddArray(nazi, azi)) goto ezen;
+
+		free_default_array(&E, fE);
+		free_default_array(&p, fp);
+		free_default_array(&T, fT);
 		free(word);
+		return;
+ezenadd:
+		free(nzen); nzen = NULL;
 		free(zen.D);
-	}
-	else
-	{
-		printf("Creating array %s\n",word);
-		if(AddArray(word, zen))
-		{
-			free(word); // failed to make array
-			free(zen.D);
-			return;
-		}
-	}	
+ezen:
+		free(nazi); nazi = NULL;
+		free(azi.D);
+eazi:
+eshapes:
+		free_default_array(&T, fT);
+eargT:
+		free_default_array(&p, fp);
+eargp:
+		free_default_array(&E, fE);
+eargE:
+earg:
+		free(nzen);
+enzen:
+		free(nazi);
+enazi:
+		free(word);
+eword:
+		Warning("Error: solpos failed!\n");
+		return;
 }
 
 /*
