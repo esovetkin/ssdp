@@ -9,7 +9,7 @@ libssdp_la_SOURCES = sky_dome.c sky_model.c pv-aoi.c project.c trace.c vector.c 
 CLEANFILES = errorflags.h errormessages.h parsedef.h libssdp_structs.h
 libssdp_la_LDFLAGS = -lm -lproj -lpng $(GDAL_LDFLAGS) -Wl,--version-script=${srcdir}/libssdp.map -no-undefined -version-number $(LIBVERSION)
 include_HEADERS = libssdp.h libssdp_structs.h
-libssdp_la_CFLAGS = $(AM_CFLAGS) $(GDAL_CFLAGS) -DLL_CIRCULAR -D_GNU_SOURCE
+libssdp_la_CFLAGS = $(AM_CFLAGS) $(GDAL_CFLAGS) $(HDF5_CPPFLAGS) -DLL_CIRCULAR -D_GNU_SOURCE
 sky_dome.$(OBJEXT): errorflags.h
 sky_model.$(OBJEXT): errorflags.h
 project.$(OBJEXT): errorflags.h
