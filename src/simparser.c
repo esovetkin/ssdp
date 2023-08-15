@@ -16,6 +16,39 @@
 #include "parserutil.h"
 
 
+static int check_simconfig(simulation_config *C, int ok_notopo, int ok_nosky)
+{
+		if (ok_nosky && (!C->sky_init)) {
+				Warning("Error: simulation config has no sky initialised\n");
+				return -1;
+		}
+
+		if (!C->loc_init)
+		{
+				Warning("Error: simulation config has no locations initialised\n");
+				return -2;
+		}
+
+		if ((!ok_notopo) && (!C->topo_init) && (!C->grid_init)) {
+				Warning("Error: no topological data available\n");
+				return -3;
+		}
+
+		if ((!C->topo_init) && (!C->grid_init))
+		{
+				Warning("Warning: no topological data available, omitting horizon\n");
+				InitConfigMaskNoH(C);
+		}
+
+		if (ssdp_error_state) {
+				ssdp_print_error_messages();
+				ssdp_reset_errors();
+				return -4;
+		}
+
+		return 0;
+}
+
 
 /*
 BEGIN_DESCRIPTION
@@ -49,31 +82,11 @@ void SimStatic(char *in)
 	{
 		free(word);
 		return;
-	}		
-	if (!C->sky_init)
-	{		
-		Warning("Simulation config has no sky initialized\n");
-		free(word);
-		return;
-	}	
-	if ((!C->topo_init)&&(!C->grid_init))
-	{	
-		Warning("No topological data available, omitting horizon\n");
-		InitConfigMaskNoH(C);
-		if (ssdp_error_state)
-		{
-			ssdp_print_error_messages();
-			ssdp_reset_errors();
+	}
+	if (check_simconfig(C, 1, 0)) {
 			free(word);
 			return;
-		}
 	}
-	if (!C->loc_init) 
-	{	
-		Warning("Simulation config has no locations initialized\n");
-		free(word);
-		return;
-	}		
 	if (FetchArray(in, "t", word, &t))
 	{
 		free(word);
@@ -219,31 +232,11 @@ void SimStaticInt(char *in)
 	{
 		free(word);
 		return;
-	}		
-	if (!C->sky_init)
-	{		
-		Warning("Simulation config has no sky initialized\n");
-		free(word);
-		return;
-	}	
-	if ((!C->topo_init)&&(!C->grid_init))
-	{	
-		Warning("No topological data available, omitting horizon\n");
-		InitConfigMaskNoH(C);
-		if (ssdp_error_state)
-		{
-			ssdp_print_error_messages();
-			ssdp_reset_errors();
+	}
+	if (check_simconfig(C, 1, 0)) {
 			free(word);
 			return;
-		}
 	}
-	if (!C->loc_init) 
-	{	
-		Warning("Simulation config has no locations initialized\n");
-		free(word);
-		return;
-	}		
 	if (FetchArray(in, "t", word, &t))
 	{
 		free(word);
@@ -399,25 +392,11 @@ void SimRoute(char *in)
 	{
 		free(word);
 		return;
-	}		
-	if (!C->sky_init)
-	{		
-		Warning("Simulation config has no sky initialized\n");
-		free(word);
-		return;
-	}	
-	if ((!C->topo_init)&&(!C->grid_init))
-	{	
-		Warning("No topological data available\n");
-		free(word);
-		return;
 	}
-	if (!C->loc_init) 
-	{	
-		Warning("Simulation config has no locations initialized\n");
-		free(word);
-		return;
-	}		
+	if (check_simconfig(C, 0, 0)) {
+			free(word);
+			return;
+	}
 	if (FetchArray(in, "t", word, &t))
 	{
 		free(word);
@@ -566,31 +545,11 @@ void SimStaticUniform(char *in)
 	{
 		free(word);
 		return;
-	}		
-	if (!C->sky_init)
-	{		
-		Warning("Simulation config has no sky initialized\n");
-		free(word);
-		return;
-	}	
-	if ((!C->topo_init)&&(!C->grid_init))
-	{	
-		Warning("No topological data available, omitting horizon\n");
-		InitConfigMaskNoH(C);
-		if (ssdp_error_state)
-		{
-			ssdp_print_error_messages();
-			ssdp_reset_errors();
+	}
+	if (check_simconfig(C, 1, 0)) {
 			free(word);
 			return;
-		}
 	}
-	if (!C->loc_init) 
-	{	
-		Warning("Simulation config has no locations initialized\n");
-		free(word);
-		return;
-	}		
 	if (FetchArray(in, "t", word, &t))
 	{
 		free(word);
@@ -1101,31 +1060,11 @@ void ExportSky(char *in)
 	{
 		free(word);
 		return;
-	}		
-	if (!C->sky_init)
-	{		
-		Warning("Simulation config has no sky initialized\n");
-		free(word);
-		return;
-	}	
-	if ((!C->topo_init)&&(!C->grid_init))
-	{	
-		Warning("No topological data available, omitting horizon\n");
-		InitConfigMaskNoH(C);
-		if (ssdp_error_state)
-		{
-			ssdp_print_error_messages();
-			ssdp_reset_errors();
+	}
+	if (check_simconfig(C, 1, 0)) {
 			free(word);
 			return;
-		}
 	}
-	if (!C->loc_init) 
-	{	
-		Warning("Simulation config has no locations initialized\n");
-		free(word);
-		return;
-	}		
 	if (FetchArray(in, "t", word, &t))
 	{
 		free(word);
@@ -1288,18 +1227,10 @@ void ExportHorizon(char *in)
 	{
 		free(word);
 		return;
-	}	
-	if ((!C->topo_init)&&(!C->grid_init))
-	{	
-		Warning("A topology must be defined defined to export a horizon\n");
-		free(word);
-		return;
 	}
-	if (!C->loc_init) 
-	{	
-		Warning("Simulation config has no locations initialized\n");
-		free(word);
-		return;
+	if (check_simconfig(C, 1, 1)) {
+			free(word);
+			return;
 	}
 	if (FetchInt(in, "index", word, &j))
 	{
