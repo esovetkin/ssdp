@@ -841,13 +841,19 @@ void SolarPos(char *in)
 		azi.N = N; zen.N = N;
 
 		printf("Computing the solar position at %d instances\n", N);
-		for (i=0; i<N; ++i) {
-				s=ssdp_sunpos((time_t)AT(t,i),
-							  deg2rad(AT(lat,i)), deg2rad(AT(lon,i)),
-							  AT(E,i), AT(p,i), AT(T,i));
-				azi.D[i]=s.a;
-				zen.D[i]=s.z;
+		TIC();
+# pragma omp parallel private (i)
+		{
+#pragma omp for schedule(runtime)
+				for (i=0; i<N; ++i) {
+						s=ssdp_sunpos((time_t)AT(t,i),
+									  deg2rad(AT(lat,i)), deg2rad(AT(lon,i)),
+									  AT(E,i), AT(p,i), AT(T,i));
+						azi.D[i]=s.a;
+						zen.D[i]=s.z;
+				}
 		}
+		printf("solpos: computed %d positions in %g s\n", N, TOC());
 
 		if(AddArray(nzen, zen)) goto ezenadd;
 		if(AddArray(nazi, azi)) goto ezen;
