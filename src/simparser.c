@@ -248,6 +248,84 @@ void SimStatic(char *in)
 	}	
 }
 
+/*
+BEGIN_DESCRIPTION
+SECTION Simulation
+PARSEFLAG sim_static_pos SimStaticPos "C=<in-config> sun_azimuth=<in-array> sun_zenith=<in-array> [dayofyear=<in-array>] GHI=<in-array> DHI=<in-array> POA=<out-array>"
+DESCRIPTION Computes the POA irradiance time series for all configured locations using the Perez All Weather Sky Model. Here time and location is ignored and sky is computed based on the given sun position and dayofyear.
+ARGUMENT C simulation config variable
+ARGUMENT sun_azimuth,sun_zenith sun position in the sky (radians)
+ARGUMENT dayofyear day of the year. len(dayofyear)=len(sun_azimuth) or 1 (default 0)
+ARGUMENT GHI, DHI global and diffuse horizontal irradiance. len(GHI)=len(DHI)=len(sun_azimuth)=len(sun_zenith)
+OUTPUT POA plane of array irradiance len(POA)=len(GHI)*len(locations)
+END_DESCRIPTION
+*/
+void SimStaticPos(char *in)
+{
+		int i, j, N, pco = 0, fdoy = 0;
+		simulation_config *C;
+		char *word, *npoa;
+		array *sazi, *szen, *doy, *GH, *DH, poa;
+		double tsky = 0, tpoa = 0;
+		sky_pos sun;
+
+		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
+		if (NULL==(npoa=malloc((strlen(in)+1)*sizeof(*npoa)))) goto enpoa;
+
+		if (!GetArg(in, "POA", npoa)) goto eargs;
+		if (FetchConfig(in, "C", word, &C)) goto eargs;
+		if (check_simconfig(C, 1, 0)) goto eargs;
+		if (FetchArray(in, "sun_azimuth", word, &sazi)) goto eargs;
+		if (FetchArray(in, "sun_zenith", word, &szen)) goto eargs;
+		if (FetchArray(in, "GHI", word, &GH)) goto eargs;
+		if (FetchArray(in, "DHI", word, &DH)) goto eargs;
+		if (FetchOptArray(in, "dayofyear", word, &doy))
+				if ((fdoy=default_array(&doy, 0)) < 0) goto eargdoy;
+
+		N = check_shapes(5,(array*[]){sazi, szen, GH, DH, doy});
+		if (N < 0) goto eshapes;
+
+		if (NULL==(poa.D=malloc(N*C->Nl*sizeof(*poa.D)))) goto epoa;
+		poa.N = N*C->Nl;
+
+		for (j=0; j < N; ++j) {
+				TIC();
+				sun.z = AT(szen,j);
+				sun.a = AT(sazi,j);
+				ssdp_make_perez_all_weather_sky
+						(&(C->S), sun, AT(GH,j), AT(DH,j), AT(doy,j));
+				tsky += TOC(); TIC();
+
+#pragma omp parallel private (i) shared(C)
+				{
+#pragma omp for schedule(runtime)
+						for (i=0; i < C->Nl; ++i)
+								poa.D[j*C->Nl + i] = ssdp_total_poa
+										(&(C->S), C->o[i], &(C->M), C->L+i);
+				}
+				pco=ProgressBar((100*(j+1))/N, pco, ProgressLen, ProgressTics);
+				tpoa+=TOC();
+		}
+
+		if (AddArray(npoa, poa)) goto epoaadd;
+
+		free_default_array(&doy, fdoy);
+		free(word);
+		return;
+epoaadd:
+		free(poa.D);
+epoa:
+eshapes:
+		free_default_array(&doy, fdoy);
+eargdoy:
+eargs:
+		free(npoa);
+enpoa:
+		free(word);
+eword:
+		Warning("Error: sim_static_pos failed\n");
+		return;
+}
 
 /*
 BEGIN_DESCRIPTION
