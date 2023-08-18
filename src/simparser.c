@@ -16,9 +16,6 @@
 #include "parserutil.h"
 
 
-#define AT(arr, i) (arr->D[i % arr->N])
-
-
 static int check_simconfig(simulation_config *C, int ok_notopo, int ok_nosky)
 {
 		if (ok_nosky && (!C->sky_init)) {
@@ -52,52 +49,6 @@ static int check_simconfig(simulation_config *C, int ok_notopo, int ok_nosky)
 		return 0;
 }
 
-
-static int check_shapes(int n, array* arrs[])
-{
-		int i, N = -1;
-
-		for (i=0; i < n; ++i)
-				N = N > arrs[i]->N ? N : arrs[i]->N;
-
-		for (i=0; i < n; ++i) {
-				if (N != arrs[i]->N && 1 != arrs[i]->N) {
-						Warning("Error: invalid length of input arrays\n");
-						return -1;
-				}
-		}
-
-		return N;
-}
-
-
-static int default_array(array **arr, double value)
-{
-		if (NULL==(*arr=malloc(sizeof(**arr))))
-				goto earr;
-
-		if (NULL==((*arr)->D = malloc(sizeof(*((*arr)->D)))))
-				goto eD;
-
-		(*arr)->N = 1;
-		(*arr)->D[0] = value;
-		return 1;
-eD:
-		free((*arr));
-earr:
-		return -1;
-}
-
-
-static void free_default_array(array **arr, int iffree)
-{
-		if (0 == iffree) return;
-
-		free((*arr)->D);
-		(*arr)->D = NULL;
-		free((*arr));
-		(*arr) = NULL;
-}
 
 /*
 BEGIN_DESCRIPTION

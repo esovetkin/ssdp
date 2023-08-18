@@ -44,6 +44,7 @@ simulation_config InitConf()
 	C.o=NULL;
 	C.L=NULL;
 	C.Nl=0;
+	C.hcache=NULL;
 	return C;
 }
 void FreeConf(simulation_config *C)
@@ -96,7 +97,8 @@ void FreeConf(simulation_config *C)
 		C->Nl=0;
 		C->loc_init=0;
 	}
-	
+	if (C->hcache)
+			ssdp_horizoncache_free(C->hcache);
 }
 
 void FreeArray(array *a)

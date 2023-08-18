@@ -1,4 +1,4 @@
-bin_PROGRAMS = ssdptest_edt ssdptest_epsg ssdptest_coords ssdptest_topogdal ssdptest_pngout ssdptest_h5io ssdptest_iset
+bin_PROGRAMS = ssdptest_edt ssdptest_epsg ssdptest_coords ssdptest_topogdal ssdptest_pngout ssdptest_h5io ssdptest_iset ssdptest_rtree
 
 ssdptest_edt_SOURCES = $(top_builddir)/src/edt.c
 ssdptest_edt_CFLAGS = -DRUNTEST
@@ -19,6 +19,9 @@ ssdptest_h5io_LDFLAGS = $(HDF5_LIBS) $(HDF5_LDFLAGS)
 ssdptest_iset_SOURCES = $(top_builddir)/src/iset.c
 ssdptest_iset_CFLAGS = -DRUNTEST
 
+ssdptest_rtree_SOURCES = $(top_builddir)/src/rtree.c
+ssdptest_rtree_CFLAGS = -DRUNTEST
+
 ssdptest_coords_SOURCES = $(top_builddir)/src/coordinates.c
 ssdptest_coords_CFLAGS = -DRUNTEST
 ssdptest_coords_LDFLAGS = -lproj
@@ -34,4 +37,4 @@ libcoordinates_la_SOURCES = $(top_builddir)/src/coordinates.c
 libepsg_la_SOURCES = $(top_builddir)/src/epsg.c
 libedt_la_SOURCES = $(top_builddir)/src/edt.c
 
-TESTS=ssdptest_edt ssdptest_epsg ssdptest_coords ssdptest_topogdal ssdptest_pngout ssdptest_h5io ssdptest_iset
+TESTS=ssdptest_edt ssdptest_epsg ssdptest_coords ssdptest_topogdal ssdptest_pngout ssdptest_h5io ssdptest_iset ssdptest_rtree

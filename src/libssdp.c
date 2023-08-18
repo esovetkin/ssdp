@@ -136,7 +136,7 @@ AOI_Model_Data ssdp_init_aoi_model(AOI_Model model,double nf, double nar,double 
 //BEGIN_SSDP_EXPORT
 typedef struct location {
 	sky_transfer T;
-	horizon H;
+	horizon* H; // computed horizons are stored in horizoncache
 	double difftrans; // diffuse light transmission efficiency for a uniform sky
 } location;
 //END_SSDP_EXPORT
@@ -146,121 +146,111 @@ void ssdp_free_location(location *l)
 	if (l)
 	{
 		FreeSkyTransfer(&(l->T));
-		FreeHorizon(&(l->H));
+		// horizoncache takes care of that
+		// FreeHorizon(l->H);
 	}
 }
+
 #define ALBEPS 1e-10
-location ssdp_setup_location(sky_grid *sky, topology *T, double albedo, sky_pos pn, double xoff, double yoff, double zoff, AOI_Model_Data *M)
+
+static int transfer_sky(
+		location *l, sky_grid *sky,
+		double albedo, sky_pos pn, AOI_Model_Data *M)
 {
-	int i;
-	location l;
-	location l0={{NULL,0.0,0},{0,0.0,NULL},0};
-	// setup horizon
-	l.H=InitHorizon(sky->Nz);
-	l.T=InitSkyTransfer(sky->N);
-	if (ssdp_error_state)
-	{
-		ssdp_free_location(&l);
-		return l0;
-	}
-	if (T)
-		ComputeHorizon(&l.H, T, 0, xoff, yoff, zoff); // should make minzen a setting
-	AtanHorizon(&l.H);
-	if (ssdp_error_state)
-	{
-		ssdp_free_location(&l);
-		return l0;
-	}
-	// setup transfer
-	// sky direct
-	POA_Sky_Transfer(sky, &l.T, pn, M);
-	if (ssdp_error_state)
-	{
-		ssdp_free_location(&l);
-		return l0;
-	}
-	if (albedo>ALBEPS)
-	{
-		if (albedo>1)
-		Print(WARNING, "Warning: albedo larger than one\n");
-		l.T.g=albedo*POA_Albedo_Transfer(sky, pn, M);
-		if (ssdp_error_state)
-		{
-			ssdp_free_location(&l);
-			return l0;
+		int i;
+
+		// setup transfer, sky direct
+		l->T=InitSkyTransfer(sky->N);
+		if (ssdp_error_state) goto einit;
+		POA_Sky_Transfer(sky, &(l->T), pn, M);
+		if (ssdp_error_state) goto error;
+
+		if (albedo>ALBEPS) {
+				if (albedo>1)
+						Print(WARNING, "Warning: albedo larger than one\n");
+				l->T.g=albedo*POA_Albedo_Transfer(sky, pn, M);
+				if (ssdp_error_state) goto error;
+
+				for (i=0;i<l->T.N;i++)
+						l->T.t[i]*=(1.0+l->T.g);
 		}
-		for (i=0;i<l.T.N;i++)
-			l.T.t[i]*=(1.0+l.T.g);
-	}
-	
-	HorizTrans(sky, &(l.H), &(l.T), &(l.T));
-	if (ssdp_error_state)
-	{
-		Print(WARNING, "Warning: Horizon does not match the sky\n");
-		ssdp_free_location(&l);
-		return l0;
-	}	
-	l.difftrans=0;
-	for (i=0;i<l.T.N;i++)
-		l.difftrans+=sky->sa[i]*l.T.t[i];
-	l.difftrans/=sky->icosz;
-	return l;
+
+		HorizTrans(sky, l->H, &(l->T), &(l->T));
+		if (ssdp_error_state) {
+				// TODO Error, not warning
+				Print(WARNING, "Warning: Horizon does not match the sky\n");
+				goto error;
+		}
+
+
+		l->difftrans=0;
+		for (i=0;i<l->T.N;i++)
+				l->difftrans+=sky->sa[i]*l->T.t[i];
+		l->difftrans/=sky->icosz;
+
+		return 0;
+error:
+		FreeSkyTransfer(&(l->T));
+einit:
+		return -1;
 }
-location ssdp_setup_grid_location(sky_grid *sky, topogrid *T, double albedo, sky_pos pn, double xoff, double yoff, double zoff, AOI_Model_Data *M)
+
+
+int ssdp_setup_location(
+		location *l, sky_grid *sky, topology *T,
+		double albedo, sky_pos pn,
+		double xoff, double yoff, double zoff, AOI_Model_Data *M)
 {
-	int i;
-	location l;
-	location l0={{NULL,0,0},{0,0,NULL},0};
-	// setup horizon
-	l.H=InitHorizon(sky->Nz);
-	l.T=InitSkyTransfer(sky->N);
-	if (ssdp_error_state)
-	{
-		ssdp_free_location(&l);
-		return l0;
-	}
-	if (T)
-		ComputeGridHorizon(&l.H, T, M_PI/4.0/((double)sky->Nz), xoff, yoff, zoff);
-	AtanHorizon(&l.H);
-	if (ssdp_error_state)
-	{
-		ssdp_free_location(&l);
-		return l0;
-	}
-	// setup transfer
-	// sky direct
-	POA_Sky_Transfer(sky, &l.T, pn, M);
-	if (ssdp_error_state)
-	{
-		ssdp_free_location(&l);
-		return l0;
-	}
-	if (albedo>ALBEPS)
-	{
-		if (albedo>1)
-			Print(WARNING, "Warning: albedo larger than one\n");
-		l.T.g=albedo*POA_Albedo_Transfer(sky, pn, M);
-		if (ssdp_error_state)
-		{
-			ssdp_free_location(&l);
-			return l0;
+		if (NULL == T && NULL == l->H->zen) {
+				*(l->H)=InitHorizon(sky->Nz);
 		}
-		for (i=0;i<l.T.N;i++)
-			l.T.t[i]*=(1.0+l.T.g);
-	}
-	
-	HorizTrans(sky, &(l.H), &(l.T), &(l.T));
-	if (ssdp_error_state)
-	{
-		ssdp_free_location(&l);
-		return l0;
-	}
-	l.difftrans=0;
-	for (i=0;i<l.T.N;i++)
-		l.difftrans+=sky->sa[i]*l.T.t[i];
-	l.difftrans/=sky->icosz;
-	return l;
+
+		if (T && NULL == l->H->zen) {
+				*(l->H)=InitHorizon(sky->Nz);
+
+				// TODO: should make minzen a setting
+				ComputeHorizon(
+						l->H, T, 0,
+						xoff, yoff, zoff);
+				AtanHorizon(l->H);
+				if (ssdp_error_state) goto estate;
+		}
+
+		if (transfer_sky(l, sky, albedo, pn, M)) goto estate;
+
+		return 0;
+estate:
+		ssdp_free_location(l);
+		return -1;
 }
+
+
+int ssdp_setup_grid_location(
+		location *l, sky_grid *sky, topogrid *T,
+		double albedo, sky_pos pn,
+		double xoff, double yoff, double zoff, AOI_Model_Data *M)
+{
+		if (NULL == T && NULL == l->H->zen) {
+				*(l->H)=InitHorizon(sky->Nz);
+		}
+
+		if (T && NULL == l->H->zen) {
+				*(l->H)=InitHorizon(sky->Nz);
+
+				ComputeGridHorizon
+						(l->H, T, M_PI/4.0/((double)sky->Nz),
+						 xoff, yoff, zoff);
+				AtanHorizon(l->H);
+				if (ssdp_error_state) goto estate;
+		}
+
+		if (transfer_sky(l, sky, albedo, pn, M)) goto estate;
+		return 0;
+estate:
+		ssdp_free_location(l);
+		return -1;
+}
+
 double ssdp_diffuse_poa(sky_grid *sky, location *l)
 {
 	return DiffusePlaneOfArray(sky, &(l->T));
@@ -268,8 +258,8 @@ double ssdp_diffuse_poa(sky_grid *sky, location *l)
 double ssdp_direct_poa(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, location *l)
 {
 	double g;
-	g=DirectGHI(sky, &(l->H))*l->T.g;
-	return DirectPlaneOfArray(sky, &(l->H), pn, M)+g;
+	g=DirectGHI(sky, l->H)*l->T.g;
+	return DirectPlaneOfArray(sky, l->H, pn, M)+g;
 }
 
 double ssdp_total_poa(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, location *l)
@@ -282,7 +272,7 @@ double ssdp_total_poa(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, location *l)
 }
 int ssdp_below_horizon(location *l, sky_pos p)
 {
-	return BelowHorizon(&(l->H), p);
+	return BelowHorizon(l->H, p);
 }
 /* topology routines */
 topology ssdp_make_topology(double *x, double *y, double *z, int N)
@@ -335,3 +325,15 @@ int ssdp_suntimes(time_t t, double lat, double lon, double E, double p, double T
 	return suntimes(t, lat, lon, E, p, T, sunrise, transit, sunset);
 }
 
+struct horizoncache* ssdp_horizoncache_init(double xy, double z)
+{
+		return horizoncache_init(xy, z);
+}
+horizon* ssdp_horizoncache_get(struct horizoncache* hc, double x, double y, double z)
+{
+		return horizoncache_get(hc, x, y, z);
+}
+void ssdp_horizoncache_free(struct horizoncache* hc)
+{
+		horizoncache_free(hc);
+}

@@ -21,6 +21,7 @@ typedef struct simulation_config {
 	sky_pos *o;				// orientation of the module(s)
 	location *L;			// traced locations
 	int Nl;					// number of locations
+	struct horizoncache* hcache;	// horizon cache
 } simulation_config;
 
 typedef struct array {

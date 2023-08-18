@@ -457,3 +457,48 @@ ex:
 efopen:
         return -1;
 }
+
+int check_shapes(int n, array* arrs[])
+{
+		int i, N = -1;
+
+		for (i=0; i < n; ++i)
+				N = N > arrs[i]->N ? N : arrs[i]->N;
+
+		for (i=0; i < n; ++i) {
+				if (N != arrs[i]->N && 1 != arrs[i]->N) {
+						Warning("Error: invalid length of input arrays\n");
+						return -1;
+				}
+		}
+
+		return N;
+}
+
+int default_array(array **arr, double value)
+{
+		if (NULL==(*arr=malloc(sizeof(**arr))))
+				goto earr;
+
+		if (NULL==((*arr)->D = malloc(sizeof(*((*arr)->D)))))
+				goto eD;
+
+		(*arr)->N = 1;
+		(*arr)->D[0] = value;
+		return 1;
+eD:
+		free((*arr));
+earr:
+		return -1;
+}
+
+
+void free_default_array(array **arr, int iffree)
+{
+		if (0 == iffree) return;
+
+		free((*arr)->D);
+		(*arr)->D = NULL;
+		free((*arr));
+		(*arr) = NULL;
+}

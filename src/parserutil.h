@@ -46,6 +46,12 @@ int FetchOptInt(const char *in, const char *pat, char *str, int *a);
 void InitConfigMask(simulation_config *C);
 void InitConfigMaskNoH(simulation_config *C);
 
+#define AT(arr, i) (arr->D[i % arr->N])
+
+int check_shapes(int n, array* arrs[]);
+int default_array(array **arr, double value);
+void free_default_array(array **arr, int iffree);
+
 #define ProgressLen 40
 #define ProgressTics 4
 #endif //_PARSEUTILS_H

@@ -90,7 +90,7 @@ void ConfigCoord (char *in)
 BEGIN_DESCRIPTION
 SECTION Simulation Configuration
 PARSEFLAG config_aoi ConfigAOI "C=<out-config> model=<none/front-cover/anti-reflect/user> [nf=<float-value>] [nar=<float-value>] [file=<in-file>]"
-DESCRIPTION Setup the Angle of Incidence model to model angular dependent relection. The model can be one of "none" (no angularly dependent reflection), "front-cover" (simple refractive index), "anti-relect" (two layer front), and "user" (tabular data).
+DESCRIPTION Setup the Angle of Incidence model to model angular dependent reflection. The model can be one of "none" (no angularly dependent reflection), "front-cover" (simple refractive index), "anti-relect" (two layer front), and "user" (tabular data).
 ARGUMENT model string to identify which model to use
 ARGUMENT nf front-cover refractive index
 ARGUMENT nar refective index of an antireflection coating on the front cover
@@ -208,112 +208,135 @@ void FreeConfigLocation(simulation_config *C)
 	C->loc_init=0;
 }
 
+
+static int init_hcache(simulation_config *C)
+{
+		FreeConfigMask(C); // make sure we are clear to allocate new memory
+		if (NULL==(C->L=calloc(C->Nl,sizeof(*(C->L))))) goto ecl;
+
+		TIC();
+		int i, hits=0;
+		// assume C->hcache initialised. associate location with the
+		// allocated space for that in the hcache.
+		for (i=0; i < C->Nl; ++i) {
+				C->L[i].H = ssdp_horizoncache_get(C->hcache, C->x[i], C->y[i], C->z[i]);
+				if (NULL == C->L[i].H) goto ehcache;
+				if (NULL != C->L[i].H->zen) ++hits;
+		}
+		printf("Checked in locations cache in %g s, hits/misses: %d/%d\n", TOC(), hits, C->Nl-hits);
+
+		return 0;
+ehcache:
+		// the hcache keeps track of allocated horizon. even if we
+		// fail and end up here, just need to cleanup the
+		// C->L. ssdp_horizoncache_free at some point will cleanup
+		// everything.
+		free(C->L);
+ecl:
+		return -1;
+}
+
+
 void InitConfigMask(simulation_config *C)
 {
-	int i;
-	if ((C->sky_init)&&(C->topo_init)&&(C->loc_init))
-	{
 		double dt;
-		int pco=0;
-		FreeConfigMask(C); // make sure we are clear to allocate new memory
-		C->L=calloc(C->Nl,sizeof(location));
-		if (C->L==NULL)
-		{
-			Warning("Could not allocate memory for locations\n");
-			return;
-		}
+		int i, pco = 0;
+
+		if (! ((C->sky_init)&&(C->topo_init)&&(C->loc_init))) goto egtl;
+		if (init_hcache(C)) goto einitL;
+
 		printf("Tracing %d locations\n", C->Nl);
 		TIC();
 #pragma omp parallel private(i) shared(C)
 		{
 #pragma omp for schedule(runtime)
-			for (i=0;i<C->Nl;i++)
-			{ 
-				C->L[i]=ssdp_setup_location(&(C->S), &(C->T), C->albedo, C->o[i], C->x[i],C->y[i],C->z[i], &(C->M));
-				ProgressBar((100*(i+1))/C->Nl, &pco, ProgressLen, ProgressTics);
-			}
+				for (i=0; i < C->Nl; ++i) {
+						ssdp_setup_location(
+								&(C->L[i]), &(C->S), &(C->T), C->albedo,
+								C->o[i], C->x[i],C->y[i],C->z[i], &(C->M));
+						ProgressBar((100*(i+1))/C->Nl, &pco, ProgressLen, ProgressTics);
+				}
 		}
 		ProgressBar(100, &pco, ProgressLen, ProgressTics);
+		if (ssdp_error_state) goto estate;
+
 		dt=TOC();
-		if (!ssdp_error_state)
-			printf("%d locations traced in %g s (%e s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));
-		else
-			FreeConfigMask(C); // make sure we are clear to allocate new memory
-			
-	}
+		printf("%d locations traced in %g s (%e s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));
+		return;
+estate:
+		FreeConfigMask(C); // make sure we are clear to allocate new memory
+einitL:
+egtl:
+		return;
 }
 
 void InitConfigGridMask(simulation_config *C)
 {
-	int i;
-	if ((C->sky_init)&&(C->grid_init)&&(C->loc_init))
-	{
 		double dt;
-		int pco=0;
-		FreeConfigMask(C); // make sure we are clear to allocate new memory
-		C->L=malloc(C->Nl*sizeof(location));
-		if (C->L==NULL)
-		{
-			Warning("Could not allocate memory for locations\n");
-			return;
-		}
-		printf("Tracing %d locations\n", C->Nl);
+		int i, pco=0;
+
+		if (! ((C->sky_init)&&(C->grid_init)&&(C->loc_init))) goto esgl;;
+		if (init_hcache(C)) goto einitL;
+
 		TIC();
 #pragma omp parallel private(i) shared(C)
 		{
 #pragma omp for schedule(runtime)
-			for (i=0;i<C->Nl;i++)
-			{ 
-				C->L[i]=ssdp_setup_grid_location(&(C->S), &(C->Tx), C->albedo, C->o[i], C->x[i],C->y[i],C->z[i], &(C->M));
-				ProgressBar((100*(i+1))/C->Nl, &pco, ProgressLen, ProgressTics);
-			}
+				for (i=0;i<C->Nl;i++)
+				{
+						ssdp_setup_grid_location(
+								&(C->L[i]), &(C->S), &(C->Tx), C->albedo,
+								C->o[i], C->x[i],C->y[i],C->z[i], &(C->M));
+						ProgressBar((100*(i+1))/C->Nl, &pco, ProgressLen, ProgressTics);
+				}
 		}
 		ProgressBar(100, &pco, ProgressLen, ProgressTics);
+		if (ssdp_error_state) goto estate;
+
 		dt=TOC();
-		if (!ssdp_error_state)
-			printf("%d locations traced in %g s (%e s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));
-		else
-			FreeConfigMask(C); // make sure we are clear to allocate new memory
-			
-	}
+		printf("%d locations traced in %g s (%e s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));
+
+		return;
+estate:
+		FreeConfigMask(C); // make sure we are clear to allocate new memory
+einitL:
+esgl:
+		return;
 }
 
 void InitConfigMaskNoH(simulation_config *C) // same as above but without horizon calculation
 {
-	int i;
-	if ((C->sky_init)&&(C->loc_init))
-	{
 		double dt;
-		int pco=0;
-		FreeConfigMask(C); // make sure we are clear to allocate new memory
-		C->L=calloc(C->Nl,sizeof(location));
-		if (C->L==NULL)
-		{
-			Warning("Could not allocate memory for locations\n");
-			return;
-		}
+		int i, pco=0;
+
+		if (! ((C->sky_init)&&(C->loc_init))) goto esl;
+		if (init_hcache(C)) goto einitL;
+
 		printf("Tracing %d locations\n", C->Nl);
 		TIC();
 #pragma omp parallel private(i) shared(C)
 		{
-#ifdef OPENMP
-			int nt=omp_get_num_threads();
-#endif
 #pragma omp for schedule(runtime)
-			for (i=0;i<C->Nl;i++)
-			{ 
-				C->L[i]=ssdp_setup_location(&(C->S), NULL, C->albedo, C->o[i], C->x[i],C->y[i],C->z[i], &(C->M));
-				ProgressBar((100*(i+1))/C->Nl, &pco, ProgressLen, ProgressTics);
-			}
+				for (i=0; i<C->Nl; ++i) {
+						ssdp_setup_location(
+								&(C->L[i]), &(C->S), NULL, C->albedo,
+								C->o[i], C->x[i],C->y[i],C->z[i], &(C->M));
+						ProgressBar((100*(i+1))/C->Nl, &pco, ProgressLen, ProgressTics);
+				}
 		}
 		ProgressBar(100, &pco, ProgressLen, ProgressTics);
+
+		if (ssdp_error_state) goto estate;
+
 		dt=TOC();
-		if (!ssdp_error_state)
-			printf("%d locations traced in %g s (%e s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));
-		else
-			FreeConfigMask(C); // make sure we are clear to allocate new memory
-			
-	}
+		printf("%d locations traced in %g s (%e s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));
+
+		return;
+estate:
+		FreeConfigMask(C); // make sure we are clear to allocate new memory
+einitL:
+esl:
+		return;
 }
 
 
@@ -534,6 +557,8 @@ void ConfigTOPOGrid (char *in)
 	}
 	return;
 }
+
+
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation Configuration
@@ -621,10 +646,38 @@ eword:
         Warning("Error: config_topogdal failed!\n");
         return;
 }
+
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation Configuration
-PARSEFLAG config_locations ConfigLoc "C=<out-config> x=<in-array> y=<in-array> z=<in-array> azimuth=<in-array> zenith=<in-array> [type=<topology/topogrid> [albedo=<float-value>]"
+PARSEFLAG config_cleanlocations ConfigCleanLocations  "C=<out-config>"
+DESCRIPTION Clean stored locations from cache
+OUTPUT C output configuration variable
+END_DESCRIPTION
+*/
+void ConfigCleanLocations(char *in)
+{
+		simulation_config *C;
+		char *word;
+		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
+		if (FetchConfig(in, "C", word, &C)) goto eargs;
+
+		ssdp_horizoncache_free(C->hcache);
+		C->hcache = NULL;
+
+		free(word);
+		return;
+eargs:
+		free(word);
+eword:
+        Warning("Error: config_cleanlocations failed!\n");
+		return;
+}
+
+/*
+BEGIN_DESCRIPTION
+SECTION Simulation Configuration
+PARSEFLAG config_locations ConfigLoc "C=<out-config> x=<in-array> y=<in-array> z=<in-array> azimuth=<in-array> zenith=<in-array> [type=<topology/topogrid>] [albedo=<float-value>] [xydelta=<float-value>] [zdelta=<float-value]"
 DESCRIPTION Setup the topography. Load the x, y, and z data of the unstructured topography mesh into the configuration data.
 ARGUMENT x x coordinates
 ARGUMENT y y coordinates
@@ -633,173 +686,107 @@ ARGUMENT type Optional argument to select the unstructured topology mesh or the 
 ARGUMENT azimuth azimuth angle of tilted surface
 ARGUMENT zenith zenith angle of tilted surface
 ARGUMENT albedo optionally provide an albedo value between 0-1
+ARGUMENT xydelta,zdelta the coordinates within xydelta in xy plane and zdelta within z direction are considered the same (default: 0.05)
 OUTPUT C configuration variable
 END_DESCRIPTION
 */
-void ConfigLoc (char *in)
+void ConfigLoc(char *in)
 {
-	simulation_config *C;
-	array *x, *y, *z, *az, *ze;
-	int i;
-	char type='t';
-	char *word;
-	word=malloc((strlen(in)+1)*sizeof(char));
-	
-	if (FetchConfig(in, "C", word, &C))
-	{
-		free(word);
-		return;
-	}
-		
-	if (FetchArray(in, "x", word, &x))
-	{
-		free(word);
-		return;
-	}
-	if (FetchArray(in, "y", word, &y))
-	{
-		free(word);
-		return;
-	}
-	if (FetchArray(in, "z", word, &z))
-	{
-		free(word);
-		return;
-	}
-	if (FetchArray(in, "azimuth", word, &az))
-	{
-		free(word);
-		return;
-	}
-	if (FetchArray(in, "zenith", word, &ze))
-	{
-		free(word);
-		return;
-	}
-	if (GetOption(in, "type", word))
-	{
-		if (strncmp(word,"topology",10)==0)
-		{
-			if (C->topo_init==0)
-			{ 
-				Warning("No topology available\n");
-				free(word);
-				return;
-			}
-		}
-		if (strncmp(word,"topogrid",10)==0)
-		{
-			if (C->grid_init==0)
-			{ 
-				Warning("No topogrid available\n");
-				free(word);
-				return;
-			}
-			type='g';
-		}
-	}
-	if (C->topo_init==0)
-	{
-		type='g';
-		if (C->grid_init==0)
-			Warning("No topology or topogrid available\n");
-	}
-	if (FetchOptFloat(in, "albedo", word, &(C->albedo)))
-		C->albedo=0.0;
+		simulation_config *C;
+		double xydelta, zdelta;
+		array *x, *y, *z, *az, *ze;
+		int N, i;
+		char type='t';
+		char *word;
+		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
 
-	free(word);
-	if (x->N!=y->N)
-	{
-		Warning("x- y- arrays must be of equal length\n"); 
-		return;
-	}
-	if ((z->N!=x->N)&&(z->N!=1))
-	{
-		Warning("z- array must be either of equal length as x- and y- or of length 1\n"); 
-		return;
-	}
-	
-	if (az->N!=ze->N)
-	{
-		Warning("azimuth and zenith arrays must be of equal length\n"); 
-		return;
-	}
-	if ((az->N!=x->N)&&(az->N!=1))
-	{
-		Warning("azimuth and zenith arrays must either have length 1 or be of equal length ans z,y,z\n"); 
-		return;
-	}
-	
-	FreeConfigLocation(C);
-	printf("Configuring locations with %d points\n", x->N);
-	
-	C->Nl=x->N;
-	C->x=malloc(C->Nl*sizeof(double));
-	C->y=malloc(C->Nl*sizeof(double));
-	C->z=malloc(C->Nl*sizeof(double));
-	C->o=malloc(C->Nl*sizeof(sky_pos));
-	if ((z->N==1)&&(az->N==1)) // one z, one orientation
-	{
-		for (i=0;i<C->Nl;i++)
-		{
-			C->x[i]=x->D[i];
-			C->y[i]=y->D[i];
-			C->z[i]=z->D[0];
-			C->o[i].a=az->D[0];
-			C->o[i].z=ze->D[0];
-			
+		if (FetchConfig(in, "C", word, &C)) goto eargs;
+		if (FetchArray(in, "x", word, &x)) goto eargs;
+		if (FetchArray(in, "y", word, &y)) goto eargs;
+		if (FetchArray(in, "z", word, &z)) goto eargs;
+		if (FetchArray(in, "azimuth", word, &az)) goto eargs;
+		if (FetchArray(in, "zenith", word, &ze)) goto eargs;
+		if (GetOption(in, "type", word)) {
+				if (strncmp(word,"topology",10)==0) {
+						if (C->topo_init==0) {
+								Warning("No topology available\n");
+								goto eargs;
+						}
+				}
+				if (strncmp(word,"topogrid",10)==0) {
+						if (C->grid_init==0) {
+								Warning("No topogrid available\n");
+								goto eargs;
+						}
+						type='g';
+				}
 		}
-	}
-	else if (z->N==1) // many orientations, one z
-	{
-		for (i=0;i<C->Nl;i++)
-		{
-			C->x[i]=x->D[i];
-			C->y[i]=y->D[i];
-			C->z[i]=z->D[0];
-			C->o[i].a=az->D[i];
-			C->o[i].z=ze->D[i];
+		if (C->topo_init==0) {
+				type='g';
+				if (C->grid_init==0)
+						Warning("No topology or topogrid available\n");
 		}
-	}
-	else if (az->N==1) // many z's one orientation
-	{
-		for (i=0;i<C->Nl;i++)
-		{
-			C->x[i]=x->D[i];
-			C->y[i]=y->D[i];
-			C->z[i]=z->D[i];
-			C->o[i].a=az->D[0];
-			C->o[i].z=ze->D[0];
-		}
-	}
-	else // just many
-	{
-		for (i=0;i<C->Nl;i++)
-		{
-			C->x[i]=x->D[i];
-			C->y[i]=y->D[i];
-			C->z[i]=z->D[i];
-			C->o[i].a=az->D[i];
-			C->o[i].z=ze->D[i];
-		}
-	}
-	C->loc_init=1;
-	
-	if ((C->topo_init==1)&&(type=='t'))
-		InitConfigMask(C);
-	if ((C->grid_init==1)&&(type=='g'))
-		InitConfigGridMask(C);
-	
-	if (ssdp_error_state)
-	{
-		ssdp_print_error_messages();
+		if (FetchOptFloat(in, "albedo", word, &(C->albedo))) C->albedo=0.0;
+		if (FetchOptFloat(in, "xydelta", word, &(xydelta))) xydelta=0.05;
+		if (FetchOptFloat(in, "zdelta", word, &(zdelta))) zdelta=0.05;
+
+		N = check_shapes(5,(array*[]){x,y,z,az,ze});
+
 		FreeConfigLocation(C);
-		C->loc_init=0;
-		ssdp_reset_errors();
-	}
-	
-	return;
+		printf("Configuring locations with %d points\n", x->N);
+
+		C->Nl=N;
+		if (NULL==(C->x=malloc(C->Nl*sizeof(*(C->x))))) goto ex;
+		if (NULL==(C->y=malloc(C->Nl*sizeof(*(C->y))))) goto ey;
+		if (NULL==(C->z=malloc(C->Nl*sizeof(*(C->z))))) goto ez;
+		if (NULL==(C->o=malloc(C->Nl*sizeof(*(C->o))))) goto eo;
+
+		for (i=0; i<C->Nl; ++i) {
+				C->x[i]=AT(x,i);
+				C->y[i]=AT(y,i);
+				C->z[i]=AT(z,i);
+				C->o[i].a=AT(az,i);
+				C->o[i].z=AT(ze,i);
+		}
+		C->loc_init=1;
+
+		if (NULL==C->hcache)
+				if (NULL==(C->hcache=ssdp_horizoncache_init(xydelta, zdelta)))
+						goto ehcache;
+
+		if ((C->topo_init==1)&&(type=='t'))
+				InitConfigMask(C);
+		if ((C->grid_init==1)&&(type=='g'))
+				InitConfigGridMask(C);
+
+		if (ssdp_error_state)
+		{
+				ssdp_print_error_messages();
+				FreeConfigLocation(C);
+				C->loc_init=0;
+				ssdp_reset_errors();
+				goto elocs;
+		}
+
+		free(word);
+		return;
+elocs:
+ehcache:
+		free(C->x);
+ex:
+		free(C->y);
+ey:
+		free(C->z);
+ez:
+		free(C->o);
+eo:
+eargs:
+		free(word);
+eword:
+		Warning("config_locations: failed!\n");
+		return;
 }
+
 
 /*
 BEGIN_DESCRIPTION

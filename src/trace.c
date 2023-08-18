@@ -17,6 +17,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include <stdlib.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <math.h>
 #include "vector.h"
@@ -26,6 +27,7 @@
 #include "print.h"
 #include "config.h"
 #include "fatan2.h"
+#include "rtree.h"
 
 sky_transfer InitSkyTransfer(int N)
 {
@@ -152,4 +154,77 @@ void HorizTrans(const sky_grid *sky, const horizon *a, const sky_transfer *b, sk
 			if (BelowHorizon(a, sky->P[i].p))
 				c->t[i]=0.0;		
 	}
+}
+
+struct horizoncache* horizoncache_init(double xydelta, double zdelta)
+{
+		struct horizoncache *self;
+		if (NULL==(self=malloc(sizeof(*self)))) goto eself;
+		if (NULL==(self->rtree=rtree_new())) goto etree;
+		self->xydelta = xydelta/2;
+		self->zdelta = zdelta/2;
+
+		return self;
+etree:
+		free(self);
+eself:
+		return NULL;
+}
+
+#define UNUSED(x) (void)(x)
+
+static bool free_horizon(const double *min, const double *max, const void *item, void *udata)
+{
+		UNUSED(min); UNUSED(max); UNUSED(udata);
+		horizon *h = (horizon *)item;
+		FreeHorizon(h);
+		free(h);
+		return true;
+}
+
+
+void horizoncache_free(struct horizoncache* self)
+{
+		rtree_scan(self->rtree, free_horizon, NULL);
+		rtree_free(self->rtree);
+		free(self);
+}
+
+
+static bool iter(const double *min, const double *max, const void *item, void *udata)
+{
+		UNUSED(min); UNUSED(max);
+		*((const horizon **) udata) = item;
+		return false;
+}
+
+
+horizon* horizoncache_get(struct horizoncache* self, double x, double y, double z)
+{
+		horizon* res = NULL;
+
+		rtree_search(self->rtree,
+					 (double[3]){
+							 x-self->xydelta,
+							 y-self->xydelta,
+							 z-self->zdelta},
+					 (double[3]){
+							 x+self->xydelta,
+							 y+self->xydelta,
+							 z+self->zdelta},
+					 iter, &res);
+
+		if (NULL!=res)
+				return res;
+
+		if (NULL==(res=malloc(sizeof(*res))))
+				return NULL;
+
+		res->N = 0;
+		res->zen=NULL;
+		res->astep=0;
+
+		rtree_insert(self->rtree, (double[3]){x,y,z}, NULL, res);
+
+		return res;
 }

@@ -203,8 +203,8 @@ void WriteHorizon(char *fn, location *l)
 	fprintf(f,"# Hirizon Plot\n");
 	fprintf(f,"# azimuth[rad]\tzenith[rad]\n");
 	
-	for (i=0;i<l->H.N;i++)
-		fprintf(f,"%e %e\n",i*l->H.astep, l->H.zen[i]);
+	for (i=0;i<l->H->N;i++)
+		fprintf(f,"%e %e\n",i*l->H->astep, l->H->zen[i]);
 	fclose(f);	
 }
 

@@ -56,8 +56,8 @@ void ssdp_poa_to_surface_normal(sky_pos pn0, sky_pos sn, sky_pos *pn); // orient
 AOI_Model_Data ssdp_init_aoi_model(AOI_Model model,double nf, double nar,double *theta, double *effT, int N);
 
 void ssdp_free_location(location *l);
-location ssdp_setup_location(sky_grid *sky, topology *T, double albedo, sky_pos pn, double xoff, double yoff, double zoff, AOI_Model_Data *M);
-location ssdp_setup_grid_location(sky_grid *sky, topogrid *T, double albedo, sky_pos pn, double xoff, double yoff, double zoff, AOI_Model_Data *M);
+int ssdp_setup_location(location *l, sky_grid *sky, topology *T, double albedo, sky_pos pn, double xoff, double yoff, double zoff, AOI_Model_Data *M);
+int ssdp_setup_grid_location(location *l, sky_grid *sky, topogrid *T, double albedo, sky_pos pn, double xoff, double yoff, double zoff, AOI_Model_Data *M);
 double ssdp_diffuse_poa(sky_grid *sky, location *l);
 double ssdp_direct_poa(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, location *l);
 double ssdp_total_poa(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, location *l);
@@ -82,3 +82,6 @@ int ssdp_addheight_topogrid(topogrid *T,double *x, double *y, double *z, int nx,
 
 sky_pos ssdp_sunpos(time_t t, double lat, double lon, double E, double p, double T); // lat & lon in radians
 int ssdp_suntimes(time_t t, double lat, double lon, double e, double p, double T, time_t *sunrise, time_t *transit, time_t *sunset);
+struct horizoncache* ssdp_horizoncache_init(double xy, double z);
+horizon* ssdp_horizoncache_get(struct horizoncache* hc, double x, double y, double z);
+void ssdp_horizoncache_free(struct horizoncache* hc);
