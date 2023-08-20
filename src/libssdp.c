@@ -96,7 +96,7 @@ void ssdp_make_perez_all_weather_sky_coordinate(sky_grid * sky, time_t t, double
 	sun=sunpos(t, lat, lon, E, p, T);
 	PerezSky(sky, sun, GHI, DHI, (double)ut->tm_yday);
 }
-void ssdp_make_perez_cumulative_sky_coordinate(sky_grid * sky, double *t, double lon, double lat, double E, double *p, double *T, double *GHI, double *DHI, int N)
+void ssdp_make_perez_cumulative_sky_coordinate(sky_grid * sky, double *t, double lon, double lat, double E, double *p, int np, double *T, int nT, double *GHI, double *DHI, int N)
 {
 	int i;
 	sky_pos *sun;
@@ -114,7 +114,7 @@ void ssdp_make_perez_cumulative_sky_coordinate(sky_grid * sky, double *t, double
 			AddErr(GMTIMENULL); //GMTIMENULL initialized in sunpos.c
 			return;
 		}
-		sun[i]=sunpos(tt, lat, lon, E, p[i], T[i]);
+		sun[i]=sunpos(tt, lat, lon, E, p[i%np], T[i%nT]);
 		dayofyear[i]=(double)ut->tm_yday;
 	}
 	CumulativePerezSky(sky, sun, t, GHI, DHI, dayofyear, N);
