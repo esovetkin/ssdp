@@ -24,6 +24,11 @@
 #include <ctype.h>
 #include "util.h"
 #include "parser.h"
+#ifdef OPENMP
+  #include <omp.h>
+#endif
+
+
 void Fatal( const char *format_str, ...)
 {
 	va_list ap;
@@ -43,7 +48,7 @@ void Warning( const char *format_str, ...)
 	vfprintf(stderr,format_str, ap); 
 }
 
-int ProgressBar(int pcn, int pco, int len, int tics)
+static int _ProgressBar(int pcn, int pco, int len, int tics)
 /* pcn: new percentage complete */
 /* pco: old percentage complete */
 /* len: length of the progress bar */
@@ -90,4 +95,15 @@ int ProgressBar(int pcn, int pco, int len, int tics)
 	fflush(stdout);
 	
 	return pc;
+}
+
+
+void ProgressBar(int pcn, int* pco, int len, int tics)
+{
+#ifdef OPENMP
+		if (omp_get_thread_num()==0)
+				*pco = _ProgressBar(pcn, *pco, len, tics);
+#else
+		*pco = _ProgressBar(pcn, *pco, len, tics);
+#endif
 }

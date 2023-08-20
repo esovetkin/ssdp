@@ -20,5 +20,5 @@
 #define _UTIL_H
 void Fatal( const char *format_str, ...);
 void Warning( const char *format_str, ...);
-int ProgressBar(int pcn, int pco, int len, int tics);
+void ProgressBar(int pcn, int* pco, int len, int tics);
 #endif

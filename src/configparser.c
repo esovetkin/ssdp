@@ -214,9 +214,6 @@ void InitConfigMask(simulation_config *C)
 	if ((C->sky_init)&&(C->topo_init)&&(C->loc_init))
 	{
 		double dt;
-#ifdef OPENMP
-		int totals=0, pc;
-#endif		
 		int pco=0;
 		FreeConfigMask(C); // make sure we are clear to allocate new memory
 		C->L=calloc(C->Nl,sizeof(location));
@@ -227,25 +224,16 @@ void InitConfigMask(simulation_config *C)
 		}
 		printf("Tracing %d locations\n", C->Nl);
 		TIC();
-#pragma omp parallel private(i) shared(C,totals)
+#pragma omp parallel private(i) shared(C)
 		{
 #pragma omp for schedule(runtime)
 			for (i=0;i<C->Nl;i++)
 			{ 
 				C->L[i]=ssdp_setup_location(&(C->S), &(C->T), C->albedo, C->o[i], C->x[i],C->y[i],C->z[i], &(C->M));
-#ifdef OPENMP
-				totals++;
-				if (omp_get_thread_num()==0)
-				{
-					pc=100*(totals+1)/C->Nl;
-					pco=ProgressBar(pc, pco, ProgressLen, ProgressTics);
-				}
-#else
-				pco=ProgressBar((100*(i+1))/C->Nl, pco, ProgressLen, ProgressTics);
-#endif
+				ProgressBar((100*(i+1))/C->Nl, &pco, ProgressLen, ProgressTics);
 			}
 		}
-		pco=ProgressBar(100, pco, ProgressLen, ProgressTics);
+		ProgressBar(100, &pco, ProgressLen, ProgressTics);
 		dt=TOC();
 		if (!ssdp_error_state)
 			printf("%d locations traced in %g s (%e s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));
@@ -261,9 +249,6 @@ void InitConfigGridMask(simulation_config *C)
 	if ((C->sky_init)&&(C->grid_init)&&(C->loc_init))
 	{
 		double dt;
-#ifdef OPENMP
-		int totals=0, pc;
-#endif		
 		int pco=0;
 		FreeConfigMask(C); // make sure we are clear to allocate new memory
 		C->L=malloc(C->Nl*sizeof(location));
@@ -274,25 +259,16 @@ void InitConfigGridMask(simulation_config *C)
 		}
 		printf("Tracing %d locations\n", C->Nl);
 		TIC();
-#pragma omp parallel private(i) shared(C,totals)
+#pragma omp parallel private(i) shared(C)
 		{
 #pragma omp for schedule(runtime)
 			for (i=0;i<C->Nl;i++)
 			{ 
 				C->L[i]=ssdp_setup_grid_location(&(C->S), &(C->Tx), C->albedo, C->o[i], C->x[i],C->y[i],C->z[i], &(C->M));
-#ifdef OPENMP
-				totals++;
-				if (omp_get_thread_num()==0)
-				{
-					pc=100*(totals+1)/C->Nl;
-					pco=ProgressBar(pc, pco, ProgressLen, ProgressTics);
-				}
-#else
-				pco=ProgressBar((100*(i+1))/C->Nl, pco, ProgressLen, ProgressTics);
-#endif
+				ProgressBar((100*(i+1))/C->Nl, &pco, ProgressLen, ProgressTics);
 			}
 		}
-		pco=ProgressBar(100, pco, ProgressLen, ProgressTics);
+		ProgressBar(100, &pco, ProgressLen, ProgressTics);
 		dt=TOC();
 		if (!ssdp_error_state)
 			printf("%d locations traced in %g s (%e s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));
@@ -327,21 +303,10 @@ void InitConfigMaskNoH(simulation_config *C) // same as above but without horizo
 			for (i=0;i<C->Nl;i++)
 			{ 
 				C->L[i]=ssdp_setup_location(&(C->S), NULL, C->albedo, C->o[i], C->x[i],C->y[i],C->z[i], &(C->M));
-#ifdef OPENMP
-				if (omp_get_thread_num()==0)
-				{
-					int pc;
-					pc=100*(nt*i+1)/C->Nl;
-					if (pc>100)
-						pc=100;
-					pco=ProgressBar(pc, pco, ProgressLen, ProgressTics);
-				}
-#else
-				pco=ProgressBar((100*(i+1))/C->Nl, pco, ProgressLen, ProgressTics);
-#endif
+				ProgressBar((100*(i+1))/C->Nl, &pco, ProgressLen, ProgressTics);
 			}
 		}
-		pco=ProgressBar(100, pco, ProgressLen, ProgressTics);
+		ProgressBar(100, &pco, ProgressLen, ProgressTics);
 		dt=TOC();
 		if (!ssdp_error_state)
 			printf("%d locations traced in %g s (%e s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));

@@ -231,7 +231,7 @@ void SimStatic(char *in)
 			for (i=0;i<C->Nl;i++)
 				out.D[j*C->Nl+i]=ssdp_total_poa(&(C->S), C->o[i], &(C->M), C->L+i);
 		}
-		pco=ProgressBar((100*(j+1))/(t->N), pco, ProgressLen, ProgressTics);
+		ProgressBar((100*(j+1))/(t->N), &pco, ProgressLen, ProgressTics);
 		tpoa+=TOC();
 	}
 	if (pp.D)
@@ -303,7 +303,7 @@ void SimStaticPos(char *in)
 								poa.D[j*C->Nl + i] = ssdp_total_poa
 										(&(C->S), C->o[i], &(C->M), C->L+i);
 				}
-				pco=ProgressBar((100*(j+1))/N, pco, ProgressLen, ProgressTics);
+				ProgressBar((100*(j+1))/N, &pco, ProgressLen, ProgressTics);
 				tpoa+=TOC();
 		}
 
@@ -618,7 +618,7 @@ void SimRoute(char *in)
 		else
 			i=0;
 		out.D[j]=ssdp_total_poa(&(C->S), C->o[i], &(C->M), C->L+i);
-		pco=ProgressBar((100*(j+1))/t->N, pco, ProgressLen, ProgressTics);
+		ProgressBar((100*(j+1))/t->N, &pco, ProgressLen, ProgressTics);
 		tpoa+=clock()-tpoa0;
 	}
 	if (pp.D)
@@ -776,7 +776,7 @@ void SimStaticUniform(char *in)
 				out.D[j*C->Nl+i]+=C->L[i].difftrans*DH->D[j]; // diffuse part is directly proportional to diffuse horizontal
 			}
 		}
-		pco=ProgressBar((100*(j+1))/(t->N), pco, ProgressLen, ProgressTics);
+		ProgressBar((100*(j+1))/(t->N), &pco, ProgressLen, ProgressTics);
 		tpoa+=TOC();
 	}
 	if (pp.D)
