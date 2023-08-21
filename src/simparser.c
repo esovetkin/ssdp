@@ -23,7 +23,7 @@
 
 static int check_simconfig(simulation_config *C, int ok_notopo, int ok_nosky)
 {
-		if (ok_nosky && (!C->sky_init)) {
+		if ((!ok_nosky) && (!C->sky_init)) {
 				Warning("Error: simulation config has no sky initialised\n");
 				return -1;
 		}

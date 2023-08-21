@@ -33,20 +33,28 @@ END_DESCRIPTION
 */
 void InitConfig(char *in)
 {
-	simulation_config C;
-	char *word;
-	word=malloc((strlen(in)+1)*sizeof(char));
-	
-	if (GetArg(in, "C", word))
-	{
+		simulation_config C;
+		char *word;
+		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
+
+		if (!GetArg(in, "C", word)) goto eargs;
+
 		C=InitConf();
 		printf("Defining simulation configuration \"%s\"\n", word);
-		if (AddSimConf(word, C)) // note InitConf does not allocate anything, no need to free
-			free(word);
+		// note InitConf does not allocate anything, no need to free
+		if (AddSimConf(word, C)) {
+				free(word);
+				goto eargs;
+		}
+
 		return;
-	}
-	free(word);
+eargs:
+		free(word);
+eword:
+		Warning("Error: init_sim_config failed!\n");
 }
+
+
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation Configuration
@@ -60,36 +68,29 @@ END_DESCRIPTION
 */
 void ConfigCoord (char *in)
 {
-	simulation_config *C;
-    double l;
-	char *word;
-	word=malloc((strlen(in)+1)*sizeof(char));
-	if (FetchConfig(in, "C", word, &C))
-	{
-		free(word);
-		return;
-	}
-	if (FetchFloat(in, "lon", word, &l))
-	{
-		free(word);
-		return;
-	}
-	C->lon=l;
-	printf("set longitude to %e degrees (%e rad)\n", rad2deg(C->lon), C->lon);
-	if (FetchFloat(in, "lat", word, &l))
-	{
-		free(word);
-		return;
-	}
-	C->lat=l;
-	printf("set latitude to %e degrees (%e rad)\n", rad2deg(C->lat), C->lat);
-	
-	if (FetchOptFloat(in, "E", word, &l))
-        l = 0;
+		simulation_config *C;
+		double l;
+		char *word;
+		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
+		if (FetchConfig(in, "C", word, &C)) goto eargs;
+		if (FetchFloat(in, "lon", word, &l)) goto eargs;
+		C->lon=l;
+		printf("set longitude to %e degrees (%e rad)\n", rad2deg(C->lon), C->lon);
 
-    C->E=l;
-	printf("set elevation to %e m\n", C->E);	
-	free(word);
+		if (FetchFloat(in, "lat", word, &l)) goto eargs;
+		C->lat=l;
+		printf("set latitude to %e degrees (%e rad)\n", rad2deg(C->lat), C->lat);
+
+		if (FetchOptFloat(in, "E", word, &l)) l = 0;
+		C->E=l;
+		printf("set elevation to %e m\n", C->E);
+
+		free(word);
+		return;
+eargs:
+		free(word);
+eword:
+		Warning("Error: config_coord failed!\n");
 }
 
 /*
@@ -423,45 +424,42 @@ END_DESCRIPTION
 */
 void ConfigSKY(char *in)
 {
-	simulation_config *C;
-	char *word;
-	int N;
-	word=malloc((strlen(in)+1)*sizeof(char));
-	
-	if (FetchConfig(in, "C", word, &C))
-	{
-		free(word);
-		return;
-	}
-		
-	if (FetchInt(in, "N", word, &N))
-	{
-		free(word);
-		return;
-	}
-	if (N>1)
-	{
+		simulation_config *C;
+		char *word;
+		int N;
+		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
+
+		if (FetchConfig(in, "C", word, &C)) goto eargs;
+		if (FetchInt(in, "N", word, &N)) goto eargs;
+		if (N<=1) {
+				Warning("Error: number of zenith discretizations must me larger than 1\n");
+				goto eargs;
+		}
+
 		if (C->sky_init)
-			ssdp_free_sky(&C->S);
+				ssdp_free_sky(&C->S);
 		else
-			C->sky_init=1;
+				C->sky_init=1;
 		C->S=ssdp_init_sky(N);
 		ssdp_horizoncache_reset(&(C->hcache));
-		InitConfigMask(C);		
+		InitConfigMask(C);
 		printf("Configuring sky with %d zenith discretizations\n", N);
-	}
-	else
-		Warning("Number of zenith discretizations must me larger than 1\n");
-	if (ssdp_error_state)
-	{
-		ssdp_print_error_messages();
-		ssdp_free_sky(&C->S);
-		C->sky_init=0;
-		ssdp_reset_errors();
-	}
-	free(word);
-	return;
+
+		if (ssdp_error_state) {
+				ssdp_print_error_messages();
+				ssdp_free_sky(&C->S);
+				C->sky_init=0;
+				ssdp_reset_errors();
+		}
+
+		free(word);
+		return;
+eargs:
+		free(word);
+eword:
+		Warning("Error: config_sky failed!\n");
 }
+
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation Configuration
@@ -850,14 +848,14 @@ void ConfigLoc(char *in)
 		return;
 elocs:
 ehcache:
-		free(C->x);
-ex:
-		free(C->y);
-ey:
-		free(C->z);
-ez:
 		free(C->o);
 eo:
+		free(C->z);
+ez:
+		free(C->y);
+ey:
+		free(C->x);
+ex:
 eargs:
 		free(word);
 eword:
