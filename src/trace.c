@@ -185,6 +185,8 @@ static bool free_horizon(const double *min, const double *max, const void *item,
 
 void horizoncache_free(struct horizoncache* self)
 {
+		if (NULL == self)
+				return;
 		rtree_scan(self->rtree, free_horizon, NULL);
 		rtree_free(self->rtree);
 		free(self);

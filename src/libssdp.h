@@ -85,3 +85,4 @@ int ssdp_suntimes(time_t t, double lat, double lon, double e, double p, double T
 struct horizoncache* ssdp_horizoncache_init(double xy, double z);
 horizon* ssdp_horizoncache_get(struct horizoncache* hc, double x, double y, double z);
 void ssdp_horizoncache_free(struct horizoncache* hc);
+int ssdp_horizoncache_reset(struct horizoncache** hc);

@@ -275,7 +275,7 @@ void InitConfigGridMask(simulation_config *C)
 		double dt;
 		int i, pco=0;
 
-		if (! ((C->sky_init)&&(C->grid_init)&&(C->loc_init))) goto esgl;;
+		if (! ((C->sky_init)&&(C->grid_init)&&(C->loc_init))) goto esgl;
 		if (init_hcache(C)) goto einitL;
 
 		TIC();
@@ -374,6 +374,7 @@ void ConfigSKY(char *in)
 		else
 			C->sky_init=1;
 		C->S=ssdp_init_sky(N);
+		ssdp_horizoncache_reset(&(C->hcache));
 		InitConfigMask(C);		
 		printf("Configuring sky with %d zenith discretizations\n", N);
 	}
@@ -450,6 +451,7 @@ void ConfigTOPO (char *in)
 		C->topo_init=0;
 		ssdp_reset_errors();
 	}
+	ssdp_horizoncache_reset(&(C->hcache));
 	InitConfigMask(C);
 	if (ssdp_error_state)
 	{
@@ -547,6 +549,7 @@ void ConfigTOPOGrid (char *in)
 		C->grid_init=0;
 		ssdp_reset_errors();
 	}
+	ssdp_horizoncache_reset(&(C->hcache));
 	InitConfigGridMask(C);
 	if (ssdp_error_state)
 	{
@@ -624,6 +627,7 @@ void ConfigTOPOGDAL (char *in)
         TIC();
         C->Tx = ssdp_make_topogdal(x1, y1, x2, y2, fns->s, fns->n, step, epsg);
         if (ssdp_error_state) goto emaketopogdal;
+        if (ssdp_horizoncache_reset(&(C->hcache))) goto emaketopogdal;
         InitConfigGridMask(C);
         if (ssdp_error_state) goto emaketopogdal;
         printf("Initialised topogrid in %g s\n", TOC());

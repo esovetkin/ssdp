@@ -337,3 +337,16 @@ void ssdp_horizoncache_free(struct horizoncache* hc)
 {
 		horizoncache_free(hc);
 }
+int ssdp_horizoncache_reset(struct horizoncache** hc)
+{
+		if (NULL == *hc)
+				return 0;
+
+		double xydelta = (*hc)->xydelta, zdelta = (*hc)->zdelta;
+		ssdp_horizoncache_free(*hc);
+		(*hc) = ssdp_horizoncache_init(xydelta, zdelta);
+		if (NULL==(*hc))
+				return -1;
+
+		return 0;
+}
