@@ -17,10 +17,10 @@ Var *variables=NULL;
 int Nvar=0;
 
 
-// the default location ios the Forschungszentrum Jülich
-// gotta be somewhere and I happen to be here alot - bp
-#define FZLAT 50.902996388
-#define FZLON 6.407165038
+// the default location is the Forschungszentrum Jülich (50.902996388,
+// 6.407165038) gotta be somewhere and I happen to be here alot - bp
+#define FZLAT 0.88842489
+#define FZLON 0.11182613
 simulation_config InitConf()
 {
 	simulation_config C;

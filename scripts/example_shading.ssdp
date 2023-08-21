@@ -1,6 +1,14 @@
 # initialize simulation config variable
 init_sim_config C=C
 
++#################################################
++# set the coordinates in the configuration variable FZ Juelich
++make_scalar x=lat val=50.902996388
++make_scalar x=lon val=6.407165038
++deg2rad x=lat
++deg2rad x=lon
++config_coord C=C lat=lat lon=lon
+
 # read a topography (x,y,z values)
 # it should be an unstructured mesh.
 # the coordinate system:
