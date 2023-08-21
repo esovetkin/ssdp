@@ -29,6 +29,11 @@
 #include "fatan2.h"
 #include "rtree.h"
 
+#ifdef RUNMEMTEST
+#include "random_fail_malloc.h"
+#define malloc(x) random_fail_malloc(x)
+#endif
+
 sky_transfer InitSkyTransfer(int N)
 {
 	sky_transfer T;

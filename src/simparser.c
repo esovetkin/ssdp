@@ -15,6 +15,11 @@
 #include "parser.h"
 #include "parserutil.h"
 
+#ifdef RUNMEMTEST
+#include "random_fail_malloc.h"
+#define malloc(x) random_fail_malloc(x)
+#endif
+
 
 static int check_simconfig(simulation_config *C, int ok_notopo, int ok_nosky)
 {

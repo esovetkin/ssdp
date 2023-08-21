@@ -16,6 +16,11 @@
 
 #define ARRAY_BS 4
 
+#ifdef RUNMEMTEST
+#include "random_fail_malloc.h"
+#define malloc(x) random_fail_malloc(x)
+#endif
+
 typedef enum arrayops{ARR_PLUS,ARR_MINUS,ARR_MULT,ARR_DIV} arrayops;
 /*
 BEGIN_DESCRIPTION

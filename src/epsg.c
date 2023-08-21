@@ -5,6 +5,11 @@
 
 #include "epsg.h"
 
+#ifdef RUNMEMTEST
+#include "random_fail_malloc.h"
+#define malloc(x) random_fail_malloc(x)
+#endif
+
 
 struct epsg* epsg_init_epsg(int src, int dst)
 {

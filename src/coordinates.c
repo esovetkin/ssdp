@@ -3,6 +3,11 @@
 
 #include "coordinates.h"
 
+#ifdef RUNMEMTEST
+#include "random_fail_malloc.h"
+#define malloc(x) random_fail_malloc(x)
+#endif
+
 
 static void arange(double *a, int na, double from, double to, double step)
 {

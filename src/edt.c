@@ -4,6 +4,11 @@
 
 #include "edt.h"
 
+#ifdef RUNMEMTEST
+#include "random_fail_malloc.h"
+#define malloc(x) random_fail_malloc(x)
+#endif
+
 
 struct edt* edt_init(double *z, int n, int nx, int ny, double missing_value)
 {

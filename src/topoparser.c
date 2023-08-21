@@ -12,6 +12,11 @@
 #include "parser.h"
 #include "parserutil.h"
 
+#ifdef RUNMEMTEST
+#include "random_fail_malloc.h"
+#define malloc(x) random_fail_malloc(x)
+#endif
+
 
 /*
 BEGIN_DESCRIPTION

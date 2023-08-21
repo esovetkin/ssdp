@@ -7,6 +7,11 @@
 #include "topogdal.h"
 #include "edt.h"
 
+#ifdef RUNMEMTEST
+#include "random_fail_malloc.h"
+#define malloc(x) random_fail_malloc(x)
+#endif
+
 
 void save_raster(double *d, int nd)
 {

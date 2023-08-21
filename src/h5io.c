@@ -15,6 +15,11 @@
 
 #include "h5io.h"
 
+#ifdef RUNMEMTEST
+#include "random_fail_malloc.h"
+#define malloc(x) random_fail_malloc(x)
+#endif
+
 static hid_t h5io_fopen(const char *);
 static hid_t subgroups(void);
 static hid_t float16(void);

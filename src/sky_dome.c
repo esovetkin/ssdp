@@ -24,6 +24,11 @@
 #include "error.h"
 #include "print.h"
 
+#ifdef RUNMEMTEST
+#include "random_fail_malloc.h"
+#define malloc(x) random_fail_malloc(x)
+#endif
+
 // helper routines for indexing hex meshes
 int i_sqrt(int x)	// integer sqrt
 {

@@ -18,6 +18,11 @@
 #include "epsg.h"
 #include "coordinates.h"
 
+#ifdef RUNMEMTEST
+#include "random_fail_malloc.h"
+#define malloc(x) random_fail_malloc(x)
+#endif
+
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation Configuration
