@@ -1,0 +1,84 @@
+init_sim_config C=C
+init_sim_config C=C1
+init_sim_config C=C2
+make_scalar x=c val=2
+make_scalar x=c val=2
+make_scalar x=c val=2
+
+list_vars
+help init_sim_config
+
+config_coord C=C1 lat=50.5 lon=6.4 E=10
+config_coords C=C1 lat=50.5 lon=6.5 E=c
+config_coords C=C1 lat=50.5 lon=6.5 E=C2
+
+# # TODO config_aoi tests
+
+config_sky C=C2 N=10
+config_sky C=C2 N=2
+config_sky C=C2 N=-10
+config_sky C=C N=21
+
+# # TODO config_topology
+# # TODO config_topogrid
+
+make_scalar x=LAT_MIN val=50.898577647187764
+make_scalar x=LON_MIN val=6.405298264874525
+make_scalar x=LAT_MAX val=50.90579536873176
+make_scalar x=LON_MAX val=6.417035388302082
+make_scalar x=PRESSURE val=1010
+make_scalar x=TEMPERATURE val=15
+make_scalar x=EPSG_GPS val=4326
+make_scalar x=ELEVATION val=0
+make_scalar x=STEP val=2
+
+determine_utm epsg=EPSG lat=LAT_MIN lon=LON_MIN
+
+config_topogdal C=C1 lat1=LAT_MIN lon1=LON_MIN lat2=LAT_MAX lon2=LON_MAX step=5 flist=data/raster.list
+config_topogdal C=C1 lat1=50.898577647187764 lon1=LON_MIN lat2=LAT_MAX lon2=LON_MAX step=5 flist=data/raster.list
+config_topogdal C=C1 lat1=50.898577647187764 lon1=LON_MIN lat2=LAT_MAX lon2=LON_MAX step=5 flist=nonexistent
+config_topogdal C=C1 lat1=50.898577647187764 lon1=LON_MIN lat2=LAT_MAX lon2=LON_MAX step=-10 flist=data/raster.list
+config_topogdal C=C lat1=LAT_MIN lon1=LON_MIN lat2=LAT_MAX lon2=LON_MAX step=STEP epsg=EPSG flist=data/raster.list
+
+config_cleanlocations C=C2
+config_cleanlocations C=C2
+
+read_h5 a0=TIME a1=GHI a2=DHI a3=a3 a4=a4 a5=a5 dataset=weather file=data/input.h5
+read_h5 a0=TIME a1=GHI a2=DHI a3=a3 a4=a4 a5=a5 dataset=nonexistent file=data/input.h5
+read_h5 a0=TIME a1=GHI a2=DHI dataset=weather file=data/input.h5
+read_h5 a0=LAT a1=LON a2=AZI a3=ZEN a4=OFFSET dataset=locations file=data/input.h5
+
+write_h5 a0=0 a1=LON dataset=0 file=sim1.h5
+write_h5 a0=LAT a1=LON dataset=0 file=sim1.h5
+
+deg2rad x=AZI
+deg2rad x=ZEN
+convert_epsg x=LAT y=LON epsg_src=EPSG_GPS epsg_dst=EPSG
+
+sample_topo C=C y=LAT x=LON z=z azimuth=azi zenith=zen
+array_eval a=OFFSET op=+ b=z c=OFFSET_Z
+
+# TODO can create array with name "1" but cannot access it
+array_eval a=OFFSET op=+ b=z c=1
+write_h5 a0=1 dataset=1 file=sim1.h5
+
+config_locations C=C y=LAT x=LON z=OFFSET_Z azimuth=AZI zenith=ZEN albedo=0.2
+sim_static C=C t=TIME p=PRESSURE T=TEMPERATURE GHI=GHI DHI=DHI POA=P
+write_h5 a0=P dataset=1 file=sim1.h5
+
+get_grid C=C x=x y=y nx=nx ny=ny
+sample_topo C=C x=x y=y z=z azimuth=azi zenith=zen
+# should fail
+write_png z=P nx=nx ny=ny ofn=sim1.png
+
+config_locations C=C y=LAT x=LON z=OFFSET_Z azimuth=AZI zenith=ZEN albedo=1
+config_locations C=C y=LAT x=LON z=OFFSET_Z azimuth=AZI zenith=ZEN albedo=10
+config_locations C=C y=LAT x=LON z=OFFSET_Z azimuth=AZI zenith=ZEN albedo=-10
+
+make_scalar x=TIME val=1692619200
+make_scalar x=GHI val=400
+make_scalar x=DHI val=200
+
+config_locations C=C x=x y=y z=z azimuth=azi zenith=zen albedo=-10
+sim_static C=C t=TIME GHI=GHI DHI=DHI POA=P
+write_png z=P nx=nx ny=ny ofn=sim1.png

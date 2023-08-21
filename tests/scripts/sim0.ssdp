@@ -1,0 +1,36 @@
+read_array a0=z a1=TIME a2=GHI a3=DHI file=data/sim0.txt
+
+init_sim_config C=C
+
+make_scalar x=lat val=50.902996388
+make_scalar x=lon val=6.407165038
+deg2rad x=lat
+deg2rad x=lon
+config_coord C=C lat=lat lon=lon
+
+config_sky N=21 C=C
+
+config_topogrid C=C z=z Nx=214 Ny=194 x1=317546.877618 x2=318400.183344 y1=5641753.437414 y2=5642526.940460
+
+get_grid C=C x=x y=y
+sample_topo C=C x=x y=y z=z azimuth=azi zenith=zen
+config_locations C=C x=x y=y z=z azimuth=azi zenith=zen
+
+make_scalar x=TIME0 val=1692619200
+make_scalar x=GHI0 val=1000
+make_scalar x=DHI0 val=800
+
+sim_static C=C t=TIME0 GHI=GHI0 DHI=DHI0 POA=P
+write_array a0=P file=sim0_static.txt
+sim_static_integral C=C t=TIME GHI=GHI DHI=DHI POA=P
+write_array a0=P file=sim0_static_integral.txt
+sim_route C=C t=TIME GHI=GHI DHI=DHI POA=P
+write_array a0=P file=sim0_route.txt
+
+config_sky N=7 C=C
+
+# supposed to fail without a leak
+sim_static C=C t=TIME0 GHI=GHI0 DHI=DHI0 POA=P
+
+config_locations C=C x=x y=y z=z azimuth=azi zenith=zen
+sim_static C=C t=TIME0 GHI=GHI0 DHI=DHI0 POA=P

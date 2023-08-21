@@ -172,8 +172,6 @@ static int transfer_sky(
 		if (ssdp_error_state) goto error;
 
 		if (albedo>ALBEPS) {
-				if (albedo>1)
-						Print(WARNING, "Warning: albedo larger than one\n");
 				l->T.g=albedo*POA_Albedo_Transfer(sky, pn, M);
 				if (ssdp_error_state) goto error;
 

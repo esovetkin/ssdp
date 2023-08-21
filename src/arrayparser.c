@@ -435,8 +435,8 @@ END_DESCRIPTION
 */
 void ReadH5(char *in)
 {
-        int i, arrlen, narr;
-        double **data;
+        int i = 0, arrlen, narr;
+        double **data = NULL;
         char *word, **names;
 
         if (NULL == (word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
@@ -465,14 +465,15 @@ void ReadH5(char *in)
         h5io_free(io);
         free(word);
         return;
+eread:
 eadd:
         // cleanup data for failed array
         for (int j=i; j < narr; ++j) {
-                free(data[j]);
+				if (data)
+						free(data[j]);
                 free(names[j]);
         }
         free(data);
-eread:
         free(names);
 enames:
         h5io_free(io);
@@ -815,7 +816,9 @@ void GetGrid(char *in)
                     free(nx.D);
                     free(word);
             }
-    }
+    } else {
+			free(word);
+	}
 
     word=malloc((strlen(in)+1)*sizeof(char));
     if (GetOption(in, "ny", word)) {
@@ -827,7 +830,9 @@ void GetGrid(char *in)
                     free(ny.D);
                     free(word);
             }
-    }
+    } else {
+			free(word);
+	}
 
 	return;
 }

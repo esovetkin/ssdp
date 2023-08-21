@@ -276,7 +276,7 @@ void SimStaticInt(char *in)
 				goto eshapes;
 		}
 
-		if (NULL==(out.D=malloc(N*C->Nl*sizeof(*(out.D))))) goto eout;
+		if (NULL==(out.D=malloc(C->Nl*sizeof(*(out.D))))) goto eout;
 		out.N=C->Nl;
 
 		TIC();
@@ -348,6 +348,7 @@ void SimRoute(char *in)
 		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
 		if (NULL==(nout=malloc((strlen(in)+1)*sizeof(*nout)))) goto enout;
 
+		if (!GetArg(in, "POA", nout)) goto eargs;
 		if (FetchConfig(in, "C", word, &C)) goto eargs;
 		if (check_simconfig(C, 0, 0)) goto eargs;
 		if (FetchArray(in, "t", word, &t)) goto eargs;

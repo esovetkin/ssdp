@@ -440,9 +440,13 @@ void ConfigSKY(char *in)
 				ssdp_free_sky(&C->S);
 		else
 				C->sky_init=1;
-		C->S=ssdp_init_sky(N);
+
+		// locations and horizon are no longer valid with the new sky
 		ssdp_horizoncache_reset(&(C->hcache));
-		InitConfigMask(C);
+		FreeConfigLocation(C);
+		printf("Cleared configured locations, new sky renders them invalid\n");
+
+		C->S=ssdp_init_sky(N);
 		printf("Configuring sky with %d zenith discretizations\n", N);
 
 		if (ssdp_error_state) {
@@ -663,6 +667,10 @@ void ConfigTOPOGDAL (char *in)
         if (FetchFloat(in, "lat2", word, &x2)) goto epars;
         if (FetchFloat(in, "lon2", word, &y2)) goto epars;
         if (FetchFloat(in, "step", word, &step)) goto epars;
+		if (step < 0) {
+				Warning("Error: step must be positive!\n");
+				goto epars;
+		}
 
         struct cvec *fns = cvec_init(4);
         if (NULL == fns) goto ecvec;
@@ -801,6 +809,7 @@ void ConfigLoc(char *in)
 						Warning("No topology or topogrid available\n");
 		}
 		if (FetchOptFloat(in, "albedo", word, &(C->albedo))) C->albedo=0.0;
+		if (C->albedo < 0 || C->albedo > 1) Warning("Warning: albedo=%f lies outside [0,1]\n", C->albedo);
 		if (FetchOptFloat(in, "xydelta", word, &(xydelta))) xydelta=0.05;
 		if (FetchOptFloat(in, "zdelta", word, &(zdelta))) zdelta=0.05;
 
