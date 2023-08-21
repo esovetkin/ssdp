@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 #include <ctype.h>
 #include <time.h>
 #include <math.h>
@@ -188,6 +189,14 @@ void FreeConfigMask(simulation_config *C)
 		free(C->L);
 	}
 	C->L=NULL;
+	if (C->uH) {
+			free(C->uH);
+	}
+	C->uH=NULL;
+	if (C->uHi) {
+			free(C->uHi);
+	}
+	C->uHi=NULL;
 }
 
 void FreeConfigLocation(simulation_config *C)
@@ -209,10 +218,35 @@ void FreeConfigLocation(simulation_config *C)
 }
 
 
+static void set_uH(simulation_config *C, int i)
+{
+		// basic hashmap. number of entries in hash equals to its
+		// length, so we expect a lot of collisions. however, we do
+		// not need to search in hash, only set an element once. If
+		// collisions become critical, C->uH length can always be
+		// extended, and hashv value can be randomised
+
+		uintptr_t j, k;
+		j = k = (uintptr_t) C->L[i].H;
+		while (NULL != C->uH[j % C->Nl]) {
+				// horizon has been visited
+				if (k == (uintptr_t) C->uH[j % C->Nl])
+						return;
+
+				++j;
+		}
+
+		C->uH[j % C->Nl] = C->L[i].H;
+		C->uHi[j % C->Nl] = i;
+}
+
+
 static int init_hcache(simulation_config *C)
 {
 		FreeConfigMask(C); // make sure we are clear to allocate new memory
 		if (NULL==(C->L=calloc(C->Nl,sizeof(*(C->L))))) goto ecl;
+		if (NULL==(C->uH=calloc(C->Nl,sizeof(*(C->uH))))) goto euH;
+		if (NULL==(C->uHi=calloc(C->Nl,sizeof(*(C->uHi))))) goto euHi;
 
 		TIC();
 		int i, hits=0;
@@ -220,19 +254,49 @@ static int init_hcache(simulation_config *C)
 		// allocated space for that in the hcache.
 		for (i=0; i < C->Nl; ++i) {
 				C->L[i].H = ssdp_horizoncache_get(C->hcache, C->x[i], C->y[i], C->z[i]);
+				set_uH(C, i);
 				if (NULL == C->L[i].H) goto ehcache;
 				if (NULL != C->L[i].H->zen) ++hits;
 		}
 		printf("Checked in locations cache in %g s, hits/misses: %d/%d\n", TOC(), hits, C->Nl-hits);
 
 		return 0;
-ehcache:
 		// the hcache keeps track of allocated horizon. even if we
 		// fail and end up here, just need to cleanup the
 		// C->L. ssdp_horizoncache_free at some point will cleanup
 		// everything.
-		free(C->L);
+ehcache:
+		free(C->uHi); C->uHi = NULL;
+euHi:
+		free(C->uH); C->uH = NULL;
+euH:
+		free(C->L); C->L = NULL;
 ecl:
+		return -1;
+}
+
+
+static int init_transfer(simulation_config *C)
+{
+		double dt;
+		int i, pco=0;
+
+		TIC();
+#pragma omp parallel private(i) shared(C)
+		{
+#pragma omp for schedule(runtime)
+				for (i=0; i < C->Nl; ++i) {
+						ssdp_setup_transfer(&(C->L[i]), &(C->S),
+											C->albedo, C->o[i], &(C->M));
+						ProgressBar((100*(i+1))/C->Nl, &pco, ProgressLen, ProgressTics);
+				}
+		}
+		ProgressBar(100, &pco, ProgressLen, ProgressTics);
+		if (ssdp_error_state) goto error;
+		dt=TOC();
+		printf("Initialised sky transfer in %g s (%e s/locations)\n", dt, dt/((double)C->Nl));
+		return 0;
+error:
 		return -1;
 }
 
@@ -251,17 +315,18 @@ void InitConfigMask(simulation_config *C)
 		{
 #pragma omp for schedule(runtime)
 				for (i=0; i < C->Nl; ++i) {
-						ssdp_setup_location(
-								&(C->L[i]), &(C->S), &(C->T), C->albedo,
-								C->o[i], C->x[i],C->y[i],C->z[i], &(C->M));
+						ssdp_setup_horizon(C->uH[i], &(C->S), &(C->T),
+										   C->x[C->uHi[i]],
+										   C->y[C->uHi[i]],
+										   C->z[C->uHi[i]]);
 						ProgressBar((100*(i+1))/C->Nl, &pco, ProgressLen, ProgressTics);
 				}
 		}
 		ProgressBar(100, &pco, ProgressLen, ProgressTics);
-		if (ssdp_error_state) goto estate;
+		dt = TOC();
+		printf("Traced %d horizons in %g s (%e s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));
 
-		dt=TOC();
-		printf("%d locations traced in %g s (%e s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));
+		if (init_transfer(C)) goto estate;
 		return;
 estate:
 		FreeConfigMask(C); // make sure we are clear to allocate new memory
@@ -278,24 +343,26 @@ void InitConfigGridMask(simulation_config *C)
 		if (! ((C->sky_init)&&(C->grid_init)&&(C->loc_init))) goto esgl;
 		if (init_hcache(C)) goto einitL;
 
+		// process all necessary horizons separately
+		printf("Tracing %d locations\n", C->Nl);
 		TIC();
 #pragma omp parallel private(i) shared(C)
 		{
 #pragma omp for schedule(runtime)
-				for (i=0;i<C->Nl;i++)
-				{
-						ssdp_setup_grid_location(
-								&(C->L[i]), &(C->S), &(C->Tx), C->albedo,
-								C->o[i], C->x[i],C->y[i],C->z[i], &(C->M));
+				for (i=0; i < C->Nl; ++i) {
+						ssdp_setup_grid_horizon(
+								C->uH[i], &(C->S), &(C->Tx),
+								C->x[C->uHi[i]],
+								C->y[C->uHi[i]],
+								C->z[C->uHi[i]]);
 						ProgressBar((100*(i+1))/C->Nl, &pco, ProgressLen, ProgressTics);
 				}
 		}
 		ProgressBar(100, &pco, ProgressLen, ProgressTics);
-		if (ssdp_error_state) goto estate;
+		dt = TOC();
+		printf("Traced %d horizons in %g s (%e s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));
 
-		dt=TOC();
-		printf("%d locations traced in %g s (%e s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));
-
+		if (init_transfer(C)) goto estate;
 		return;
 estate:
 		FreeConfigMask(C); // make sure we are clear to allocate new memory
@@ -312,25 +379,25 @@ void InitConfigMaskNoH(simulation_config *C) // same as above but without horizo
 		if (! ((C->sky_init)&&(C->loc_init))) goto esl;
 		if (init_hcache(C)) goto einitL;
 
-		printf("Tracing %d locations\n", C->Nl);
+		// some horizon needs to be initialised
+		printf("Initialising %d horizons\n", C->Nl);
 		TIC();
 #pragma omp parallel private(i) shared(C)
 		{
 #pragma omp for schedule(runtime)
-				for (i=0; i<C->Nl; ++i) {
-						ssdp_setup_location(
-								&(C->L[i]), &(C->S), NULL, C->albedo,
-								C->o[i], C->x[i],C->y[i],C->z[i], &(C->M));
+				for (i=0; i < C->Nl; ++i) {
+						ssdp_setup_horizon(C->uH[i], &(C->S), NULL,
+										   C->x[C->uHi[i]],
+										   C->y[C->uHi[i]],
+										   C->z[C->uHi[i]]);
 						ProgressBar((100*(i+1))/C->Nl, &pco, ProgressLen, ProgressTics);
 				}
 		}
 		ProgressBar(100, &pco, ProgressLen, ProgressTics);
+		dt = TOC();
+		printf("Initialised %d horizons in %g s (%e s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));
 
-		if (ssdp_error_state) goto estate;
-
-		dt=TOC();
-		printf("%d locations traced in %g s (%e s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));
-
+		if (init_transfer(C)) goto estate;
 		return;
 estate:
 		FreeConfigMask(C); // make sure we are clear to allocate new memory

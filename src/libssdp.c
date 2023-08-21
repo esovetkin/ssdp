@@ -195,27 +195,37 @@ einit:
 		return -1;
 }
 
-
-int ssdp_setup_location(
-		location *l, sky_grid *sky, topology *T,
-		double albedo, sky_pos pn,
-		double xoff, double yoff, double zoff, AOI_Model_Data *M)
+int ssdp_setup_horizon(
+		horizon *h, sky_grid *sky, topology *T,
+		double xoff, double yoff, double zoff)
 {
-		if (NULL == T && NULL == l->H->zen) {
-				*(l->H)=InitHorizon(sky->Nz);
-		}
+		// corresponds to empty locations in the uH array
+		if (NULL == h)
+				return 0;
 
-		if (T && NULL == l->H->zen) {
-				*(l->H)=InitHorizon(sky->Nz);
+		// horizon has been initialised
+		if (NULL != h->zen)
+				return 0;
 
-				// TODO: should make minzen a setting
-				ComputeHorizon(
-						l->H, T, 0,
-						xoff, yoff, zoff);
-				AtanHorizon(l->H);
-				if (ssdp_error_state) goto estate;
-		}
+		*h = InitHorizon(sky->Nz);
+		if (ssdp_error_state) goto error;
 
+		if (NULL == T) return 0;
+
+		// TODO: should make minzen a setting
+		ComputeHorizon(h, T, 0, xoff, yoff, zoff);
+		AtanHorizon(h);
+		if (ssdp_error_state) goto error;
+
+		return 0;
+error:
+		return -1;
+}
+
+int ssdp_setup_transfer(
+		location *l, sky_grid *sky, double albedo, sky_pos pn,
+		AOI_Model_Data *M)
+{
 		if (transfer_sky(l, sky, albedo, pn, M)) goto estate;
 
 		return 0;
@@ -225,31 +235,34 @@ estate:
 }
 
 
-int ssdp_setup_grid_location(
-		location *l, sky_grid *sky, topogrid *T,
-		double albedo, sky_pos pn,
-		double xoff, double yoff, double zoff, AOI_Model_Data *M)
+int ssdp_setup_grid_horizon(
+		horizon *h, sky_grid *sky, topogrid *T,
+		double xoff, double yoff, double zoff)
 {
-		if (NULL == T && NULL == l->H->zen) {
-				*(l->H)=InitHorizon(sky->Nz);
-		}
+		// corresponds to empty locations in the uH array
+		if (NULL == h)
+				return 0;
 
-		if (T && NULL == l->H->zen) {
-				*(l->H)=InitHorizon(sky->Nz);
+		// horizon has been initialised
+		if (NULL != h->zen)
+				return 0;
 
-				ComputeGridHorizon
-						(l->H, T, M_PI/4.0/((double)sky->Nz),
-						 xoff, yoff, zoff);
-				AtanHorizon(l->H);
-				if (ssdp_error_state) goto estate;
-		}
+		*h = InitHorizon(sky->Nz);
+		if (ssdp_error_state) goto error;
 
-		if (transfer_sky(l, sky, albedo, pn, M)) goto estate;
+		if (NULL == T) return 0;
+
+		ComputeGridHorizon
+				(h, T, M_PI/4.0/((double)sky->Nz),
+				 xoff, yoff, zoff);
+		AtanHorizon(h);
+		if (ssdp_error_state) goto error;
+
 		return 0;
-estate:
-		ssdp_free_location(l);
+error:
 		return -1;
 }
+
 
 double ssdp_diffuse_poa(sky_grid *sky, location *l)
 {

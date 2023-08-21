@@ -45,6 +45,8 @@ simulation_config InitConf()
 	C.L=NULL;
 	C.Nl=0;
 	C.hcache=NULL;
+	C.uH=NULL;
+	C.uHi=NULL;
 	return C;
 }
 void FreeConf(simulation_config *C)
@@ -94,6 +96,14 @@ void FreeConf(simulation_config *C)
 			free(C->L);
 			C->L=NULL;
 		}
+		if (C->uH) {
+				free(C->uH);
+		}
+		C->uH=NULL;
+		if (C->uHi) {
+				free(C->uHi);
+		}
+		C->uHi=NULL;
 		C->Nl=0;
 		C->loc_init=0;
 	}

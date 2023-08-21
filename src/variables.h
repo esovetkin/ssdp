@@ -22,6 +22,8 @@ typedef struct simulation_config {
 	location *L;			// traced locations
 	int Nl;					// number of locations
 	struct horizoncache* hcache;	// horizon cache
+	horizon **uH;	// list of pointers to unique horizons, always length Nl
+	int *uHi;	// index uH -> index location, len(uHi) = Nl
 } simulation_config;
 
 typedef struct array {
