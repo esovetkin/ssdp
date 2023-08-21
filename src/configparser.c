@@ -824,6 +824,8 @@ void ConfigLoc(char *in)
 		if (NULL==C->hcache)
 				if (NULL==(C->hcache=ssdp_horizoncache_init(xydelta, zdelta)))
 						goto ehcache;
+		C->hcache->xydelta = xydelta / 2.0;
+		C->hcache->zdelta = zdelta / 2.0;
 
 		if ((C->topo_init==1)&&(type=='t'))
 				InitConfigMask(C);
