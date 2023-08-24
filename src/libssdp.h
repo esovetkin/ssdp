@@ -32,9 +32,9 @@ void ssdp_print_version(void);
 /* locate the sky patch enclosing a certain point */
 int ssdp_find_skypatch(sky_grid *sky, sky_pos p);
 /* initialize a sky mesh */
-sky_grid ssdp_init_sky(int Nz);
+sky_grid* ssdp_init_sky(int Nz, int nskies);
 /* free a sky mesh */
-void ssdp_free_sky(sky_grid *sky);
+void ssdp_free_sky(sky_grid *sky, int nskies);
 
 /* create a sky with a uniform diffuse light distribution */
 void ssdp_make_uniform_sky(sky_grid *sky, sky_pos sun, double GHI, double DHI);

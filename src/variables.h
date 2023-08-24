@@ -12,7 +12,8 @@ typedef struct simulation_config {
 	AOI_Model_Data M; 		// angle of incidence effects
 	double lon, lat, E;		// longitude, latitude, elevation
 	char sky_init, topo_init, grid_init; // flags indicating whether the structures have been initialized or not
-	sky_grid S; 			// sky
+	sky_grid* S; 			// sky, one sky for each OMP thread, at least one
+	int nS;	// equals to number of threads
 	topology T; 			// topology
 	topogrid Tx; 			// topogrid
 	double albedo;			// ground albedo

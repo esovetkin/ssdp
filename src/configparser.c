@@ -292,7 +292,7 @@ static int init_transfer(simulation_config *C)
 		{
 #pragma omp for schedule(runtime)
 				for (i=0; i < C->Nl; ++i) {
-						ssdp_setup_transfer(&(C->L[i]), &(C->S),
+						ssdp_setup_transfer(&(C->L[i]), C->S,
 											C->albedo, C->o[i], &(C->M));
 						ProgressBar((100*(i+1))/C->Nl, &pco, ProgressLen, ProgressTics);
 				}
@@ -321,7 +321,7 @@ void InitConfigMask(simulation_config *C)
 		{
 #pragma omp for schedule(runtime)
 				for (i=0; i < C->Nl; ++i) {
-						ssdp_setup_horizon(C->uH[i], &(C->S), &(C->T),
+						ssdp_setup_horizon(C->uH[i], C->S, &(C->T),
 										   C->x[C->uHi[i]],
 										   C->y[C->uHi[i]],
 										   C->z[C->uHi[i]]);
@@ -357,7 +357,7 @@ void InitConfigGridMask(simulation_config *C)
 #pragma omp for schedule(runtime)
 				for (i=0; i < C->Nl; ++i) {
 						ssdp_setup_grid_horizon(
-								C->uH[i], &(C->S), &(C->Tx),
+								C->uH[i], C->S, &(C->Tx),
 								C->x[C->uHi[i]],
 								C->y[C->uHi[i]],
 								C->z[C->uHi[i]]);
@@ -392,7 +392,7 @@ void InitConfigMaskNoH(simulation_config *C) // same as above but without horizo
 		{
 #pragma omp for schedule(runtime)
 				for (i=0; i < C->Nl; ++i) {
-						ssdp_setup_horizon(C->uH[i], &(C->S), NULL,
+						ssdp_setup_horizon(C->uH[i], C->S, NULL,
 										   C->x[C->uHi[i]],
 										   C->y[C->uHi[i]],
 										   C->z[C->uHi[i]]);
@@ -437,7 +437,7 @@ void ConfigSKY(char *in)
 		}
 
 		if (C->sky_init)
-				ssdp_free_sky(&C->S);
+				ssdp_free_sky(C->S, C->nS);
 		else
 				C->sky_init=1;
 
@@ -446,13 +446,20 @@ void ConfigSKY(char *in)
 		FreeConfigLocation(C);
 		printf("Cleared configured locations, new sky renders them invalid\n");
 
-		C->S=ssdp_init_sky(N);
+#ifdef OPENMP
+		C->nS = omp_get_max_threads();
+#else
+		C->nS = 1;
+#endif
+
+		C->S=ssdp_init_sky(N, C->nS);
 		printf("Configuring sky with %d zenith discretizations\n", N);
 
 		if (ssdp_error_state) {
 				ssdp_print_error_messages();
-				ssdp_free_sky(&C->S);
+				ssdp_free_sky(C->S, C->nS);
 				C->sky_init=0;
+				C->nS=0;
 				ssdp_reset_errors();
 		}
 

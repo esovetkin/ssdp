@@ -187,33 +187,33 @@ int main(int argc, char **argv)
 int main()
 {
 	double GHI=230.0, DHI=200.0, t;
-	sky_grid sky;
+	sky_grid* sky;
 	sky_pos sun={degr2rad(20), degr2rad(180)};
 	topology T;
 	
 	TIC();
-	sky=ssdp_init_sky(50);
+	sky=ssdp_init_sky(50, 1);
 	if (ssdp_error_state)
 	{
 		ssdp_print_error_messages();
 		return 1;
 	}
-	ssdp_make_perez_all_weather_sky(&sky, sun, GHI, DHI, 300);
+	ssdp_make_perez_all_weather_sky(sky, sun, GHI, DHI, 300);
 	if (ssdp_error_state)
 	{
 		ssdp_print_error_messages();
 		return 1;
 	}
 	
-	printf( "GHI:         %e\n", ssdp_total_sky_horizontal(&sky,1));
-	printf( "POA (sky):   %e\n", ssdp_total_sky_poa(&sky, degr2rad(30), degr2rad(180),1));
-	printf( "POA (total): %e\n", ssdp_total_poa(&sky,0.25,degr2rad(30), degr2rad(180),1));
+	printf( "GHI:         %e\n", ssdp_total_sky_horizontal(sky,1));
+	printf( "POA (sky):   %e\n", ssdp_total_sky_poa(sky, degr2rad(30), degr2rad(180),1));
+	printf( "POA (total): %e\n", ssdp_total_poa(sky,0.25,degr2rad(30), degr2rad(180),1));
 	
 	//T=ssdp_make_rand_topology(100,100,10,0.01, 12000);
 	if (ssdp_error_state)
 	{
 		ssdp_print_error_messages();
-		ssdp_free_sky(&sky);
+		ssdp_free_sky(sky, 1);
 		return 1;
 	}
 	//WriteTopo("testtopo.dat", T);
@@ -222,45 +222,45 @@ int main()
 	if (ssdp_error_state)
 	{
 		ssdp_print_error_messages();
-		ssdp_free_sky(&sky);
+		ssdp_free_sky(sky, 1);
 		ssdp_free_topology(&T);
 		return 1;
 	}
-	ssdp_mask_horizon_z_to_ground(&sky,&T,0.0,0.0,0.1, NULL);
+	ssdp_mask_horizon_z_to_ground(sky,&T,0.0,0.0,0.1, NULL);
 	if (ssdp_error_state)
 	{
 		ssdp_print_error_messages();
-		ssdp_free_sky(&sky);
+		ssdp_free_sky(sky, 1);
 		ssdp_free_topology(&T);
 		return 1;
 	}
-	printf( "GHI:         %e\n", ssdp_total_sky_horizontal(&sky,1));
-	printf( "POA (sky):   %e\n", ssdp_total_sky_poa(&sky, degr2rad(30), degr2rad(180),1));
-	printf( "POA (total): %e\n", ssdp_total_poa(&sky,0.25,degr2rad(30), degr2rad(180),1));
-	printf( "POA (total): %e\n", ssdp_total_poa_effective(&sky,0.25,degr2rad(30), degr2rad(180),1.5,1));
+	printf( "GHI:         %e\n", ssdp_total_sky_horizontal(sky,1));
+	printf( "POA (sky):   %e\n", ssdp_total_sky_poa(sky, degr2rad(30), degr2rad(180),1));
+	printf( "POA (total): %e\n", ssdp_total_poa(sky,0.25,degr2rad(30), degr2rad(180),1));
+	printf( "POA (total): %e\n", ssdp_total_poa_effective(sky,0.25,degr2rad(30), degr2rad(180),1.5,1));
 	if (ssdp_error_state)
 	{
 		ssdp_print_error_messages();
-		ssdp_free_sky(&sky);
+		ssdp_free_sky(sky, 1);
 		ssdp_free_topology(&T);
 		return 1;
 	}
 	
-	WriteDome3D("3D_sky.dat", &sky, 0, 1);
-	WriteDome4D("4D_sky.dat", &sky, 0, 1);
+	WriteDome3D("3D_sky.dat", sky, 0, 1);
+	WriteDome4D("4D_sky.dat", sky, 0, 1);
 	t=TOC();
 	printf( "used %e s\n", t);
-	ssdp_unmask_horizon(&sky);	
+	ssdp_unmask_horizon(sky);	
 	
 	TIC();
-	RasterPOA("POAraster.dat", &sky, &T, 0.25, 0.3, degr2rad(180), degr2rad(0), -40, -40, 40, 40, 100, 100);
+	RasterPOA("POAraster.dat", sky, &T, 0.25, 0.3, degr2rad(180), degr2rad(0), -40, -40, 40, 40, 100, 100);
 	t=TOC();
 	printf( "used %e s\n", t);
 	TIC();
 	RasterTopology("TOPOraster.dat", &T, -40, -40, 40, 40, 100, 100);
 	t=TOC();
 	printf( "used %e s\n", t);
-	ssdp_free_sky(&sky);
+	ssdp_free_sky(sky, 1);
 	ssdp_free_topology(&T);
 	return 0;
 }*/

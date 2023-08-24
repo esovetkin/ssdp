@@ -56,13 +56,31 @@ int ssdp_find_skypatch(sky_grid *sky, sky_pos p)
 {
 	return FindPatch(sky, p);
 }
-sky_grid ssdp_init_sky(int Nz)
+sky_grid* ssdp_init_sky(int Nz, int ncopies)
 {
-	return InitSky(Nz);
+		int i;
+		sky_grid* self;
+		if (NULL==(self=malloc(ncopies * sizeof(*self))))
+				goto eself;
+
+		// TODO not optimal, deep copy instead
+		for (i=0; i < ncopies; ++i)
+				self[i] = InitSky(Nz);
+
+		return self;
+eself:
+		return NULL;
 }
-void ssdp_free_sky(sky_grid *sky)
+void ssdp_free_sky(sky_grid *sky, int nskies)
 {
-	free_sky_grid(sky);
+		if (NULL == sky)
+				return;
+
+		int i;
+		for (i=0; i < nskies; ++i)
+				free_sky_grid(sky+i);
+
+		free(sky);
 }
 /* skymodel routines */
 void ssdp_make_uniform_sky(sky_grid *sky, sky_pos sun, double GHI, double DHI)

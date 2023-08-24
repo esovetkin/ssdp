@@ -31,6 +31,8 @@ simulation_config InitConf()
 	C.M.effT=NULL;
 	C.M.N=0;
 	C.sky_init=0;
+	C.S=NULL;
+	C.nS=0;
 	C.topo_init=0;
 	C.grid_init=0;
 	C.albedo=0.0; 
@@ -66,7 +68,8 @@ void FreeConf(simulation_config *C)
 	}
 	if (C->sky_init)
 	{
-		ssdp_free_sky(&C->S);
+		ssdp_free_sky(C->S, C->nS);
+		C->nS=0;
 		C->sky_init=0;
 	}
 	if (C->topo_init)

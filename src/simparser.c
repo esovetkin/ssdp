@@ -102,7 +102,7 @@ void SimStatic(char *in)
 		for (j=0; j < N; ++j) {
 				TIC();
 				ssdp_make_perez_all_weather_sky_coordinate
-						(&(C->S), (time_t) AT(t,j),
+						(C->S, (time_t) AT(t,j),
 						 C->lon, C->lat, C->E,
 						 AT(p,j), AT(T,j), AT(GH,j), AT(DH,j));
 				tsky+=TOC(); TIC();
@@ -112,7 +112,7 @@ void SimStatic(char *in)
 #pragma omp for schedule(runtime)
 						for (i=0; i < C->Nl; ++i)
 								out.D[j*C->Nl+i]=ssdp_total_poa
-										(&(C->S), C->o[i], &(C->M), C->L+i);
+										(C->S, C->o[i], &(C->M), C->L+i);
 				}
 				ProgressBar((100*(j+1))/N, &pco, ProgressLen, ProgressTics);
 				tpoa+=TOC();
@@ -192,7 +192,7 @@ void SimStaticPos(char *in)
 				sun.z = AT(szen,j);
 				sun.a = AT(sazi,j);
 				ssdp_make_perez_all_weather_sky
-						(&(C->S), sun, AT(GH,j), AT(DH,j), AT(doy,j));
+						(C->S, sun, AT(GH,j), AT(DH,j), AT(doy,j));
 				tsky += TOC(); TIC();
 
 #pragma omp parallel private (i) shared(C)
@@ -200,7 +200,7 @@ void SimStaticPos(char *in)
 #pragma omp for schedule(runtime)
 						for (i=0; i < C->Nl; ++i)
 								poa.D[j*C->Nl + i] = ssdp_total_poa
-										(&(C->S), C->o[i], &(C->M), C->L+i);
+										(C->S, C->o[i], &(C->M), C->L+i);
 				}
 				ProgressBar((100*(j+1))/N, &pco, ProgressLen, ProgressTics);
 				tpoa+=TOC();
@@ -282,7 +282,7 @@ void SimStaticInt(char *in)
 		TIC();
 		printf("doing static integral simulation of %d locations at %d instances\n",C->Nl, N);
 		ssdp_make_perez_cumulative_sky_coordinate
-				(&(C->S),t->D, C->lon, C->lat, C->E,
+				(C->S, t->D, C->lon, C->lat, C->E,
 				 p->D, p->N, T->D, T->N, GH->D, DH->D, t->N);
 		tsky=TOC();
 		printf("Integrated %d skies in %g s (%g s/sky)\n", t->N, tsky, tsky/((double)t->N));
@@ -293,7 +293,7 @@ void SimStaticInt(char *in)
 #pragma omp for schedule(runtime)
 				for (i=0;i<C->Nl;i++)
 						out.D[i]+=ssdp_total_poa
-								(&(C->S), C->o[i], &(C->M), C->L+i);
+								(C->S, C->o[i], &(C->M), C->L+i);
 	}
 		tpoa=TOC();
 
@@ -343,7 +343,7 @@ void SimRoute(char *in)
 		char *word, *nout;
 		simulation_config *C;
 		array *t, *GH, *DH, *p, *T, out;
-		double tsky = 0, tpoa = 0;
+		double dt;
 
 		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
 		if (NULL==(nout=malloc((strlen(in)+1)*sizeof(*nout)))) goto enout;
@@ -369,22 +369,30 @@ void SimRoute(char *in)
 		if (NULL==(out.D=malloc(N*sizeof(*out.D)))) goto eout;
 		out.N=N;
 		printf("doing route simulation along %d locations at %d instances\n",C->Nl, N);
-		for (j=0; j < N; ++j) {
-				TIC();
-				ssdp_make_perez_all_weather_sky_coordinate
-						(&(C->S), (time_t) AT(t,j),
-						 C->lon, C->lat, C->E,
-						 AT(p,j), AT(T,j), AT(GH,j), AT(DH,j));
-				tsky += TOC(); TIC();
-				out.D[j]=ssdp_total_poa(&(C->S), C->o[j], &(C->M), C->L+j);
-				ProgressBar((100*(j+1))/N, &pco, ProgressLen, ProgressTics);
-				tpoa+=TOC();
-		}
 
-		printf("Computed %d skies in %g s (%g s/sky)\n",
-			   N, tsky, tsky/((double)N));
-		printf("Computed %d POA Irradiances in %g s (%g s/POA)\n",
-			   N, tpoa, tpoa/((double)N));
+		TIC();
+#pragma omp parallel private(j)
+		{
+#pragma omp for schedule(runtime)
+				for (j=0; j < N; ++j) {
+#ifdef OPENMP
+						int thread=omp_get_thread_num();
+#else
+						int thread=0;
+#endif
+						ssdp_make_perez_all_weather_sky_coordinate
+								(C->S+thread, (time_t) AT(t,j),
+								 C->lon, C->lat, C->E,
+								 AT(p,j), AT(T,j), AT(GH,j), AT(DH,j));
+
+						out.D[j]=ssdp_total_poa(C->S+thread, C->o[j], &(C->M), C->L+j);
+						ProgressBar((100*(j+1))/N, &pco, ProgressLen, ProgressTics);
+				}
+		}
+		ProgressBar(100, &pco, ProgressLen, ProgressTics);
+
+		dt = TOC();
+		printf("Computed %d skies in %g s (%g s/sky)\n", N, dt, dt/((double)N));
 
 		printf("Creating array %s\n", nout);
 		if(AddArray(nout, out)) goto eoutadd;
@@ -457,7 +465,7 @@ void SimStaticUniform(char *in)
 				TIC();
 				// only update sun position, we do not need to compute the diffuse sky, it is uniform and boring
 				ssdp_make_skysunonly_coordinate
-						(&(C->S), (time_t) AT(t,j),
+						(C->S, (time_t) AT(t,j),
 						 C->lon, C->lat, C->E,
 						 AT(p,j), AT(T,j), AT(GH,j), AT(DH,j));
 				tsky+=TOC(); TIC();
@@ -466,7 +474,7 @@ void SimStaticUniform(char *in)
 #pragma omp for schedule(runtime)
 			for (i=0;i < C->Nl; ++i) {
 					out.D[j*C->Nl+i]=ssdp_direct_poa
-							(&(C->S), C->o[i], &(C->M), C->L+i);
+							(C->S, C->o[i], &(C->M), C->L+i);
 					out.D[j*C->Nl+i]+=C->L[i].difftrans*DH->D[j]; // diffuse part is directly proportional to diffuse horizontal
 			}
 		}
@@ -759,8 +767,8 @@ void ExportSky(char *in)
 		// compute sky
 		printf("Writing the sky to file %s as seen from location %d\n", word, j);
 		ssdp_make_perez_all_weather_sky_coordinate(
-				&(C->S), (time_t) t, C->lon, C->lat, C->E, p, T, GH, DH);
-		WriteDome4D(file, &(C->S), C->L+j);
+				C->S, (time_t) t, C->lon, C->lat, C->E, p, T, GH, DH);
+		WriteDome4D(file, C->S, C->L+j);
 
 		free(file);
 		free(word);
