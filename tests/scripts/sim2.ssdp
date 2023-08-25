@@ -1,0 +1,7 @@
+read_h5 a0=x dataset=broadcast_x file=data/input.h5
+read_h5 a0=y dataset=broadcast_y file=data/input.h5
+
+array_broadcast l=y s=x o=x0 mode=0
+array_broadcast l=y s=x o=x1 mode=1
+
+write_h5 a0=y a1=x0 a2=x1 file=sim2.h5 gzip=5

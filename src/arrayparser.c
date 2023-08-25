@@ -150,6 +150,60 @@ void array_comp(char *in)
 	}	
 }
 
+
+/*
+  BEGIN_DESCRIPTION
+  SECTION Array
+  PARSEFLAG array_broadcast array_broadcast "l=<in-array> s=<in-array> o=<out-array> [mode=<int-value>]"
+  DESCRIPTION Broadcast a shorter array to match the length of a longer array
+  ARGUMENT l longer array
+  ARGUMENT s shorter array. len(l) % len(s) must equal 0x
+  ARGUMENT mode how to replicate array. mode 0: s_0 s_0 ... s_1 s_1 ...; mode 1: s_0 s_1 ... s_0 s_1 ... (default: 0)
+  OUTPUT o output array
+  END_DESCRIPTION
+*/
+void array_broadcast(char *in)
+{
+		int i, mode;
+        char *word, *nc;
+		array *s, *l, c;
+
+		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
+		if (NULL==(nc=malloc((strlen(in)+1)*sizeof(*nc)))) goto enc;
+		if (!GetArg(in, "o", nc)) goto eargs;
+		if (FetchArray(in, "l", word, &l)) goto eargs;
+		if (FetchArray(in, "s", word, &s)) goto eargs;
+		if (FetchOptInt(in, "mode", word, &mode)) mode=0;
+		if (0 != (l->N % s->N)) {
+				Warning("Error: 0 != len(l) % len(s)\n");
+				goto eargs;
+		}
+
+		if (NULL==(c.D=malloc(l->N*sizeof(*(c.D))))) goto ec;
+		c.N = l->N;
+
+		for (i=0; i < c.N; ++i) {
+				if (0 == mode)
+						c.D[i] = s->D[i / s->N];
+				else
+						c.D[i] = s->D[i % s->N];
+		}
+
+		if (AddArray(nc, c)) goto eaddc;
+		free(word);
+		return;
+eaddc:
+		free(c.D);
+ec:
+eargs:
+		free(nc);
+enc:
+		free(word);
+eword:
+		Warning("Error: array_broadcast failed!\n");
+}
+
+
 static void* reallocate(void *data, size_t size, int n, int *bs)
 {
         if (n < *bs - 1)
