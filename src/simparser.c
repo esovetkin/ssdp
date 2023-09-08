@@ -350,7 +350,7 @@ void SimRoute(char *in)
 
 		if (!GetArg(in, "POA", nout)) goto eargs;
 		if (FetchConfig(in, "C", word, &C)) goto eargs;
-		if (check_simconfig(C, 0, 0)) goto eargs;
+		if (check_simconfig(C, 1, 0)) goto eargs;
 		if (FetchArray(in, "t", word, &t)) goto eargs;
 		if (FetchArray(in, "GHI", word, &GH)) goto eargs;
 		if (FetchArray(in, "DHI", word, &DH)) goto eargs;
