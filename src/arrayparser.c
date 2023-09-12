@@ -178,13 +178,14 @@ void array_broadcast(char *in)
 				Warning("Error: 0 != len(l) % len(s)\n");
 				goto eargs;
 		}
+		int rep = l->N / s->N;
 
 		if (NULL==(c.D=malloc(l->N*sizeof(*(c.D))))) goto ec;
 		c.N = l->N;
 
 		for (i=0; i < c.N; ++i) {
 				if (0 == mode)
-						c.D[i] = s->D[i / s->N];
+						c.D[i] = s->D[i / rep];
 				else
 						c.D[i] = s->D[i % s->N];
 		}
