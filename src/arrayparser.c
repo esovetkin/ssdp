@@ -957,6 +957,7 @@ void ArrayRad2Deg(char *in)
 	}
 	
 	printf("converting %s to degrees\n",word);
+	free(word);
 	for(i=0;i<x->N;i++)
 		x->D[i]=rad2deg(x->D[i]);
 	return;	
