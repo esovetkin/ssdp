@@ -36,6 +36,7 @@
 #include "iset.h"
 #include "edt.h"
 #include "topogdal.h"
+#include "filterimage/filter.h"
 
 #ifdef RUNMEMTEST
 #include "random_fail_malloc.h"
@@ -451,7 +452,10 @@ static inline int YINDEX(int N, int Ny)
 static inline int XINDEX(int N, int Ny)
 {
 	return N/Ny;
-} 
+}
+#ifdef INDEX
+#undef INDEX
+#endif
 static inline int INDEX(int x, int y, int Ny)
 {
 	return x*Ny+y;
@@ -608,6 +612,33 @@ einsert:
 		iset_free(set);
 eset:
 		return -1;
+}
+
+
+int BlurTopoGrid(topogrid *T, int size)
+{
+		double f[1] = {1};
+		int dmx[1] = {0}, dmy[1] = {0};
+		filterset F = DerivOperatorSet2D(size,size,size,size,0,dmx,dmy,f,1,'p');
+		if (ssdp_error_state) goto efilter;
+
+		image Iin, Iout;
+		Iin.I = T->z;
+		Iin.N = T->Ny;
+		Iin.M = T->Nx;
+		Iout = ApplyFilter(Iin, 1, 1, F);
+		if (ssdp_error_state) goto efilter;
+
+		int i;
+		for (i=0; i < T->Nx*T->Ny; ++i)
+				T->z[i] = Iout.I[i];
+
+		FreeImage(&Iout);
+		FreeFilterSet(&F);
+		return 0;
+efilter:
+		return -1;
+		// errors?
 }
 
 

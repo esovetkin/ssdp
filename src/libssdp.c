@@ -350,6 +350,10 @@ int ssdp_addheight_topogrid(topogrid *T,double *x, double *y, double *z, int nx,
 {
 		return AddHeightTopoGrid(T,x,y,z,nx,nz);
 }
+int ssdp_blurtopo_topogrid(topogrid *T, int size)
+{
+		return BlurTopoGrid(T, size);
+}
 // solar position
 sky_pos ssdp_sunpos(time_t t, double lat, double lon, double E, double p, double T)
 {

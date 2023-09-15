@@ -48,6 +48,7 @@ double SampleTopoGrid(double x, double y, topogrid *T, sky_pos *sn);
 
 int FillMissingTopoGrid(topogrid *T, double na);
 int AddHeightTopoGrid(topogrid *T, double *x, double *y, double *z, int nx, int nz);
+int BlurTopoGrid(topogrid *T, int size);
 
 void ComputeHorizon(horizon *H, topology *T, double minzen, double xoff, double yoff, double zoff);
 void ComputeGridHorizon(horizon *H, topogrid *T, double minzen, double xoff, double yoff, double zoff);

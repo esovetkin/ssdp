@@ -1,3 +1,6 @@
 [submodule "src/freespa"]
 	path = src/freespa
 	url = https://github.com/IEK-5/freespa.git
+[submodule "src/filterimage"]
+	path = src/filterimage
+	url = https://github.com/IEK-5/FilterImage.git

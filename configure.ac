@@ -22,6 +22,8 @@ AC_CHECK_HEADERS([readline/readline.h, readline/rlconf.h], [HAVE_READLINE_H=yes]
   if test "$HAVE_READLINE_H" = "no"; then
     AC_MSG_ERROR([GNU readline development header is not installed.])
   fi
+AX_BLAS
+AX_LAPACK
 AX_LIB_GDAL
 AC_CHECK_HEADERS([proj.h], [HAVE_PROJ_H=yes], [HAVE_PROJ_H=no], [])
   if test "$HAVE_PROJ_H" = "no"; then
@@ -53,6 +55,16 @@ AC_ARG_ENABLE([openmp],
   *) AC_MSG_ERROR([bad value ${enableval} for --enable-openmp]) ;;
 esac],[openmp=false])
 AM_CONDITIONAL([OPENMP], [test x$openmp = xtrue])
+
+# Check for FFTW
+AC_CHECK_LIB([fftw3], [fftw_plan_dft_1d], [have_fftw=yes], [have_fftw=no])
+
+if test "$have_fftw" = "yes"; then
+  AC_DEFINE([HAVE_FFTW], [1], [Have FFTW library])
+  AC_SUBST([FFTW_LIBS], [-lfftw3])
+else
+  AC_MSG_ERROR([FFTW library not found])
+fi
 
 AC_ARG_ENABLE([gendaylit],
 [  --enable-gendaylit    enable gendaylit-like Perez model implementation],

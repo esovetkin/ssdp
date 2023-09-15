@@ -411,6 +411,48 @@ eword:
 		Warning("Error: addheight_topo failed!\n");
 }
 
+/*
+BEGIN_DESCRIPTION
+SECTION Topography
+PARSEFLAG blur_topo BlurTopo "C=<in-config> size=<int-value>"
+DESCRIPTION Blur topography. Only Topogrid topography is supported.
+ARGUMENT C config-variable
+ARGUMENT size the size of the window
+END_DESCRIPTION
+*/
+void BlurTopo(char *in)
+{
+		simulation_config *C;
+		char *word;
+		int size;
+
+		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
+
+		if (FetchConfig(in, "C", word, &C)) goto econfig;
+		if (C->topo_init) {
+				Warning("Error: addheight_topo supports only topogrid\n");
+				goto econfig;
+		}
+		if (!C->grid_init) {
+				Warning("Error: simulation config has no topogrid initialized\n");
+				goto econfig;
+		}
+		if (FetchInt(in, "size", word, &size)) goto esize;
+
+		TIC();
+		if (ssdp_blurtopo_topogrid(&(C->Tx), size)) goto eblur;
+		printf("blurred topography in %g s\n", TOC());
+
+		free(word);
+		return;
+eblur:
+esize:
+econfig:
+		free(word);
+eword:
+		Warning("Error: blur_topo failed!\n");
+}
+
 
 static int checkdims(int a, int b)
 {
