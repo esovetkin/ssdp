@@ -35,6 +35,7 @@
 #include "epsg.h"
 #include "iset.h"
 #include "edt.h"
+#include "minfill.h"
 #include "topogdal.h"
 #include "filterimage/filter.h"
 
@@ -567,7 +568,7 @@ double SampleTopoGrid(double x, double y, topogrid *T, sky_pos *sn)
 }
 
 
-int FillMissingTopoGrid(topogrid *T, double na)
+static int _edt_fillmissing(topogrid *T, double na)
 {
 		struct edt *dt;
 		if (NULL==(dt=edt_init(T->z, T->Nx*T->Ny, T->Ny, T->Nx, na)))
@@ -579,6 +580,33 @@ int FillMissingTopoGrid(topogrid *T, double na)
 		return 0;
 edt:
 		return -1;
+}
+
+
+static int _minmax_fillmissing(topogrid *T, double na, int maxwalk)
+{
+		struct minfill *mf = minfill_init(T->z, T->Ny, T->Nx, na);
+		if (NULL == mf) goto emf;
+
+		mf->maxwalk = abs(maxwalk);
+		mf->direction = (maxwalk > 0) - (maxwalk < 0);
+		if (minfill_fill(mf)) goto efill;
+		minfill_free(mf);
+
+		return 0;
+efill:
+		minfill_free(mf);
+emf:
+		return -1;
+}
+
+
+int FillMissingTopoGrid(topogrid *T, double na, int maxwalk)
+{
+		if (0 == maxwalk)
+				return _edt_fillmissing(T, na);
+
+		return _minmax_fillmissing(T, na, maxwalk);
 }
 
 

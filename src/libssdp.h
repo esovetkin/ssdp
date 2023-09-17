@@ -78,7 +78,7 @@ void ssdp_free_topogrid(topogrid *T);
 // you can use this to rotate the POA using ssdp_poa_to_surface_normal(...)
 double ssdp_sample_topology(double x, double y, topology *T, sky_pos *sn);
 double ssdp_sample_topogrid(double x, double y, topogrid *T, sky_pos *sn);
-int ssdp_fillmissing_topogrid(topogrid *T, double na);
+int ssdp_fillmissing_topogrid(topogrid *T, double na, int maxwalk);
 int ssdp_addheight_topogrid(topogrid *T,double *x, double *y, double *z, int nx, int nz);
 int ssdp_blurtopo_topogrid(topogrid *T,int size);
 

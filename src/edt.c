@@ -362,7 +362,7 @@ void test_corners(int nx, int ny)
 
 int main(void)
 {
-        printf("testing fillmissing ...");
+        printf("testing edt ...");
 
         test_1(6,6,2);
         test_1(6,6,7);

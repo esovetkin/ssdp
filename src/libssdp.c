@@ -342,9 +342,9 @@ double ssdp_sample_topogrid(double x, double y, topogrid *T, sky_pos *sn)
 {
 	return SampleTopoGrid(x, y, T, sn);
 }
-int ssdp_fillmissing_topogrid(topogrid *T, double na)
+int ssdp_fillmissing_topogrid(topogrid *T, double na, int maxwalk)
 {
-		return FillMissingTopoGrid(T, na);
+		return FillMissingTopoGrid(T, na, maxwalk);
 }
 int ssdp_addheight_topogrid(topogrid *T,double *x, double *y, double *z, int nx, int nz)
 {

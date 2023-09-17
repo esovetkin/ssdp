@@ -317,10 +317,11 @@ void OffsetTopography(char *in)
 /*
 BEGIN_DESCRIPTION
 SECTION Topography
-PARSEFLAG fillmissing_topo FillMissing "C=<in-config> na=<float-value>"
+PARSEFLAG fillmissing_topo FillMissing "C=<in-config> na=<float-value> [maxwalk=<int-value>]"
 DESCRIPTION Fill missing values by its closest non-missing value using euclidean distance transform. Only supported by topogrid.
 ARGUMENT C config-variable
 ARGUMENT na smaller topography values than this is considered to be missing
+ARGUMENT maxwalk if 0, fill missing value with the closest non-missing (euclidean distance transform), if positive fill with the maximum non-missing value within |maxwalk| steps. if negative fill with the minimum non-missing value within |maxwalk| steps. (default: 0)
 END_DESCRIPTION
 */
 void FillMissing(char *in)
@@ -328,6 +329,7 @@ void FillMissing(char *in)
 		simulation_config *C;
 		char *word;
 		double na;
+		int maxwalk;
 
 		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
 		if (FetchConfig(in, "C", word, &C)) goto econfig;
@@ -341,9 +343,10 @@ void FillMissing(char *in)
 				goto etopo;
 		}
 		if (FetchFloat(in, "na", word, &na)) goto ena;
+		if (FetchOptInt(in, "maxwalk", word, &maxwalk)) maxwalk = 0;
 
 		TIC();
-		if (ssdp_fillmissing_topogrid(&(C->Tx), na))
+		if (ssdp_fillmissing_topogrid(&(C->Tx), na, maxwalk))
 				goto emissing;
 		printf("fillmissing_topo: filled missing values (smaller than %g) in %g s\n", na, TOC());
 

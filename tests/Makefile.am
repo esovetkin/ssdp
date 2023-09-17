@@ -1,8 +1,12 @@
-bin_PROGRAMS = ssdptest_edt ssdptest_epsg ssdptest_coords ssdptest_topogdal ssdptest_pngout ssdptest_h5io ssdptest_iset ssdptest_rtree
+bin_PROGRAMS = ssdptest_edt ssdptest_minfill ssdptest_epsg ssdptest_coords ssdptest_topogdal ssdptest_pngout ssdptest_h5io ssdptest_iset ssdptest_rtree
 
 ssdptest_edt_SOURCES = $(top_builddir)/src/edt.c
 ssdptest_edt_CFLAGS = -DRUNTEST
 ssdptest_edt_LDADD = libfmem.la
+
+ssdptest_minfill_SOURCES = $(top_builddir)/src/minfill.c
+ssdptest_minfill_CFLAGS = -DRUNTEST
+ssdptest_minfill_LDADD = libiset.la libfmem.la
 
 ssdptest_epsg_SOURCES =  $(top_builddir)/src/epsg.c
 ssdptest_epsg_CFLAGS = -DRUNTEST
@@ -36,10 +40,11 @@ ssdptest_topogdal_CFLAGS = -DRUNTEST $(GDAL_CFLAGS)
 ssdptest_topogdal_LDFLAGS = -lproj $(GDAL_LDFLAGS)
 ssdptest_topogdal_LDADD = libedt.la libepsg.la libcoordinates.la libfmem.la
 
-noinst_LTLIBRARIES = libcoordinates.la libepsg.la libedt.la libfmem.la
+noinst_LTLIBRARIES = libcoordinates.la libepsg.la libedt.la libiset.la libfmem.la
 libcoordinates_la_SOURCES = $(top_builddir)/src/coordinates.c
 libepsg_la_SOURCES = $(top_builddir)/src/epsg.c
 libedt_la_SOURCES = $(top_builddir)/src/edt.c
+libiset_la_SOURCES = $(top_builddir)/src/iset.c
 libfmem_la_SOURCES = $(top_builddir)/src/random_fail_malloc.c
 
-TESTS=ssdptest_edt ssdptest_epsg ssdptest_coords ssdptest_topogdal ssdptest_pngout ssdptest_h5io ssdptest_iset ssdptest_rtree
+TESTS=ssdptest_edt ssdptest_minfill ssdptest_epsg ssdptest_coords ssdptest_topogdal ssdptest_pngout ssdptest_h5io ssdptest_iset ssdptest_rtree
