@@ -224,7 +224,7 @@ void FreeConfigLocation(simulation_config *C)
 }
 
 
-static void set_uH(simulation_config *C, int i)
+static int set_uH(simulation_config *C, int i)
 {
 		// basic hashmap. number of entries in hash equals to its
 		// length, so we expect a lot of collisions. however, we do
@@ -237,13 +237,14 @@ static void set_uH(simulation_config *C, int i)
 		while (NULL != C->uH[j % C->Nl]) {
 				// horizon has been visited
 				if (k == (uintptr_t) C->uH[j % C->Nl])
-						return;
+						return 1;
 
 				++j;
 		}
 
 		C->uH[j % C->Nl] = C->L[i].H;
 		C->uHi[j % C->Nl] = i;
+		return 0;
 }
 
 
@@ -255,16 +256,16 @@ static int init_hcache(simulation_config *C)
 		if (NULL==(C->uHi=calloc(C->Nl,sizeof(*(C->uHi))))) goto euHi;
 
 		TIC();
-		int i, hits=0;
+		int i, hits=0, uh = 0;
 		// assume C->hcache initialised. associate location with the
 		// allocated space for that in the hcache.
 		for (i=0; i < C->Nl; ++i) {
 				C->L[i].H = ssdp_horizoncache_get(C->hcache, C->x[i], C->y[i], C->z[i]);
-				set_uH(C, i);
+				uh += set_uH(C, i);
 				if (NULL == C->L[i].H) goto ehcache;
 				if (NULL != C->L[i].H->zen) ++hits;
 		}
-		printf("Checked in locations cache in %g s, hits/misses: %d/%d\n", TOC(), hits, C->Nl-hits);
+		printf("Checked in locations cache in %g s, hits/duplicates/misses: %d/%d/%d\n", TOC(), hits, uh, C->Nl-hits);
 
 		return 0;
 		// the hcache keeps track of allocated horizon. even if we
