@@ -257,6 +257,12 @@ estate:
 }
 
 
+int ssdp_topogrid_approxhorizon(topogrid *T, int nsample, double decay)
+{
+		return HorizonSobolSet(T, nsample, decay);
+}
+
+
 int ssdp_setup_grid_horizon(
 		horizon *h, sky_grid *sky, topogrid *T,
 		double xoff, double yoff, double zoff)

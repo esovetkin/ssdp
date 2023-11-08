@@ -59,6 +59,7 @@ void ssdp_free_location(location *l);
 int ssdp_setup_transfer(location *l, sky_grid *sky, double albedo, sky_pos pn, AOI_Model_Data *M);
 int ssdp_setup_horizon(horizon *h, sky_grid *sky, topology *T, double xoff, double yoff, double zoff);
 int ssdp_setup_grid_horizon(horizon *h, sky_grid *sky, topogrid *T, double xoff, double yoff, double zoff);
+int ssdp_topogrid_approxhorizon(topogrid *T, int nsample, double decay);
 double ssdp_diffuse_poa(sky_grid *sky, location *l);
 double ssdp_direct_poa(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, location *l);
 double ssdp_total_poa(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, location *l);

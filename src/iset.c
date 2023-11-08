@@ -74,6 +74,8 @@ eself:
 
 void iset_free(struct iset* self)
 {
+		if (!self)
+				return;
 		free(self->values);
 		free(self);
 }
@@ -118,6 +120,8 @@ int iset_isin(struct iset* self, unsigned int key)
 
 #include <stdio.h>
 #include <assert.h>
+#include <time.h>
+
 
 void test(int n, int k)
 {
@@ -149,12 +153,35 @@ void test(int n, int k)
 }
 
 
+void test_isin_speed(int n, int k)
+{
+		int i;
+		double tic;
+		struct iset* set;
+		assert((set=iset_init(n)));
+
+		for (i=0; i < k; ++i)
+				assert(0 == iset_insert(set, (unsigned int) i));
+
+		tic = (double)clock();
+		for (i=0; i < n; ++i)
+				iset_isin(set, (unsigned int) i);
+		tic = (double)(clock()-tic)/CLOCKS_PER_SEC;
+		printf("isin benchmark, n=%d, k=%d, %2.0f MB/s\n",
+			   n, k, sizeof(n)*n*1e-6 / tic);
+
+		iset_free(set);
+}
+
+
 int main(void)
 {
 		printf("testing iset ...");
 
 		test(1000, 1000);
 		test(3000, 1000);
+		test_isin_speed(70000, 2000);
+		test_isin_speed(700000, 20000);
 
 		printf("PASSED\n");
 		return 0;

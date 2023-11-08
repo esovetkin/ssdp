@@ -767,7 +767,7 @@ eword:
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation Configuration
-PARSEFLAG config_locations ConfigLoc "C=<out-config> x=<in-array> y=<in-array> z=<in-array> azimuth=<in-array> zenith=<in-array> [type=<topology/topogrid>] [albedo=<float-value>] [xydelta=<float-value>] [zdelta=<float-value]"
+PARSEFLAG config_locations ConfigLoc "C=<out-config> x=<in-array> y=<in-array> z=<in-array> azimuth=<in-array> zenith=<in-array> [type=<topology/topogrid>] [albedo=<float-value>] [xydelta=<float-value>] [zdelta=<float-value] [approx_n=<int-value>] [approx_decay=<float-value>]"
 DESCRIPTION Setup the topography. Load the x, y, and z data of the unstructured topography mesh into the configuration data.
 ARGUMENT x x coordinates
 ARGUMENT y y coordinates
@@ -777,15 +777,17 @@ ARGUMENT azimuth azimuth angle of tilted surface
 ARGUMENT zenith zenith angle of tilted surface
 ARGUMENT albedo optionally provide an albedo value between 0-1
 ARGUMENT xydelta,zdelta the coordinates within xydelta in xy plane and zdelta within z direction are considered the same (default: 0.05)
+ARGUMENT approx_n optional, if positive determine number of raster points used for computing the horizon. For sample points are used polar Sobol 2-d set (s_1, s_2), where pixel location is computed using s_1^approx_decay*exp(i*s_2*2*pi) (default: -1)
+ARGUMENT approx_decay optional, larger values corresponds to smaller number of points sampled futher away from the location (default: 2.25)
 OUTPUT C configuration variable
 END_DESCRIPTION
 */
 void ConfigLoc(char *in)
 {
 		simulation_config *C;
-		double xydelta, zdelta;
+		double xydelta, zdelta, approx_decay;
 		array *x, *y, *z, *az, *ze;
-		int N, i;
+		int N, i, approx_n;
 		char type='t';
 		char *word;
 		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
@@ -820,6 +822,8 @@ void ConfigLoc(char *in)
 		if (C->albedo < 0 || C->albedo > 1) Warning("Warning: albedo=%f lies outside [0,1]\n", C->albedo);
 		if (FetchOptFloat(in, "xydelta", word, &(xydelta))) xydelta=0.05;
 		if (FetchOptFloat(in, "zdelta", word, &(zdelta))) zdelta=0.05;
+		if (FetchOptInt(in, "approx_n", word, &approx_n)) approx_n = -1;
+		if (FetchOptFloat(in, "approx_decay", word, &approx_decay)) approx_decay = 2.25;
 
 		N = check_shapes(5,(array*[]){x,y,z,az,ze});
 
@@ -849,8 +853,29 @@ void ConfigLoc(char *in)
 
 		if ((C->topo_init==1)&&(type=='t'))
 				InitConfigMask(C);
-		if ((C->grid_init==1)&&(type=='g'))
+		if ((C->grid_init==1)&&(type=='g')) {
+				double dt; TIC();
+				int i=ssdp_topogrid_approxhorizon
+						(&(C->Tx), approx_n, approx_decay);
+				dt = TOC();
+
+				switch (i) {
+				case -1:
+						goto enapprox;
+						break;
+				case 0:
+						break;
+				case -2:
+						ssdp_horizoncache_reset(&(C->hcache));
+						break;
+				default:
+						printf("Initialised topography sample set in %g s, unique points: %d\n", dt, i);
+						ssdp_horizoncache_reset(&(C->hcache));
+						break;
+				}
+
 				InitConfigGridMask(C);
+		}
 
 		if (ssdp_error_state)
 		{
@@ -864,6 +889,7 @@ void ConfigLoc(char *in)
 		free(word);
 		return;
 elocs:
+enapprox:
 ehcache:
 		free(C->o);
 eo:
@@ -877,6 +903,78 @@ eargs:
 		free(word);
 eword:
 		Warning("config_locations: failed!\n");
+		return;
+}
+
+/*
+BEGIN_DESCRIPTION
+SECTION Simulation Configuration
+PARSEFLAG export_horizon_sampleset ExportHorizSample "C=<in-config> z=<out-array> nx=<out-1dim-array> ny=<out-1dim-array>"
+DESCRIPTION Export topography sample set, which is used for horizon computations. Only works when config_locations has been called.
+OUTPUT z,nx,ny binary mask array and its dimensions
+END_DESCRIPTION
+*/
+void ExportHorizSample(char *in)
+{
+		int i;
+		char *word, *oz, *onx, *ony;
+		simulation_config *C;
+		array z, nx, ny;
+
+		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
+		if (NULL==(oz=malloc((strlen(in)+1)*sizeof(*oz)))) goto eoz;
+		if (NULL==(onx=malloc((strlen(in)+1)*sizeof(*onx)))) goto eonx;
+		if (NULL==(ony=malloc((strlen(in)+1)*sizeof(*ony)))) goto eony;
+
+		if (FetchConfig(in, "C", word, &C)) goto eargs;
+		if (!GetArg(in, "z", oz)) goto eargs;
+		if (!GetArg(in, "nx", onx)) goto eargs;
+		if (!GetArg(in, "ny", ony)) goto eargs;
+
+		if (C->grid_init==0) {
+				Warning("ERROR: simulation config does not contain a topogrid\n");
+				goto eargs;
+		}
+		if (NULL == C->Tx.horizon_sample) {
+				Warning("ERROR: approximate horizon sampling set is not computed yet\n");
+				goto eargs;
+		}
+
+		z.N = (2*C->Tx.Nx-1)*(2*C->Tx.Ny-1);
+		if (NULL==(z.D=malloc(z.N*sizeof(*(z.D))))) goto ez;
+		nx.N = 1;
+		if (NULL==(nx.D=malloc(nx.N*sizeof(*(nx.D))))) goto enx;
+		nx.D[0] = 2*C->Tx.Nx-1;
+		ny.N = 1;
+		if (NULL==(ny.D=malloc(ny.N*sizeof(*(ny.D))))) goto eny;
+		ny.D[0] = 2*C->Tx.Ny-1;
+
+		for (i=0; i < z.N; ++i)
+				z.D[i] = (double) C->Tx.horizon_sample[i];
+
+		if(AddArray(ony, ny)) goto eo;
+		if(AddArray(onx, nx)) goto eo;
+		if(AddArray(oz, z)) goto eo;
+
+		free(word);
+		return;
+eo:
+		free(ny.D);
+eny:
+		free(nx.D);
+enx:
+		free(z.D);
+ez:
+eargs:
+		free(ony);
+eony:
+		free(onx);
+eonx:
+		free(oz);
+eoz:
+		free(word);
+eword:
+		Warning("export_horizon_sampleset: failed!\n");
 		return;
 }
 

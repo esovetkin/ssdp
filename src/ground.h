@@ -32,6 +32,10 @@ typedef struct topogrid {
 	int Nx,Ny;	// number of points
 	double x1, y1; // lower left corner
 	double x2, y2; // upper right corner
+	int horizon_nsample; // number of points horizon is checked
+	double horizon_decay; // decay parameter, determines density of points further away from the location
+	char* horizon_sample; // locations where topography for horizon is sampled
+	int* horizon_idx; // precomputed index of the for horizon_sample. len(horizon_idx)==Nx*Ny
 } topogrid;
 //END_SSDP_EXPORT
 
@@ -49,6 +53,8 @@ double SampleTopoGrid(double x, double y, topogrid *T, sky_pos *sn);
 int FillMissingTopoGrid(topogrid *T, double na, int maxwalk);
 int AddHeightTopoGrid(topogrid *T, double *x, double *y, double *z, int nx, int nz);
 int BlurTopoGrid(topogrid *T, int size);
+
+int HorizonSobolSet(topogrid *T, int nsample, double decay);
 
 void ComputeHorizon(horizon *H, topology *T, double minzen, double xoff, double yoff, double zoff);
 void ComputeGridHorizon(horizon *H, topogrid *T, double minzen, double xoff, double yoff, double zoff);

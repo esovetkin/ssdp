@@ -30,6 +30,8 @@ as implemented by freespa [3]
 	* Crude "one bounce" approximation for albedo (no ray tracing, it 
 	is a fully "local" model)
 	* only computes irradiance at specified locations
+    * faster approximate horizon algorithm based on the radial Sobol
+      topography samples
 * 2.5D topography
 	* Supports both unstructured and regular meshes for the topography
     * Supports topography specification using georasters with GDAL

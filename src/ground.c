@@ -37,6 +37,7 @@
 #include "edt.h"
 #include "minfill.h"
 #include "topogdal.h"
+#include "sobolseq.h"
 #include "filterimage/filter.h"
 
 #ifdef RUNMEMTEST
@@ -276,7 +277,7 @@ int Arange(int dx, int dy, double *a1, double *a2, double *A1, double *A2)
 topogrid MakeTopogrid(double *z, double x1, double y1, double x2, double y2, int Nx, int Ny)
 {
 	topogrid T;
-	topogrid T0={NULL,NULL,NULL,NULL,0,0,0,0,0,1,1};
+	topogrid T0={NULL,NULL,NULL,NULL,0,0,0,0,0,1,1,-1,1,NULL,NULL};
 	int i, N;
 	double dx, dy;
 	N=Nx*Ny;
@@ -294,7 +295,14 @@ topogrid MakeTopogrid(double *z, double x1, double y1, double x2, double y2, int
 		free_topogrid(&T);
 		return T0;
 	}
-	
+
+	if (NULL==(T.horizon_idx=malloc(N*sizeof(*T.horizon_idx)))) {
+		free_topogrid(&T);
+		return T0;
+	}
+	for (i=0; i < N; ++i)
+		T.horizon_idx[i] = (2*Ny-1)*(T.sort[i]/Ny) + T.sort[i]%Ny;
+
 	dx=(x2-x1)/((double)Nx);
 	dy=(y2-y1)/((double)Nx);
 	if (Nx>Ny)
@@ -308,6 +316,9 @@ topogrid MakeTopogrid(double *z, double x1, double y1, double x2, double y2, int
 	}
 	T.Nx=Nx;
 	T.Ny=Ny;
+	T.horizon_sample = NULL;
+	T.horizon_nsample = -1;
+	T.horizon_decay = (double) 1;
 	T.x1=x1;
 	T.y1=y1;
 	T.x2=x2;
@@ -318,7 +329,7 @@ topogrid MakeTopogrid(double *z, double x1, double y1, double x2, double y2, int
 
 topogrid MakeTopoGDAL(double x1, double y1, double x2, double y2, char **fns, int nfns, double step, int epsg)
 {
-        topogrid T={NULL,NULL,NULL,NULL,0,0,0,0,0,1,1};
+        topogrid T={NULL,NULL,NULL,NULL,0,0,0,0,0,1,1,-1,1,NULL,NULL};
         struct coordinates *lcs = box2coordinates(x1,y1,x2,y2,step,epsg);
         if (NULL == lcs) goto maketopogdal_elcs;
 
@@ -402,6 +413,10 @@ void free_topogrid (topogrid *T)
 		T->y1=0;
 		T->x2=1;
 		T->y1=1;
+		T->horizon_nsample = -1;
+		T->horizon_decay = (double) 1;
+		free(T->horizon_sample); T->horizon_sample=NULL;
+		free(T->horizon_idx); T->horizon_idx=NULL;
 	}
 }
 
@@ -903,82 +918,138 @@ horizon MakeHorizon(sky_grid *sky, topology *T, double xoff, double yoff, double
 }
 
 
+int HorizonSobolSet(topogrid *T, int n, double decay)
+{
+		if ((T->horizon_nsample==n) &&
+			(fabs(T->horizon_decay-decay)<1e-5))
+				return 0;
+		T->horizon_nsample = n;
+		T->horizon_decay = decay;
+
+		if (T->horizon_nsample < 0) return -2;
+		free(T->horizon_sample);
+		T->horizon_sample=calloc((2*T->Nx-1)*(2*T->Ny-1), sizeof(T->horizon_sample));
+		if (NULL == T->horizon_sample) goto ecalloc;
+
+		int i, x, y, N=(T->Nx>T->Ny)?T->Nx:T->Ny;
+		double p[2];
+		struct sobolseq* sq;
+		if (NULL==(sq=sobolseq_init(2))) goto esq;
+
+		for (i=0; i < n; ++i) {
+				if (sobolseq_gen(sq, p)) goto egen;
+				p[0] *= 2*M_PI;
+				p[1] = N * pow(p[1], decay);
+				x = (int) (p[1]*cos(p[0]));
+				y = (int) (p[1]*sin(p[0]));
+
+				if ((abs(x)>=T->Nx)||(abs(y)>=T->Ny))
+						continue;
+
+				x = (T->Nx - 1 + x)*(2*T->Ny-1) + T->Ny - 1 + y;
+				T->horizon_sample[x] = 1;
+		}
+
+		x=0;
+		for (i=0; i < 4*T->Nx*T->Ny; ++i)
+				if (T->horizon_sample[i]) ++x;
+
+		sobolseq_free(sq);
+		return x;
+egen:
+		T->horizon_nsample = -1;
+		sobolseq_free(sq);
+esq:
+		free(T->horizon_sample);
+		T->horizon_sample = NULL;
+ecalloc:
+		return -1;
+}
+
 // take a topology and rize the horizon accordingly
 void ComputeGridHorizon(horizon *H, topogrid *T, double minzen, double xoff, double yoff, double zoff)
 // the minzen parameter can save alot of work
 // it specifies the minimum zenith angle to consider a triangle for the horizon
 // I would set it to 0.5 times the zenith step in the sky. Especially for large topographies it reduces the amount of work considerably as far away triangles are less likely of consequence
 {
-	int i;
-	int k,l, m, n;
-	double d;
-	double dx, dy;;
-	double Dx, Dy;
-	double a1, a2;	
-	double r;
-	r=tan(minzen);// compute threshold height over distance ratio
-	dx=(T->x2-T->x1)/T->Nx;
-	dy=(T->y2-T->y1)/T->Ny;
-	k=(int)round((xoff-T->x1)/dx);
-	l=(int)round((yoff-T->y1)/dy);
-	/*
-	if (k<0)
-	{
-		
-		if (k<-1)
-		{
-			// ERRORFLAG LOCNOTINTOPO  "Error: location outside topography"
-			AddErr(LOCNOTINTOPO);
-			return;
-		}	
-		k=0;
-		
-	}
-	if (k>=T->Nx)
-	{
-		if (k>T->Nx)
-		{
-			AddErr(LOCNOTINTOPO);
-			return;
+		int i, kl0, k, l, m, n;
+		double d, dx, dy, Dx, Dy, a1, a2, r;
+		r=tan(minzen);// compute threshold height over distance ratio
+		dx=(T->x2-T->x1)/T->Nx;
+		dy=(T->y2-T->y1)/T->Ny;
+		k=(int)round((xoff-T->x1)/dx);
+		l=(int)round((yoff-T->y1)/dy);
+
+		/*
+		  if (k<0)
+		  {
+
+		  if (k<-1)
+		  {
+		  // ERRORFLAG LOCNOTINTOPO  "Error: location outside topography"
+		  AddErr(LOCNOTINTOPO);
+		  return;
+		  }
+		  k=0;
+
+		  }
+		  if (k>=T->Nx)
+		  {
+		  if (k>T->Nx)
+		  {
+		  AddErr(LOCNOTINTOPO);
+		  return;
+		  }
+		  k=T->Nx-1;
+		  }
+		  if (l<0)
+		  {
+		  if (l<-1)
+		  {
+		  AddErr(LOCNOTINTOPO);
+		  return;
+		  }
+		  l=0;
+		  }
+		  if (l>=T->Ny)
+		  {
+		  if (l>T->Ny)
+		  {
+		  AddErr(LOCNOTINTOPO);
+		  return;
+		  }
+		  l=T->Ny-1;
+		  }*/
+
+		kl0 = (T->Nx-1-k)*(2*T->Ny-1) + T->Ny-1-l;
+		i=T->Nx*T->Ny-1;
+		while (i>=0) {
+				if ((T->horizon_nsample > 0) &&
+					(0==T->horizon_sample[kl0+T->horizon_idx[i]])) {
+						--i;
+						continue;
+				}
+
+				// go backwards through the list till the triangles are lower than the projection point
+				if (T->z[T->sort[i]]<=zoff) break;
+
+				m=XINDEX(T->sort[i], T->Ny)-k;
+				n=YINDEX(T->sort[i], T->Ny)-l;
+
+				if ((abs(m)>=T->Nx)||(abs(n)>=T->Ny))
+				{
+						--i;
+						continue;
+				}
+				Dx=dx*(double)m;
+				Dy=dy*(double)n;
+				d=sqrt(Dx*Dx+Dy*Dy);
+
+				if ((T->z[T->sort[i]]-zoff)/d>r) // do not compute anything for triangles below the zenith threshold
+						if (Arange(m, n, &a1, &a2, T->A1, T->A2)) // compute azimuthal range
+						{
+								RizeHorizon(H, (double)a1, (double)a2, d/(T->z[T->sort[i]]-zoff)); // for now store the ratio, do atan2's on the horizon array at the end
+						}
+				--i;
 		}
-		k=T->Nx-1;
-	}
-	if (l<0)
-	{
-		if (l<-1)
-		{
-			AddErr(LOCNOTINTOPO);
-			return;
-		}	
-		l=0;
-	}
-	if (l>=T->Ny)
-	{
-		if (l>T->Ny)
-		{
-			AddErr(LOCNOTINTOPO);
-			return;
-		}
-		l=T->Ny-1;
-	}*/
-	i=T->Nx*T->Ny-1;
-	while ((i>=0)&&(T->z[T->sort[i]]>zoff)) // go backwards through the list till the triangles are lower than the projection point
-	{
-		m=XINDEX(T->sort[i], T->Ny)-k;
-		n=YINDEX(T->sort[i], T->Ny)-l;
-		if ((abs(m)>=T->Nx)||(abs(n)>=T->Ny))
-		{
-			i--;
-			continue;
-		}
-		Dx=dx*(double)m;
-		Dy=dy*(double)n;		
-		d=sqrt(Dx*Dx+Dy*Dy);
-		if ((T->z[T->sort[i]]-zoff)/d>r) // do not compute anything for triangles below the zenith threshold
-			if (Arange(m, n, &a1, &a2, T->A1, T->A2)) // compute azimuthal range
-			{
-				RizeHorizon(H, (double)a1, (double)a2, d/(T->z[T->sort[i]]-zoff)); // for now store the ratio, do atan2's on the horizon array at the end
-			}
-		i--;
-	}	
 }
