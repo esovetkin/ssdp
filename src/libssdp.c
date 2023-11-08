@@ -257,6 +257,32 @@ estate:
 }
 
 
+int ssdp_topogrid_napprox(topogrid *T, int napprox)
+{
+		if (T->napprox == napprox) return 0;
+		T->napprox = napprox;
+		if (T->napprox <= 0) return 0;
+
+		free(T->napprox_phi);
+		T->napprox_phi=malloc(2*T->napprox*sizeof(*T->napprox_phi));
+		if (NULL==T->napprox_phi) goto ephi;
+
+		int i=0;
+		double phi;
+
+		for (i=0; i<T->napprox; ++i) {
+				phi = (2*i*M_PI)/((double) T->napprox);
+				T->napprox_phi[2*i] = cos(phi);
+				T->napprox_phi[2*i+1] = sin(phi);
+		}
+
+		return 0;
+ephi:
+		return -1;
+
+}
+
+
 int ssdp_setup_grid_horizon(
 		horizon *h, sky_grid *sky, topogrid *T,
 		double xoff, double yoff, double zoff)

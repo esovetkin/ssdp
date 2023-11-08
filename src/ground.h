@@ -32,6 +32,8 @@ typedef struct topogrid {
 	int Nx,Ny;	// number of points
 	double x1, y1; // lower left corner
 	double x2, y2; // upper right corner
+	int napprox; // number of azimuth discretisation for horizon approximation
+	double* napprox_phi; // precomputed radiant cos and sin. Size: double the napprox
 } topogrid;
 //END_SSDP_EXPORT
 

@@ -767,7 +767,7 @@ eword:
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation Configuration
-PARSEFLAG config_locations ConfigLoc "C=<out-config> x=<in-array> y=<in-array> z=<in-array> azimuth=<in-array> zenith=<in-array> [type=<topology/topogrid>] [albedo=<float-value>] [xydelta=<float-value>] [zdelta=<float-value]"
+PARSEFLAG config_locations ConfigLoc "C=<out-config> x=<in-array> y=<in-array> z=<in-array> azimuth=<in-array> zenith=<in-array> [type=<topology/topogrid>] [albedo=<float-value>] [xydelta=<float-value>] [zdelta=<float-value] [napprox=<int-value>]"
 DESCRIPTION Setup the topography. Load the x, y, and z data of the unstructured topography mesh into the configuration data.
 ARGUMENT x x coordinates
 ARGUMENT y y coordinates
@@ -777,6 +777,7 @@ ARGUMENT azimuth azimuth angle of tilted surface
 ARGUMENT zenith zenith angle of tilted surface
 ARGUMENT albedo optionally provide an albedo value between 0-1
 ARGUMENT xydelta,zdelta the coordinates within xydelta in xy plane and zdelta within z direction are considered the same (default: 0.05)
+ARGUMENT napprox optional, if positive determines number of azimuth angles used for computing approximate horizon. if negative computes complete horizon (default: -1)
 OUTPUT C configuration variable
 END_DESCRIPTION
 */
@@ -785,7 +786,7 @@ void ConfigLoc(char *in)
 		simulation_config *C;
 		double xydelta, zdelta;
 		array *x, *y, *z, *az, *ze;
-		int N, i;
+		int N, i, napprox = -1;
 		char type='t';
 		char *word;
 		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
@@ -820,6 +821,12 @@ void ConfigLoc(char *in)
 		if (C->albedo < 0 || C->albedo > 1) Warning("Warning: albedo=%f lies outside [0,1]\n", C->albedo);
 		if (FetchOptFloat(in, "xydelta", word, &(xydelta))) xydelta=0.05;
 		if (FetchOptFloat(in, "zdelta", word, &(zdelta))) zdelta=0.05;
+		if (FetchOptInt(in, "napprox", word, &napprox))
+				napprox = -1;
+		if (napprox >= 0 && napprox < 8) {
+				Warning("Warning: 'napprox' value should be negative or more than 7. Using 'napprox'=-1 instead.");
+				napprox=-1;
+		}
 
 		N = check_shapes(5,(array*[]){x,y,z,az,ze});
 
@@ -849,8 +856,13 @@ void ConfigLoc(char *in)
 
 		if ((C->topo_init==1)&&(type=='t'))
 				InitConfigMask(C);
-		if ((C->grid_init==1)&&(type=='g'))
+		if ((C->grid_init==1)&&(type=='g')) {
+				if (C->Tx.napprox != napprox)
+						ssdp_horizoncache_reset(&(C->hcache));
+
+				if (ssdp_topogrid_napprox(&(C->Tx), napprox)) goto enapprox;
 				InitConfigGridMask(C);
+		}
 
 		if (ssdp_error_state)
 		{
@@ -864,6 +876,7 @@ void ConfigLoc(char *in)
 		free(word);
 		return;
 elocs:
+enapprox:
 ehcache:
 		free(C->o);
 eo:
