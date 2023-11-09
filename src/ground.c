@@ -22,6 +22,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <math.h>
+#include <omp.h>
 #include "vector.h"
 #include "sky_dome.h"
 #include "trace.h"
@@ -35,6 +36,7 @@
 #include "epsg.h"
 #include "iset.h"
 #include "edt.h"
+#include "lcg.h"
 #include "minfill.h"
 #include "topogdal.h"
 #include "filterimage/filter.h"
@@ -309,7 +311,7 @@ topogrid MakeTopogrid(double *z, double x1, double y1, double x2, double y2, int
 	T.Nx=Nx;
 	T.Ny=Ny;
 	T.napprox = -1;
-	T.napprox_phi = NULL;
+	T.lcg = lcg_init(1234);
 	T.x1=x1;
 	T.y1=y1;
 	T.x2=x2;
@@ -405,8 +407,7 @@ void free_topogrid (topogrid *T)
 		T->x2=1;
 		T->y1=1;
 		T->napprox=-1;
-		free(T->napprox_phi);
-		T->napprox_phi=NULL;
+		lcg_free(T->lcg);
 	}
 }
 
@@ -908,30 +909,18 @@ horizon MakeHorizon(sky_grid *sky, topology *T, double xoff, double yoff, double
 }
 
 
-struct iset* radiant_subset(topogrid *T, int k, int l)
+static double accept_prob(topogrid *T, int m, int n, int i)
 {
-		struct iset* set;
-		if (NULL==(set=iset_init(T->Nx*T->Ny))) goto eset;
+		// TODO probability to depend on distance and height
 
-		int r, i, x, y, N = (int) sqrt(T->Nx*T->Nx + T->Ny*T->Ny);
+		if (m < 10 && n < 10)
+				return 1;
 
-		for (i=0; i < T->napprox; ++i)
-				for (r=0; r < N; ++r) {
-						x = (int)(k+r*T->napprox_phi[i*2]);
-						y = (int)(l+r*T->napprox_phi[i*2+1]);
+		return 0.2;
+		// if (d > 100 && i > 7*T->Nx*T->Ny/10)
+		//		return 0.25;
 
-						if ((x < 0 || x > T->Nx) && (y < 0 || y > T->Ny)) break;
-						if (x < 0 || x > T->Nx) continue;
-						if (y < 0 || y > T->Ny) continue;
-						x = T->Ny*x+y;
-
-						if (iset_isin(set, (unsigned int) x)) continue;
-						iset_insert(set, (unsigned int) x);
-				}
-
-		return set;
-eset:
-		return NULL;
+		return 0.1;
 }
 
 
@@ -941,7 +930,7 @@ void ComputeGridHorizon(horizon *H, topogrid *T, double minzen, double xoff, dou
 // it specifies the minimum zenith angle to consider a triangle for the horizon
 // I would set it to 0.5 times the zenith step in the sky. Especially for large topographies it reduces the amount of work considerably as far away triangles are less likely of consequence
 {
-		int i;
+		int i, thread = omp_get_thread_num();
 		int k,l, m, n;
 		double d;
 		double dx, dy;;
@@ -953,6 +942,7 @@ void ComputeGridHorizon(horizon *H, topogrid *T, double minzen, double xoff, dou
 		dy=(T->y2-T->y1)/T->Ny;
 		k=(int)round((xoff-T->x1)/dx);
 		l=(int)round((yoff-T->y1)/dy);
+
 		/*
 		  if (k<0)
 		  {
@@ -993,38 +983,33 @@ void ComputeGridHorizon(horizon *H, topogrid *T, double minzen, double xoff, dou
 		  }
 		  l=T->Ny-1;
 		  }*/
+
 		i=T->Nx*T->Ny-1;
-
-		struct iset *set = NULL;
-		if (T->napprox > 0)
-				set=radiant_subset(T, k, l);
-
-		while ((i>=0)&&(T->z[T->sort[i]]>zoff)) // go backwards through the list till the triangles are lower than the projection point
-		{
-				if (set && !iset_isin(set, (unsigned int) T->sort[i])) {
-						--i;
-						continue;
-				}
+		while ((i>=0)&&(T->z[T->sort[i]]>zoff)) {
+				// go backwards through the list till the triangles
+				// are lower than the projection point
 
 				m=XINDEX(T->sort[i], T->Ny)-k;
 				n=YINDEX(T->sort[i], T->Ny)-l;
 
-				if ((abs(m)>=T->Nx)||(abs(n)>=T->Ny))
-				{
+				if ((abs(m)>=T->Nx)||(abs(n)>=T->Ny)) {
 						--i;
 						continue;
 				}
+
+				if (T->napprox) {
+						if (lcg_unif(T->lcg, thread) > accept_prob(T, abs(m), abs(n), i)) {
+								--i;
+								continue;
+						}
+				}
+
 				Dx=dx*(double)m;
 				Dy=dy*(double)n;
-				d=sqrt(Dx*Dx+Dy*Dy);
-
+				d = sqrt(Dx*Dx+Dy*Dy);
 				if ((T->z[T->sort[i]]-zoff)/d>r) // do not compute anything for triangles below the zenith threshold
 						if (Arange(m, n, &a1, &a2, T->A1, T->A2)) // compute azimuthal range
-						{
 								RizeHorizon(H, (double)a1, (double)a2, d/(T->z[T->sort[i]]-zoff)); // for now store the ratio, do atan2's on the horizon array at the end
-						}
 				--i;
 		}
-
-		iset_free(set);
 }

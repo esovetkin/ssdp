@@ -823,10 +823,6 @@ void ConfigLoc(char *in)
 		if (FetchOptFloat(in, "zdelta", word, &(zdelta))) zdelta=0.05;
 		if (FetchOptInt(in, "napprox", word, &napprox))
 				napprox = -1;
-		if (napprox >= 0 && napprox < 8) {
-				Warning("Warning: 'napprox' value should be negative or more than 7. Using 'napprox'=-1 instead.");
-				napprox=-1;
-		}
 
 		N = check_shapes(5,(array*[]){x,y,z,az,ze});
 
@@ -860,7 +856,8 @@ void ConfigLoc(char *in)
 				if (C->Tx.napprox != napprox)
 						ssdp_horizoncache_reset(&(C->hcache));
 
-				if (ssdp_topogrid_napprox(&(C->Tx), napprox)) goto enapprox;
+				C->Tx.napprox = napprox;
+				// if (ssdp_topogrid_napprox(&(C->Tx), napprox)) goto enapprox;
 				InitConfigGridMask(C);
 		}
 
