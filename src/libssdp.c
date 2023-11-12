@@ -184,7 +184,7 @@ static int transfer_sky(
 		int i;
 
 		// setup transfer, sky direct
-		l->T=InitSkyTransfer(sky->N);
+		l->T=InitSkyTransfer(sky->N, NULL);
 		if (ssdp_error_state) goto einit;
 		POA_Sky_Transfer(sky, &(l->T), pn, M);
 		if (ssdp_error_state) goto error;

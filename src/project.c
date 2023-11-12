@@ -199,7 +199,7 @@ double POA_Albedo_Transfer(sky_grid *sky, sky_pos pn, AOI_Model_Data *M)
 	pn.z+=M_PI;
 	pn.z=fmod(pn.z,2*M_PI);
 	
-	Th=InitSkyTransfer(sky->N);	
+	Th=InitSkyTransfer(sky->N, NULL);
 	POA_Sky_Transfer(&ground,&Th, pn, M);		
 	for (i=0;i<Th.N;i++)
 		g+=ground.sa[i]*Th.t[i];

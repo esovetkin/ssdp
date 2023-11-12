@@ -34,22 +34,23 @@
 #define malloc(x) random_fail_malloc(x)
 #endif
 
-sky_transfer InitSkyTransfer(int N)
+sky_transfer InitSkyTransfer(int N, sky_transfer* src)
 {
 	sky_transfer T;
 	int i;
+	T.N = (src) ? src->N : N;
 	// ERRORFLAG MALLOCFAILSKYTRANS  "Error memory allocation failed in creating a sky-transfer map"
-	if ((T.t=malloc(N*sizeof(double)))==NULL)
+	if ((T.t=malloc(T.N*sizeof(double)))==NULL)
 	{
 		AddErr(MALLOCFAILSKYTRANS);
 		T.N=0;
 		return T;
 	}
-	
-	for (i=0;i<N;i++)
-		T.t[i]=1.0;
-	T.g=0;
-	T.N=N;
+
+	for (i=0;i<N;i++) {
+		T.t[i] = (src) ? src->t[i] : 1.0;
+	}
+	T.g = (src) ? src->g : 0.0;
 	return T;
 }
 

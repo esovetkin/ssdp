@@ -24,7 +24,7 @@ struct horizoncache {
 
 
 void FreeSkyTransfer(sky_transfer *T);
-sky_transfer InitSkyTransfer(int Nz);
+sky_transfer InitSkyTransfer(int Nz, sky_transfer *T);
 horizon InitHorizon(int Nz);
 void AtanHorizon(horizon *H);
 void FreeHorizon(horizon *H);
