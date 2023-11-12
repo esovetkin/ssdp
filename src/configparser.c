@@ -248,6 +248,70 @@ static int set_uH(simulation_config *C, int i)
 }
 
 
+static int set_uST(simulation_config *C, int i, sky_transfer* st)
+{
+		// TODO: remove code duplicate with set_uH?
+
+		uintptr_t j, k;
+		j = k = (uintptr_t) st;
+		while (NULL != C->uST[j % C->Nl]) {
+				// element was visited
+				if (k == (uintptr_t) C->uST[j % C->Nl]) {
+						C->uSTi[i] = j % C->Nl;
+						return 1;
+				}
+
+				++j;
+		}
+
+		C->uST[j % C->Nl] = st;
+		C->uSTi[i] = j % C->Nl;
+		C->uSTii[j % C->Nl] = i;
+		return 0;
+}
+
+
+static int init_stcache(simulation_config *C)
+{
+		if (C->uST) {free(C->uST); C->uST=NULL;}
+		if (C->uSTi) {free(C->uSTi); C->uSTi=NULL;}
+		if (C->uSTii) {free(C->uSTii); C->uSTii=NULL;}
+		if (NULL==(C->uST=calloc(C->Nl,sizeof(*(C->uST))))) goto euST;
+		if (NULL==(C->uSTi=calloc(C->Nl,sizeof(*(C->uSTi))))) goto euSTi;
+		if (NULL==(C->uSTii=calloc(C->Nl,sizeof(*(C->uSTii))))) goto euSTii;
+
+		TIC();
+		int i, hits=0, uh=0;
+		// assume C->stcache initialised. associate location with the
+		sky_transfer *st;
+		// allocated space for that in the hcache.
+		for (i=0; i < C->Nl; ++i) {
+				st = ssdp_stcache_get
+						(C->stcache,
+						 fmod(C->o[i].z+2*M_PI, 2*M_PI),
+						 fmod(C->o[i].a+2*M_PI, 2*M_PI), C->albedo);
+				uh += set_uST(C, i, st);
+				if (NULL == st) goto estcache;
+				if (NULL != st->t) ++hits;
+		}
+		printf("Checked in sky transfer cache in %g s, hits/duplicates/missed: %d/%d/%d\n", TOC(), hits, uh, C->Nl-hits);
+
+		return 0;
+		// the stcache keeps track of allocated horizon. even if we
+		// fail and end up here, just need to cleanup the
+		// C->uST. ssdp_stcache_free at some point will cleanup
+		// everything.
+estcache:
+		free(C->uSTii); C->uSTii = NULL;
+euSTii:
+		free(C->uSTi); C->uSTi = NULL;
+euSTi:
+		free(C->uST); C->uST = NULL;
+euST:
+		return -1;
+}
+
+
 static int init_hcache(simulation_config *C)
 {
 		FreeConfigMask(C); // make sure we are clear to allocate new memory
@@ -283,27 +347,62 @@ ecl:
 }
 
 
-static int init_transfer(simulation_config *C)
+static double init_initst(simulation_config *C)
 {
-		double dt;
-		int i, pco=0;
+		int i, pco;
+
+		if (NULL==C->stcache)
+				// xydelta - sky angles, zdelta - albedo
+				if (NULL==(C->stcache=ssdp_rtreecache_init(0.001, 0.001)))
+						goto estcache;
+		if (init_stcache(C)) goto estcache;
 
 		TIC();
 #pragma omp parallel private(i) shared(C)
 		{
 #pragma omp for schedule(runtime)
 				for (i=0; i < C->Nl; ++i) {
-						ssdp_setup_transfer(&(C->L[i]), C->S,
-											C->albedo, C->o[i], &(C->M));
-						ProgressBar((100*(i+1))/C->Nl, &pco, ProgressLen, ProgressTics);
+						ssdp_init_transfer
+								(C->uST[i], C->S, C->albedo,
+								 C->o[C->uSTii[i]], &(C->M));
+						ProgressBar((100*(i+1))/(2*C->Nl), &pco, ProgressLen, ProgressTics);
+				}
+		}
+		ProgressBar(50, &pco, ProgressLen, ProgressTics);
+		if (ssdp_error_state) goto error;
+
+		return TOC();
+error:
+estcache:
+		return -1.0;
+}
+
+
+static int init_transfer(simulation_config *C)
+{
+		double dt;
+		int i, pco=0;
+
+		if (0 > (dt=init_initst(C))) goto einitst;
+		
+		TIC();
+#pragma omp parallel private(i) shared(C)
+		{
+#pragma omp for schedule(runtime)
+				for (i=0; i < C->Nl; ++i) {
+						ssdp_setup_transfer
+								(&(C->L[i]), C->S, C->uST[C->uSTi[i]]);
+						ProgressBar((100*(i+1+C->Nl))/(2*C->Nl), &pco, ProgressLen, ProgressTics);
 				}
 		}
 		ProgressBar(100, &pco, ProgressLen, ProgressTics);
 		if (ssdp_error_state) goto error;
-		dt=TOC();
+		dt+=TOC();
 		printf("Initialised sky transfer in %g s (%e s/locations)\n", dt, dt/((double)C->Nl));
+
 		return 0;
 error:
+einitst:
 		return -1;
 }
 
@@ -443,7 +542,8 @@ void ConfigSKY(char *in)
 				C->sky_init=1;
 
 		// locations and horizon are no longer valid with the new sky
-		ssdp_horizoncache_reset(&(C->hcache));
+		ssdp_rtreecache_reset(&(C->hcache));
+		ssdp_rtreecache_reset(&(C->stcache));
 		FreeConfigLocation(C);
 		printf("Cleared configured locations, new sky renders them invalid\n");
 
@@ -533,7 +633,7 @@ void ConfigTOPO (char *in)
 		C->topo_init=0;
 		ssdp_reset_errors();
 	}
-	ssdp_horizoncache_reset(&(C->hcache));
+	ssdp_rtreecache_reset(&(C->hcache));
 	InitConfigMask(C);
 	if (ssdp_error_state)
 	{
@@ -631,7 +731,7 @@ void ConfigTOPOGrid (char *in)
 		C->grid_init=0;
 		ssdp_reset_errors();
 	}
-	ssdp_horizoncache_reset(&(C->hcache));
+	ssdp_rtreecache_reset(&(C->hcache));
 	InitConfigGridMask(C);
 	if (ssdp_error_state)
 	{
@@ -713,7 +813,7 @@ void ConfigTOPOGDAL (char *in)
         TIC();
         C->Tx = ssdp_make_topogdal(x1, y1, x2, y2, fns->s, fns->n, step, epsg);
         if (ssdp_error_state) goto emaketopogdal;
-        if (ssdp_horizoncache_reset(&(C->hcache))) goto emaketopogdal;
+        if (ssdp_rtreecache_reset(&(C->hcache))) goto emaketopogdal;
         InitConfigGridMask(C);
         if (ssdp_error_state) goto emaketopogdal;
         printf("Initialised topogrid in %g s\n", TOC());
@@ -846,7 +946,7 @@ void ConfigLoc(char *in)
 		C->loc_init=1;
 
 		if (NULL==C->hcache)
-				if (NULL==(C->hcache=ssdp_horizoncache_init(xydelta, zdelta)))
+				if (NULL==(C->hcache=ssdp_rtreecache_init(xydelta, zdelta)))
 						goto ehcache;
 		C->hcache->xydelta = xydelta / 2.0;
 		C->hcache->zdelta = zdelta / 2.0;
@@ -866,11 +966,11 @@ void ConfigLoc(char *in)
 				case 0:
 						break;
 				case -2:
-						ssdp_horizoncache_reset(&(C->hcache));
+						ssdp_rtreecache_reset(&(C->hcache));
 						break;
 				default:
 						printf("Initialised topography sample set in %g s, unique points: %d\n", dt, i);
-						ssdp_horizoncache_reset(&(C->hcache));
+						ssdp_rtreecache_reset(&(C->hcache));
 						break;
 				}
 

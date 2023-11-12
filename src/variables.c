@@ -49,6 +49,10 @@ simulation_config InitConf()
 	C.hcache=NULL;
 	C.uH=NULL;
 	C.uHi=NULL;
+	C.stcache=NULL;
+	C.uST=NULL;
+	C.uSTi=NULL;
+	C.uSTii=NULL;
 	return C;
 }
 void FreeConf(simulation_config *C)
@@ -99,19 +103,18 @@ void FreeConf(simulation_config *C)
 			free(C->L);
 			C->L=NULL;
 		}
-		if (C->uH) {
-				free(C->uH);
-		}
-		C->uH=NULL;
-		if (C->uHi) {
-				free(C->uHi);
-		}
-		C->uHi=NULL;
+		if (C->uH) {free(C->uH); C->uH=NULL;}
+		if (C->uHi) {free(C->uHi); C->uHi=NULL;}
+		if (C->uST) {free(C->uST); C->uST=NULL;}
+		if (C->uSTi) {free(C->uSTi); C->uSTi=NULL;}
+		if (C->uSTii) {free(C->uSTii); C->uSTii=NULL;}
 		C->Nl=0;
 		C->loc_init=0;
 	}
-	if (C->hcache)
-			ssdp_horizoncache_free(C->hcache);
+	if (C->hcache) ssdp_horizoncache_free(C->hcache);
+	C->hcache = NULL;
+	if (C->stcache) ssdp_stcache_free(C->stcache);
+	C->stcache = NULL;
 }
 
 void FreeArray(array *a)

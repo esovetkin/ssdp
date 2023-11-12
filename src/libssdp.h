@@ -56,7 +56,8 @@ void ssdp_poa_to_surface_normal(sky_pos pn0, sky_pos sn, sky_pos *pn); // orient
 AOI_Model_Data ssdp_init_aoi_model(AOI_Model model,double nf, double nar,double *theta, double *effT, int N);
 
 void ssdp_free_location(location *l);
-int ssdp_setup_transfer(location *l, sky_grid *sky, double albedo, sky_pos pn, AOI_Model_Data *M);
+int ssdp_init_transfer(sky_transfer* st, sky_grid *sky, double albedo, sky_pos pn, AOI_Model_Data *M);
+int ssdp_setup_transfer(location *l, sky_grid *sky, sky_transfer *initsky);
 int ssdp_setup_horizon(horizon *h, sky_grid *sky, topology *T, double xoff, double yoff, double zoff);
 int ssdp_setup_grid_horizon(horizon *h, sky_grid *sky, topogrid *T, double xoff, double yoff, double zoff);
 int ssdp_topogrid_approxhorizon(topogrid *T, int nsample, double decay);
@@ -85,7 +86,12 @@ int ssdp_blurtopo_topogrid(topogrid *T,int size);
 
 sky_pos ssdp_sunpos(time_t t, double lat, double lon, double E, double p, double T); // lat & lon in radians
 int ssdp_suntimes(time_t t, double lat, double lon, double e, double p, double T, time_t *sunrise, time_t *transit, time_t *sunset);
-struct horizoncache* ssdp_horizoncache_init(double xy, double z);
-horizon* ssdp_horizoncache_get(struct horizoncache* hc, double x, double y, double z);
-void ssdp_horizoncache_free(struct horizoncache* hc);
-int ssdp_horizoncache_reset(struct horizoncache** hc);
+
+struct rtreecache* ssdp_rtreecache_init(double xy, double z);
+int ssdp_rtreecache_reset(struct rtreecache** hc);
+
+horizon* ssdp_horizoncache_get(struct rtreecache* hc, double x, double y, double z);
+void ssdp_horizoncache_free(struct rtreecache* hc);
+
+sky_transfer* ssdp_stcache_get(struct rtreecache* hc, double x, double y, double z);
+void ssdp_stcache_free(struct rtreecache* hc);

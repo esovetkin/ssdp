@@ -22,9 +22,13 @@ typedef struct simulation_config {
 	sky_pos *o;				// orientation of the module(s)
 	location *L;			// traced locations
 	int Nl;					// number of locations
-	struct horizoncache* hcache;	// horizon cache
+	struct rtreecache* hcache;	// horizon cache
 	horizon **uH;	// list of pointers to unique horizons, always length Nl
 	int *uHi;	// index uH -> index location, len(uHi) = Nl
+	struct rtreecache* stcache; // initial sky transfer cache
+	sky_transfer **uST; // list of pointers to unique sky transfers, always length Nl
+	int *uSTi;  // index uST -> index location, len(uSTi) = Nl
+	int *uSTii; // inverse of uSTi, len(uSTi) = Nl
 } simulation_config;
 
 typedef struct array {

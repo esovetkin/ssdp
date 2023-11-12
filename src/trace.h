@@ -15,7 +15,7 @@ typedef struct skypoly {
 	int N;
 	double *x, *y, *z;
 } skypoly;
-struct horizoncache {
+struct rtreecache {
 		struct rtree *rtree;
 		double xydelta;
 		double zdelta;
@@ -41,12 +41,13 @@ void HorizTrans(const sky_grid *sky, const horizon *a, const sky_transfer *b, sk
 
 	points to the same horizon
 */
-struct horizoncache* horizoncache_init(double xydelta, double zdelta);
+struct rtreecache* rtreecache_init(double xydelta, double zdelta);
 
 
-/** cleanup rtree **and** all the computed horizons
+/** cleanup rtree **and** all the computed horizons/sky transfers
  */
-void horizoncache_free(struct horizoncache* self);
+void horizoncache_free(struct rtreecache* self);
+void stcache_free(struct rtreecache* self);
 
 
 /** get pointer to a horizon
@@ -57,4 +58,5 @@ void horizoncache_free(struct horizoncache* self);
 
 	returns NULL if something went wrong
 */
-horizon* horizoncache_get(struct horizoncache* self, double x, double y, double z);
+horizon* horizoncache_get(struct rtreecache* self, double x, double y, double z);
+sky_transfer* stcache_get(struct rtreecache* self, double x, double y, double z);

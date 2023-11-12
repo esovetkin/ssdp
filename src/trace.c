@@ -162,9 +162,9 @@ void HorizTrans(const sky_grid *sky, const horizon *a, const sky_transfer *b, sk
 	}
 }
 
-struct horizoncache* horizoncache_init(double xydelta, double zdelta)
+struct rtreecache* rtreecache_init(double xydelta, double zdelta)
 {
-		struct horizoncache *self;
+		struct rtreecache *self;
 		if (NULL==(self=malloc(sizeof(*self)))) goto eself;
 		if (NULL==(self->rtree=rtree_new())) goto etree;
 		self->xydelta = xydelta/2;
@@ -189,7 +189,7 @@ static bool free_horizon(const double *min, const double *max, const void *item,
 }
 
 
-void horizoncache_free(struct horizoncache* self)
+void horizoncache_free(struct rtreecache* self)
 {
 		if (NULL == self)
 				return;
@@ -199,7 +199,7 @@ void horizoncache_free(struct horizoncache* self)
 }
 
 
-static bool iter(const double *min, const double *max, const void *item, void *udata)
+static bool hz_iter(const double *min, const double *max, const void *item, void *udata)
 {
 		UNUSED(min); UNUSED(max);
 		*((const horizon **) udata) = item;
@@ -207,7 +207,7 @@ static bool iter(const double *min, const double *max, const void *item, void *u
 }
 
 
-horizon* horizoncache_get(struct horizoncache* self, double x, double y, double z)
+horizon* horizoncache_get(struct rtreecache* self, double x, double y, double z)
 {
 		horizon* res = NULL;
 
@@ -220,7 +220,7 @@ horizon* horizoncache_get(struct horizoncache* self, double x, double y, double 
 							 x+self->xydelta,
 							 y+self->xydelta,
 							 z+self->zdelta},
-					 iter, &res);
+					 hz_iter, &res);
 
 		if (NULL!=res)
 				return res;
@@ -231,6 +231,64 @@ horizon* horizoncache_get(struct horizoncache* self, double x, double y, double 
 		res->N = 0;
 		res->zen=NULL;
 		res->astep=0;
+
+		rtree_insert(self->rtree, (double[3]){x,y,z}, NULL, res);
+
+		return res;
+}
+
+
+static bool free_skytransfer(const double *min, const double *max, const void *item, void *udata)
+{
+		UNUSED(min); UNUSED(max); UNUSED(udata);
+		sky_transfer *st = (sky_transfer*)item;
+		FreeSkyTransfer(st);
+		free(st);
+		return true;
+}
+
+
+void stcache_free(struct rtreecache *self)
+{
+		if (NULL == self) return;
+		rtree_scan(self->rtree, free_skytransfer, NULL);
+		rtree_free(self->rtree);
+		free(self);
+}
+
+
+static bool st_iter(const double *min, const double *max, const void *item, void *udata)
+{
+		UNUSED(min); UNUSED(max);
+		*((const sky_transfer **) udata) = item;
+		return false;
+}
+
+
+sky_transfer* stcache_get(struct rtreecache* self, double x, double y, double z)
+{
+		sky_transfer* res = NULL;
+
+		rtree_search(self->rtree,
+					 (double[3]){
+							 x-self->xydelta,
+							 y-self->xydelta,
+							 z-self->zdelta},
+					 (double[3]){
+							 x+self->xydelta,
+							 y+self->xydelta,
+							 z+self->zdelta},
+					 st_iter, &res);
+
+		if (NULL!=res)
+				return res;
+
+		if (NULL==(res=malloc(sizeof(*res))))
+				return NULL;
+
+		res->t=NULL;
+		res->N = 0;
+		res->g=1.0;
 
 		rtree_insert(self->rtree, (double[3]){x,y,z}, NULL, res);
 

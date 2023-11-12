@@ -177,33 +177,52 @@ void ssdp_free_location(location *l)
 
 #define ALBEPS 1e-10
 
-static int transfer_sky(
-		location *l, sky_grid *sky,
-		double albedo, sky_pos pn, AOI_Model_Data *M)
+
+int ssdp_init_transfer(
+		sky_transfer* st, sky_grid *sky, double albedo,
+		sky_pos pn, AOI_Model_Data *M)
+{
+		// corresponds to empty locations in the uST array
+		if (NULL == st) return 0;
+
+		// sky_transfer has been initialised
+		if (NULL != st->t) return 0;
+
+		// setup transfer, sky direct
+		*st = InitSkyTransfer(sky->N, NULL);
+
+		if (ssdp_error_state) goto einit;
+		POA_Sky_Transfer(sky, st, pn, M);
+		if (ssdp_error_state) goto error;
+
+		int i;
+		if (albedo>ALBEPS) {
+				st->g=albedo*POA_Albedo_Transfer(sky, pn, M);
+				if (ssdp_error_state) goto error;
+
+				for (i=0; i<st->N; ++i)
+						st->t[i]*=(1.0+st->g);
+		}
+
+		return 0;
+error:
+		FreeSkyTransfer(st);
+einit:
+		return -1;
+}
+
+
+static int transfer_sky(location *l, sky_grid *sky, sky_transfer *initsky)
 {
 		int i;
 
-		// setup transfer, sky direct
-		l->T=InitSkyTransfer(sky->N, NULL);
-		if (ssdp_error_state) goto einit;
-		POA_Sky_Transfer(sky, &(l->T), pn, M);
-		if (ssdp_error_state) goto error;
-
-		if (albedo>ALBEPS) {
-				l->T.g=albedo*POA_Albedo_Transfer(sky, pn, M);
-				if (ssdp_error_state) goto error;
-
-				for (i=0;i<l->T.N;i++)
-						l->T.t[i]*=(1.0+l->T.g);
-		}
+		l->T=InitSkyTransfer(sky->N, initsky);
 
 		HorizTrans(sky, l->H, &(l->T), &(l->T));
 		if (ssdp_error_state) {
-				// TODO Error, not warning
-				Print(WARNING, "Warning: Horizon does not match the sky\n");
+				Print(WARNING, "ERROR: Horizon does not match the sky\n");
 				goto error;
 		}
-
 
 		l->difftrans=0;
 		for (i=0;i<l->T.N;i++)
@@ -213,7 +232,6 @@ static int transfer_sky(
 		return 0;
 error:
 		FreeSkyTransfer(&(l->T));
-einit:
 		return -1;
 }
 
@@ -244,11 +262,10 @@ error:
 		return -1;
 }
 
-int ssdp_setup_transfer(
-		location *l, sky_grid *sky, double albedo, sky_pos pn,
-		AOI_Model_Data *M)
+
+int ssdp_setup_transfer(location *l, sky_grid *sky, sky_transfer *initsky)
 {
-		if (transfer_sky(l, sky, albedo, pn, M)) goto estate;
+		if (transfer_sky(l, sky, initsky)) goto estate;
 
 		return 0;
 estate:
@@ -370,26 +387,45 @@ int ssdp_suntimes(time_t t, double lat, double lon, double E, double p, double T
 	return suntimes(t, lat, lon, E, p, T, sunrise, transit, sunset);
 }
 
-struct horizoncache* ssdp_horizoncache_init(double xy, double z)
+
+struct rtreecache* ssdp_rtreecache_init(double xy, double z)
 {
-		return horizoncache_init(xy, z);
+		return rtreecache_init(xy, z);
 }
-horizon* ssdp_horizoncache_get(struct horizoncache* hc, double x, double y, double z)
+
+
+horizon* ssdp_horizoncache_get(struct rtreecache* hc, double x, double y, double z)
 {
 		return horizoncache_get(hc, x, y, z);
 }
-void ssdp_horizoncache_free(struct horizoncache* hc)
+
+
+void ssdp_horizoncache_free(struct rtreecache* hc)
 {
 		horizoncache_free(hc);
 }
-int ssdp_horizoncache_reset(struct horizoncache** hc)
+
+
+sky_transfer* ssdp_stcache_get(struct rtreecache* hc, double x, double y, double z)
+{
+		return stcache_get(hc, x, y, z);
+}
+
+
+void ssdp_stcache_free(struct rtreecache* hc)
+{
+		stcache_free(hc);
+}
+
+
+int ssdp_rtreecache_reset(struct rtreecache** hc)
 {
 		if (NULL == *hc)
 				return 0;
 
 		double xydelta = (*hc)->xydelta, zdelta = (*hc)->zdelta;
 		ssdp_horizoncache_free(*hc);
-		(*hc) = ssdp_horizoncache_init(xydelta, zdelta);
+		(*hc) = ssdp_rtreecache_init(xydelta, zdelta);
 		if (NULL==(*hc))
 				return -1;
 
