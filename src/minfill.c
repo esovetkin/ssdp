@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <float.h>
 #include <math.h>
+#include <stdio.h>
 
 #include "minfill.h"
 

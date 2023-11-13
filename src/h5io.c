@@ -517,9 +517,10 @@ void test1()
         assert(0 == remove("test.h5"));
 }
 
-
+#define UNUSED(x) (void)(x)
 int main(int argc, char** argv)
 {
+        UNUSED(argv);
         printf("testing h5io ...\n");
 
         test0("float32");
