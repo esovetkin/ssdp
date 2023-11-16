@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <float.h>
+#include <stdio.h>
 
 #include "edt.h"
 
@@ -71,6 +72,7 @@ void edt_free(struct edt *self)
 void edt_fill(struct edt *self)
 {
         int i;
+        int na = 0;
         for (i=0; i<self->n; ++i) {
                 if (self->z[i] >= self->missing_value)
                         continue;
@@ -80,7 +82,10 @@ void edt_fill(struct edt *self)
                         continue;
 
                 self->z[i] = self->z[self->x[i]];
+                ++na;
         }
+
+        printf("DEBUG: number of pixels: %d; number of missing values: %d\n", self->n, na);
 }
 
 
