@@ -277,7 +277,7 @@ int Arange(int dx, int dy, double *a1, double *a2, double *A1, double *A2)
 topogrid MakeTopogrid(double *z, double x1, double y1, double x2, double y2, int Nx, int Ny)
 {
 	topogrid T;
-	topogrid T0={NULL,NULL,NULL,NULL,0,0,0,0,0,1,1,-1,1,NULL,NULL};
+	topogrid T0={NULL,NULL,NULL,NULL,0,0,0,0,0,1,1,-1,12,0.56,NULL,NULL};
 	int i, N;
 	double dx, dy;
 	N=Nx*Ny;
@@ -318,7 +318,8 @@ topogrid MakeTopogrid(double *z, double x1, double y1, double x2, double y2, int
 	T.Ny=Ny;
 	T.horizon_sample = NULL;
 	T.horizon_nsample = -1;
-	T.horizon_decay = (double) 1;
+	T.horizon_scale = (double) 12;
+	T.horizon_shape = (double) 0.56;
 	T.x1=x1;
 	T.y1=y1;
 	T.x2=x2;
@@ -329,7 +330,7 @@ topogrid MakeTopogrid(double *z, double x1, double y1, double x2, double y2, int
 
 topogrid MakeTopoGDAL(double x1, double y1, double x2, double y2, char **fns, int nfns, double step, int epsg)
 {
-        topogrid T={NULL,NULL,NULL,NULL,0,0,0,0,0,1,1,-1,1,NULL,NULL};
+        topogrid T={NULL,NULL,NULL,NULL,0,0,0,0,0,1,1,-1,12,0.56,NULL,NULL};
         struct coordinates *lcs = box2coordinates(x1,y1,x2,y2,step,epsg);
         if (NULL == lcs) goto maketopogdal_elcs;
 
@@ -414,7 +415,8 @@ void free_topogrid (topogrid *T)
 		T->x2=1;
 		T->y1=1;
 		T->horizon_nsample = -1;
-		T->horizon_decay = (double) 1;
+		T->horizon_scale = (double) 12;
+		T->horizon_shape = (double) 0.56;
 		free(T->horizon_sample); T->horizon_sample=NULL;
 		free(T->horizon_idx); T->horizon_idx=NULL;
 	}
@@ -918,13 +920,15 @@ horizon MakeHorizon(sky_grid *sky, topology *T, double xoff, double yoff, double
 }
 
 
-int HorizonSobolSet(topogrid *T, int n, double decay)
+int HorizonSobolSet(topogrid *T, int n, double scale, double shape)
 {
 		if ((T->horizon_nsample==n) &&
-			(fabs(T->horizon_decay-decay)<1e-5))
+			(fabs(T->horizon_scale-scale)<1e-5) &&
+			(fabs(T->horizon_shape-shape)<1e-5))
 				return 0;
 		T->horizon_nsample = n;
-		T->horizon_decay = decay;
+		T->horizon_scale = scale;
+		T->horizon_shape = shape;
 
 		if (T->horizon_nsample < 0) return -2;
 		free(T->horizon_sample);
@@ -936,10 +940,14 @@ int HorizonSobolSet(topogrid *T, int n, double decay)
 		struct sobolseq* sq;
 		if (NULL==(sq=sobolseq_init(2))) goto esq;
 
+		double lambda = T->horizon_scale/((T->x2-T->x1)/T->Nx),
+				kr = 1/T->horizon_shape;
+
 		for (i=0; i < n; ++i) {
 				if (sobolseq_gen(sq, p)) goto egen;
 				p[0] *= 2*M_PI;
-				p[1] = N * pow(p[1], decay);
+				// Weibull distribution inverse cdf
+				p[1] = lambda*pow(-log(p[1]), kr);
 				x = (int) (p[1]*cos(p[0]));
 				y = (int) (p[1]*sin(p[0]));
 

@@ -274,9 +274,9 @@ estate:
 }
 
 
-int ssdp_topogrid_approxhorizon(topogrid *T, int nsample, double decay)
+int ssdp_topogrid_approxhorizon(topogrid *T, int nsample, double scale, double shape)
 {
-		return HorizonSobolSet(T, nsample, decay);
+		return HorizonSobolSet(T, nsample, scale, shape);
 }
 
 
