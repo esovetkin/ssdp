@@ -15,7 +15,8 @@ typedef struct simulation_config {
 	sky_grid* S; 			// sky, one sky for each OMP thread, at least one
 	int nS;	// equals to number of threads
 	topology T; 			// topology
-	topogrid Tx; 			// topogrid
+	topogrid* Tx; 			// topogrid
+	int nTx;                // number of topogrids
 	double albedo;			// ground albedo
 	char loc_init; 			// flags indicating whether location arrays have been initialized or not
 	double *x, *y, *z;		// locations of the module(s)
@@ -29,6 +30,9 @@ typedef struct simulation_config {
 	sky_transfer **uST; // list of pointers to unique sky transfers, always length Nl
 	int *uSTi;  // index uST -> index location, len(uSTi) = Nl
 	int *uSTii; // inverse of uSTi, len(uSTi) = Nl
+	int approx_n; // number of points used in the approximate horizon
+	double approx_scale; // Weibull scale parameter
+	double approx_shape; // Weibull shape parameter
 } simulation_config;
 
 typedef struct array {

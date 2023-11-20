@@ -277,7 +277,7 @@ int Arange(int dx, int dy, double *a1, double *a2, double *A1, double *A2)
 topogrid MakeTopogrid(double *z, double x1, double y1, double x2, double y2, int Nx, int Ny)
 {
 	topogrid T;
-	topogrid T0={NULL,NULL,NULL,NULL,0,0,0,0,0,1,1,-1,12,0.56,NULL,NULL};
+	topogrid T0={NULL,NULL,NULL,NULL,0,0,0,0,0,1,1,1,1,-1,12,0.56,NULL,NULL};
 	int i, N;
 	double dx, dy;
 	N=Nx*Ny;
@@ -324,13 +324,15 @@ topogrid MakeTopogrid(double *z, double x1, double y1, double x2, double y2, int
 	T.y1=y1;
 	T.x2=x2;
 	T.y2=y2;
+	T.dx = (Nx > 0) ? (x2-x1)/Nx : (x2-x1);
+	T.dy = (Ny > 0) ? (y2-y1)/Ny : (y2-y1);
 	return T;
 }
 
 
 topogrid MakeTopoGDAL(double x1, double y1, double x2, double y2, char **fns, int nfns, double step, int epsg)
 {
-        topogrid T={NULL,NULL,NULL,NULL,0,0,0,0,0,1,1,-1,12,0.56,NULL,NULL};
+        topogrid T={NULL,NULL,NULL,NULL,0,0,0,0,0,1,1,1,1,-1,12,0.56,NULL,NULL};
         struct coordinates *lcs = box2coordinates(x1,y1,x2,y2,step,epsg);
         if (NULL == lcs) goto maketopogdal_elcs;
 
@@ -414,6 +416,8 @@ void free_topogrid (topogrid *T)
 		T->y1=0;
 		T->x2=1;
 		T->y1=1;
+		T->dx=1;
+		T->dy=1;
 		T->horizon_nsample = -1;
 		T->horizon_scale = (double) 12;
 		T->horizon_shape = (double) 0.56;
@@ -481,12 +485,11 @@ static inline int INDEX(int x, int y, int Ny)
 
 static inline int IndexGridX(double x, topogrid *T, int *o)
 {
-	double dx=(T->x2-T->x1)/((double)T->Nx);
 	double nx;
-	nx=round((x-T->x1)/dx);
+	nx=round((x-T->x1)/T->dx);
 	if (o)
 	{
-		if (nx*dx>x)
+		if (nx*T->dx>x)
 			(*o)=(int)nx-1;
 		else
 			(*o)=(int)nx+1;
@@ -511,14 +514,12 @@ static inline int IndexGridY(double y, topogrid *T, int *o)
 
 static inline double YVALUE(int i,topogrid *T)
 {
-	double dy=(T->y2-T->y1)/((double)T->Ny);
-	return T->y1+((double)i)*dy;
-} 
+	return T->y1+((double)i)*T->dy;
+}
 static inline double XVALUE(int i,topogrid *T)
 {
-	double dx=(T->x2-T->x1)/((double)T->Nx);
-	return T->x1+((double)i)*dx;
-} 
+	return T->x1+((double)i)*T->dx;
+}
 
 // should export norm somehow as we may want to rotate the pv panel accordingly
 double SampleTopoGrid(double x, double y, topogrid *T, sky_pos *sn)
@@ -981,12 +982,10 @@ void ComputeGridHorizon(horizon *H, topogrid *T, double minzen, double xoff, dou
 // I would set it to 0.5 times the zenith step in the sky. Especially for large topographies it reduces the amount of work considerably as far away triangles are less likely of consequence
 {
 		int i, kl0, k, l, m, n;
-		double d, dx, dy, Dx, Dy, a1, a2, r;
+		double d, Dx, Dy, a1, a2, r;
 		r=tan(minzen);// compute threshold height over distance ratio
-		dx=(T->x2-T->x1)/T->Nx;
-		dy=(T->y2-T->y1)/T->Ny;
-		k=(int)round((xoff-T->x1)/dx);
-		l=(int)round((yoff-T->y1)/dy);
+		k=(int)round((xoff-T->x1)/T->dx);
+		l=(int)round((yoff-T->y1)/T->dy);
 
 		/*
 		  if (k<0)
@@ -1049,8 +1048,8 @@ void ComputeGridHorizon(horizon *H, topogrid *T, double minzen, double xoff, dou
 						--i;
 						continue;
 				}
-				Dx=dx*(double)m;
-				Dy=dy*(double)n;
+				Dx=T->dx*(double)m;
+				Dy=T->dy*(double)n;
 				d=sqrt(Dx*Dx+Dy*Dy);
 
 				if ((T->z[T->sort[i]]-zoff)/d>r) // do not compute anything for triangles below the zenith threshold

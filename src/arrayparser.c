@@ -781,116 +781,98 @@ void MakeGrid(char *in)
 /*
 BEGIN_DESCRIPTION
 SECTION Array
-PARSEFLAG get_grid GetGrid "C=<in-config> x=<out-array> y=<out-array> [nx=<out-1dim-array> ny=<out-1dim-array>]"
+PARSEFLAG get_grid GetGrid "C=<in-config> [x=<out-array>] [y=<out-array>] [nx=<out-1dim-array>] [ny=<out-1dim-array>] [rasterid=<int-value>]"
 DESCRIPTION Extract the grid from the configured topogrid
 ARGUMENT C  Simulation config with a configures topogrid
-OUTPUT x output array
-OUTPUT y output array
+ARGUMENT rasterid optional raster id (default: 0, first raster)
+OUTPUT x optional output array
+OUTPUT y optional output array
 OUTPUT nx optional output
 OUTPUT ny optional output
 END_DESCRIPTION
 */
 void GetGrid(char *in)
 {
-	char *word;
-	array x, y, nx, ny;
-	simulation_config *C;
-	int i, j;
-	double dx, dy, xx;
-	word=malloc((strlen(in)+1)*sizeof(char));
-	if (FetchConfig(in, "C", word, &C))
-	{
-		free(word);
-		return;
-	}
-	if (C->grid_init==0)
-	{
-		Warning("Simulation config does not cintain a topogrid\n");
-		free(word);
-		return;
-	}
-	x.N=(C->Tx.Nx*C->Tx.Ny);
-	x.D=malloc(x.N*sizeof(double));
-	
-	if (!x.D)
-	{
-		Warning("memory allocation failed\n");
-		free(word);
-		return;
-	}
-	y.N=x.N;
-	y.D=malloc(x.N*sizeof(double));
-	if (!y.D)
-	{
-		Warning("memory allocation failed\n");
-		free(word);
-		return;
-	}
-	dx=(C->Tx.x2-C->Tx.x1)/C->Tx.Nx;
-	dy=(C->Tx.y2-C->Tx.y1)/C->Tx.Ny;
-	for (i=0;i<C->Tx.Nx;i++)
-	{
-		xx=C->Tx.x1+i*dx;
-		for (j=0;j<C->Tx.Ny;j++)
-		{
-			x.D[i*C->Tx.Ny+j]=xx;
-			y.D[i*C->Tx.Ny+j]=C->Tx.y1+j*dy;
+		simulation_config *C;
+		array x, y, nx, ny;
+		int i, j, r=0;
+		double xx;
+		char *word=NULL, *wx=NULL, *wy=NULL, *wnx=NULL, *wny=NULL;
+
+		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
+		if (NULL==(wx=malloc((strlen(in)+1)*sizeof(*wx)))) goto ewx;
+		if (NULL==(wy=malloc((strlen(in)+1)*sizeof(*wy)))) goto ewy;
+		if (NULL==(wnx=malloc((strlen(in)+1)*sizeof(*wnx)))) goto ewnx;
+		if (NULL==(wny=malloc((strlen(in)+1)*sizeof(*wny)))) goto ewny;
+
+		if (FetchConfig(in, "C", word, &C)) goto eargs;
+		if (!GetOption(in, "x", wx)) {free(wx); wx=NULL;}
+		if (!GetOption(in, "y", wy)) {free(wy); wy=NULL;}
+		if (!GetOption(in, "nx", wnx)) {free(wnx); wnx=NULL;}
+		if (!GetOption(in, "ny", wny)) {free(wny); wny=NULL;}
+		if (FetchOptInt(in, "rasterid", word, &r)) r=0;
+
+		if (C->grid_init==0) {
+				Warning("ERROR: simulation config does not contain a topogrid\n");
+				goto eargs;
 		}
-	}	
-	if (!GetArg(in, "x", word))
-	{
+
+		if (r >= C->nTx) {
+				Warning("ERROR: only %d topogrids configured\n", C->nTx);
+				goto eargs;
+		}
+
+		y.N=x.N=(C->Tx[r].Nx*C->Tx[r].Ny);
+		nx.N=ny.N=1;
+
+		if (wx &&  NULL==(x.D=malloc(x.N*sizeof(*x.D)))) goto exD;
+		if (wy &&  NULL==(y.D=malloc(y.N*sizeof(*y.D)))) goto eyD;
+		if (wnx && NULL==(nx.D=malloc(sizeof(*nx.D)))) goto enxD;
+		if (wny && NULL==(ny.D=malloc(sizeof(*ny.D)))) goto enyD;
+
+		if (wnx) nx.D[0] = C->Tx[r].Nx;
+		if (wny) ny.D[0] = C->Tx[r].Ny;
+
+		if (wx || wy)
+				for (i=0; i<C->Tx[r].Nx; ++i) {
+						xx=C->Tx[r].x1+i*C->Tx[r].dx;
+						for (j=0; j<C->Tx[r].Ny; ++j) {
+								if (wx) x.D[i*C->Tx[r].Ny+j]=xx;
+								if (wy) y.D[i*C->Tx[r].Ny+j]=C->Tx[r].y1+j*C->Tx[r].dy;
+						}
+				}
+
+		if(wx && AddArray(wx, x)) {free(wx); wx=NULL; free(x.D); x.D=NULL;}
+		if(wy && AddArray(wy, y)) {free(wy); wy=NULL; free(y.D); y.D=NULL;}
+		if(wnx && AddArray(wnx, nx)) {free(wnx); wnx=NULL; free(nx.D); nx.D=NULL;}
+		if(wny && AddArray(wny, ny)) {free(wny); wny=NULL; free(ny.D); ny.D=NULL;}
+
 		free(word);
 		return;
-	}	
-	printf("Creating array %s\n",word);
-	if(AddArray(word, x))
-	{
-		free(x.D);	
+		free(ny.D); ny.D=NULL;
+enyD:
+		free(nx.D); nx.D=NULL;
+enxD:
+		free(y.D); y.D=NULL;
+eyD:
+		free(x.D); x.D=NULL;
+exD:
+eargs:
+		free(wny); wny=NULL;
+ewny:
+		free(wnx); wnx=NULL;
+ewnx:
+		free(wy); wy=NULL;
+ewy:
+		free(wx); wx=NULL;
+ewx:
 		free(word);
-	}
-	word=malloc((strlen(in)+1)*sizeof(char)); // allocate new, word is swallowed into the variable list by AddArray
-	if (!GetArg(in, "y", word))
-	{
-		free(word);
+eword:
+		Warning("ERROR: get_grid failed!\n");
 		return;
-	}	
-	printf("Creating array %s\n",word);
-	if(AddArray(word, y))
-	{
-		free(y.D);
-		free(word);
-	}
-
-    word=malloc((strlen(in)+1)*sizeof(char));
-    if (GetOption(in, "nx", word)) {
-            nx.N=1;
-            nx.D=malloc(sizeof(*nx.D));
-            nx.D[0] = C->Tx.Nx;
-
-            if(AddArray(word, nx)) {
-                    free(nx.D);
-                    free(word);
-            }
-    } else {
-			free(word);
-	}
-
-    word=malloc((strlen(in)+1)*sizeof(char));
-    if (GetOption(in, "ny", word)) {
-            ny.N=1;
-            ny.D=malloc(sizeof(*ny.D));
-            ny.D[0] = C->Tx.Ny;
-
-            if(AddArray(word, ny)) {
-                    free(ny.D);
-                    free(word);
-            }
-    } else {
-			free(word);
-	}
-
-	return;
 }
+
+
 /*
 BEGIN_DESCRIPTION
 SECTION Array

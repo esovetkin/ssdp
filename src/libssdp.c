@@ -274,14 +274,26 @@ estate:
 }
 
 
-int ssdp_topogrid_approxhorizon(topogrid *T, int nsample, double scale, double shape)
+int ssdp_topogrid_approxhorizon(topogrid *T, int nT, int nsample, double scale, double shape)
 {
-		return HorizonSobolSet(T, nsample, scale, shape);
+		int i, x, ec = 0;
+
+		for (i=0; i < nT; ++i) {
+				x = HorizonSobolSet(T+i, nsample, scale, shape);
+				if (-1 == x) goto esobol;
+				if (0 != x) ec = x;
+				if (x > 0)
+						printf("Approximate horizon |sample set|=%d\n", x);
+		}
+
+		return ec;
+esobol:
+		return -1;
 }
 
 
 int ssdp_setup_grid_horizon(
-		horizon *h, sky_grid *sky, topogrid *T,
+		horizon *h, sky_grid *sky, topogrid *T, int nT,
 		double xoff, double yoff, double zoff)
 {
 		// corresponds to empty locations in the uH array
@@ -297,9 +309,11 @@ int ssdp_setup_grid_horizon(
 
 		if (NULL == T) return 0;
 
-		ComputeGridHorizon
-				(h, T, M_PI/4.0/((double)sky->Nz),
-				 xoff, yoff, zoff);
+		int i;
+		for (i=0; i < nT; ++i)
+				ComputeGridHorizon
+						(h, T+i, M_PI/4.0/((double)sky->Nz),
+						 xoff, yoff, zoff);
 		AtanHorizon(h);
 		if (ssdp_error_state) goto error;
 
@@ -341,6 +355,41 @@ topogrid ssdp_make_topogrid(double *z, double x1, double y1, double x2, double y
 {
 	return MakeTopogrid(z,x1,y1,x2,y2,Nx,Ny);
 }
+
+
+static inline int Ta2Tb(int ia, topogrid *Ta, topogrid *Tb)
+{
+		double x,y;
+		int m,n;
+
+		x = Ta->dx*(ia / Ta->Ny) + Ta->x1;
+		y = Ta->dy*(ia % Ta->Ny) + Ta->y1;
+
+		m = (int) ((x - Tb->x1)/Tb->dx);
+		n = (int) ((y - Tb->y1)/Tb->dy);
+
+		if ((m < 0) || (m >= Tb->Nx) || (n < 0) || (n >= Tb->Ny))
+				return -1;
+
+		return m*Tb->Ny + n;
+}
+
+
+void ssdp_min_topogrids(topogrid *T, int nT)
+{
+		if (nT == 1) return;
+
+		int i, j, t, N = T[0].Nx*T[0].Ny;
+		for (j=0; j < N; ++j)
+				for (t=1; t < nT; ++t) {
+						i = Ta2Tb(j, T, T+t);
+						if (i < 0) continue;
+						if (T[0].z[j] >= T[t].z[i]) continue;
+						T[t].z[i] = T[0].z[j];
+				}
+}
+
+
 topogrid ssdp_make_topogdal(double x1, double y1, double x2, double y2, char **fns, int nfns, double step, int epsg)
 {
         return MakeTopoGDAL(x1, y1, x2, y2, fns, nfns, step, epsg);
@@ -353,9 +402,11 @@ void ssdp_free_topology(topology *T)
 {
 	free_topo (T);
 }
-void ssdp_free_topogrid(topogrid *T)
+void ssdp_free_topogrid(topogrid *T, int nT)
 {
-	free_topogrid (T);
+		int i;
+		for (i=0; i < nT; ++i)
+				free_topogrid(T+i);
 }
 double ssdp_sample_topology(double x, double y, topology *T, sky_pos *sn)
 {

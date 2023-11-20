@@ -21,12 +21,13 @@
 /*
 BEGIN_DESCRIPTION
 SECTION Topography
-PARSEFLAG sample_topo SampleTopography "C=<in-config>  x=<in-array> y=<in-array> type=<topology/topogrid> z=<out-array> azimuth=<out-array> zenith=<out-array>"
+PARSEFLAG sample_topo SampleTopography "C=<in-config>  x=<in-array> y=<in-array> z=<out-array> azimuth=<out-array> zenith=<out-array> [type=<topology/topogrid>] [rasterid=<int-value>]"
 DESCRIPTION Samples a topography to obtain the local height and surface normal
 ARGUMENT C config-variable
 ARGUMENT x x coordinate
 ARGUMENT y y coordinate
 ARGUMENT type Optional argument to select the unstructured topology mesh or the structured topogrid. Valid values are \"topology\" or \"topogrid\" (default topology unless only a topogrid is defined)
+ARGUMENT rasterid optional which topogrid to sample (default: 0)
 OUTPUT z z coordinate
 OUTPUT azimuth surface normal azimuth
 OUTPUT zenith surface normal zenith
@@ -34,7 +35,7 @@ END_DESCRIPTION
 */
 void SampleTopography(char *in)
 {
-	int i;
+	int i, r;
 	char *word;
 	simulation_config *C;
 	array *x, *y, z, azi, zen;
@@ -85,12 +86,18 @@ void SampleTopography(char *in)
 			type='g';
 		}
 	}
+	if (FetchOptInt(in, "rasterid", word, &r)) r=0;
 	if (C->topo_init==0)
 	{
 		type='g';
 		if (C->grid_init==0)
 		{ 
 			Warning("No topology or topogrid available\n");
+			free(word);
+			return;
+		}
+		if (r >= C->nTx) {
+			Warning("ERROR: only %d topogrids configured\n", C->nTx);
 			free(word);
 			return;
 		}
@@ -107,7 +114,7 @@ void SampleTopography(char *in)
 		if (type=='t')
 			z.D[i]=ssdp_sample_topology(x->D[i], y->D[i], &(C->T),&sn);
 		else
-			z.D[i]=ssdp_sample_topogrid(x->D[i], y->D[i], &(C->Tx),&sn);
+			z.D[i]=ssdp_sample_topogrid(x->D[i], y->D[i], C->Tx+r, &sn);
 		azi.D[i]=sn.a;
 		zen.D[i]=sn.z;
 	}
@@ -261,7 +268,7 @@ void OffsetTopography(char *in)
 		if (type=='t')
 			zoff.D[i]=ssdp_sample_topology(x->D[i], y->D[i], &(C->T),&sn)+o->D[i%o->N]*cos(sn.z);
 		else
-			zoff.D[i]=ssdp_sample_topogrid(x->D[i], y->D[i], &(C->Tx),&sn)+o->D[i%o->N]*cos(sn.z);
+			zoff.D[i]=ssdp_sample_topogrid(x->D[i], y->D[i], C->Tx, &sn)+o->D[i%o->N]*cos(sn.z);
 		
 		xoff.D[i]=x->D[i]+o->D[i%o->N]*sin(sn.z)*sin(sn.a);
 		yoff.D[i]=y->D[i]+o->D[i%o->N]*sin(sn.z)*cos(sn.a);
@@ -346,7 +353,7 @@ void FillMissing(char *in)
 		if (FetchOptInt(in, "maxwalk", word, &maxwalk)) maxwalk = 0;
 
 		TIC();
-		if (ssdp_fillmissing_topogrid(&(C->Tx), na, maxwalk))
+		if (ssdp_fillmissing_topogrid(C->Tx, na, maxwalk))
 				goto emissing;
 		printf("fillmissing_topo: filled missing values (smaller than %g) in %g s\n", na, TOC());
 
@@ -399,7 +406,7 @@ void AddHeight(char *in)
 		}
 
 		TIC();
-		if (ssdp_addheight_topogrid(&(C->Tx), x->D, y->D, z->D, x->N, z->N))
+		if (ssdp_addheight_topogrid(C->Tx, x->D, y->D, z->D, x->N, z->N))
 				goto eaddheight;
 		printf("addheight_topo: added %d location in %g s\n", x->N, TOC());
 
@@ -417,17 +424,18 @@ eword:
 /*
 BEGIN_DESCRIPTION
 SECTION Topography
-PARSEFLAG blur_topo BlurTopo "C=<in-config> size=<int-value>"
+PARSEFLAG blur_topo BlurTopo "C=<in-config> size=<int-value> [rasterid=<int-value>]"
 DESCRIPTION Blur topography. Only Topogrid topography is supported.
 ARGUMENT C config-variable
 ARGUMENT size the size of the window
+ARGUMENT rasterid optional which topogrid to sample (default: 0)
 END_DESCRIPTION
 */
 void BlurTopo(char *in)
 {
 		simulation_config *C;
 		char *word;
-		int size;
+		int size, r;
 
 		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
 
@@ -440,10 +448,15 @@ void BlurTopo(char *in)
 				Warning("Error: simulation config has no topogrid initialized\n");
 				goto econfig;
 		}
+		if (FetchOptInt(in, "rasterid", word, &r)) r=0;
+		if (r >= C->nTx) {
+			Warning("ERROR: only %d topogrids configured\n", C->nTx);
+			goto econfig;
+		}
 		if (FetchInt(in, "size", word, &size)) goto esize;
 
 		TIC();
-		if (ssdp_blurtopo_topogrid(&(C->Tx), size)) goto eblur;
+		if (ssdp_blurtopo_topogrid(C->Tx+r, size)) goto eblur;
 		printf("blurred topography in %g s\n", TOC());
 
 		free(word);

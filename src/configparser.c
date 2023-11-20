@@ -446,6 +446,28 @@ void InitConfigGridMask(simulation_config *C)
 		double dt;
 		int i, pco=0;
 
+		TIC();
+		i = ssdp_topogrid_approxhorizon
+				(C->Tx, C->nTx, C->approx_n,
+				 C->approx_scale, C->approx_shape);
+		dt=TOC();
+
+		switch (i) {
+		case -1:
+				goto enapprox;
+				break;
+		case 0:
+				break;
+		case -2:
+				ssdp_rtreecache_reset(&(C->hcache));
+				break;
+		default:
+				printf("Initialised topography sample set in %g s\n", dt);
+				ssdp_rtreecache_reset(&(C->hcache));
+				break;
+		}
+
+
 		if (! ((C->sky_init)&&(C->grid_init)&&(C->loc_init))) goto esgl;
 		if (init_hcache(C)) goto einitL;
 
@@ -457,7 +479,7 @@ void InitConfigGridMask(simulation_config *C)
 #pragma omp for schedule(runtime)
 				for (i=0; i < C->Nl; ++i) {
 						ssdp_setup_grid_horizon(
-								C->uH[i], C->S, &(C->Tx),
+								C->uH[i], C->S, C->Tx, C->nTx,
 								C->x[C->uHi[i]],
 								C->y[C->uHi[i]],
 								C->z[C->uHi[i]]);
@@ -474,6 +496,7 @@ estate:
 		FreeConfigMask(C); // make sure we are clear to allocate new memory
 einitL:
 esgl:
+enapprox:
 		return;
 }
 
@@ -644,6 +667,174 @@ void ConfigTOPO (char *in)
 	}
 	return;
 }
+
+
+static int resetadd_topogrid(simulation_config *C, int ifconfig)
+{
+		if (ifconfig) {
+				if (C->grid_init) {
+						ssdp_free_topogrid(C->Tx, C->nTx);
+						free(C->Tx); C->Tx=NULL; C->nTx=0;
+				} else {
+						C->grid_init=1;
+				}
+		}
+
+		if (0 == C->nTx) {
+				if (NULL==(C->Tx=malloc(sizeof(*C->Tx)))) goto emalloc;
+				C->nTx = 1;
+				return 0;
+		}
+
+		topogrid *tmp = realloc(C->Tx, (C->nTx+1)*sizeof(*tmp));
+		if (NULL == tmp) goto emalloc;
+		C->Tx = tmp;
+		++C->nTx;
+
+		return 0;
+emalloc:
+		return -1;
+}
+
+
+static void configadd_topogrid(char *in, int ifconfig)
+{
+		simulation_config *C;
+		array *z;
+		double x1, y1, x2, y2;
+		int Nx, Ny;
+		char *word;
+
+		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
+
+		if (FetchConfig(in, "C", word, &C)) goto eargs;
+		if (FetchFloat(in, "x1", word, &x1)) goto eargs;
+		if (FetchFloat(in, "y1", word, &y1)) goto eargs;
+		if (FetchFloat(in, "x2", word, &x2)) goto eargs;
+		if (FetchFloat(in, "y2", word, &y2)) goto eargs;
+		if (FetchInt(in, "Nx", word, &Nx)) goto eargs;
+		if (FetchInt(in, "Ny", word, &Ny)) goto eargs;
+		if (FetchArray(in, "z", word, &z)) goto eargs;
+
+		if (z->N!=Nx*Ny)
+		{
+				Warning("Number of steps in x- and y- directions "
+						"do not match the number of elements in "
+						"the z array (%d != %d x %d)\n",
+						z->N, Nx, Ny);
+				goto eargs;
+		}
+
+		if (resetadd_topogrid(C, ifconfig)) goto eTx;
+
+		printf("Configuring topogrid with %d points\n", z->N);
+		C->Tx[C->nTx-1]=ssdp_make_topogrid(z->D, x1, y1, x2, y2, Nx, Ny);
+		ssdp_min_topogrids(C->Tx, C->nTx);
+		if (ssdp_error_state) goto essdp;
+		if (ssdp_rtreecache_reset(&(C->hcache))) goto essdp;
+		InitConfigGridMask(C);
+		if (ssdp_error_state) goto essdp;
+
+		free(word);
+		return;
+essdp:
+		ssdp_print_error_messages();
+		ssdp_free_topogrid(C->Tx, C->nTx);
+		C->grid_init=0;
+		ssdp_reset_errors();
+eTx:
+eargs:
+		free(word);
+eword:
+		if (ifconfig)
+				Warning("Error: config_topogrid failed!\n");
+		else
+				Warning("Error: add_topogrid failed!\n");
+		return;
+}
+
+
+static void configadd_topogdal(char *in, int ifconfig)
+{
+		simulation_config *C;
+		double x1, y1, x2, y2, step;
+		int i = 0, epsg = -1;
+		char *word;
+		word=malloc((strlen(in)+1)*sizeof(*word));
+		if (NULL == word) goto eword;
+
+		if (FetchConfig(in, "C", word, &C)) goto epars;
+		if (FetchFloat(in, "lat1", word, &x1)) goto epars;
+		if (FetchFloat(in, "lon1", word, &y1)) goto epars;
+		if (FetchFloat(in, "lat2", word, &x2)) goto epars;
+		if (FetchFloat(in, "lon2", word, &y2)) goto epars;
+		if (FetchFloat(in, "step", word, &step)) goto epars;
+		if (step < 0) {
+				Warning("Error: step must be positive!\n");
+				goto epars;
+		}
+
+		struct cvec *fns = cvec_init(4);
+		if (NULL == fns) goto ecvec;
+		while(GetNumOption(in, "f", i, word)) {
+				if (cvec_push(fns, word)) goto efnspush;
+				word=malloc((strlen(in)+1)*sizeof(*word));
+				if (NULL == word) goto efnspush;
+				++i;
+		}
+
+		if (GetOption(in, "flist", word))
+				if (read_filelist(word, fns)) {
+						Warning("Error: Failed to read path list from the file!\n");
+						goto efnlist;
+				}
+
+		if (FetchOptInt(in, "epsg", word, &epsg))
+				epsg = determine_utm((x1+x2)/2, (y1+y2)/2);
+
+		printf("Sampling with step=%.3f epsg=%d\n"
+			   "\tbox: %.5f %.5f %.5f %.5f\n"
+			   "\tfiles:\n",
+			   step, epsg, x1, y1, x2, y2);
+		for (i=0; i < fns->n; ++i)
+				printf("\t%s\n", fns->s[i]);
+
+		if (resetadd_topogrid(C, ifconfig)) goto eTx;
+
+		TIC();
+		C->Tx[C->nTx-1] = ssdp_make_topogdal
+				(x1, y1, x2, y2, fns->s, fns->n, step, epsg);
+		ssdp_min_topogrids(C->Tx, C->nTx);
+		if (ssdp_error_state) goto emaketopogdal;
+		if (ssdp_rtreecache_reset(&(C->hcache))) goto emaketopogdal;
+		InitConfigGridMask(C);
+		if (ssdp_error_state) goto emaketopogdal;
+		printf("Initialised topogrid in %g s\n", TOC());
+
+		cvec_free(fns);
+		free(word);
+		return;
+emaketopogdal:
+		ssdp_print_error_messages();
+		ssdp_free_topogrid(C->Tx, C->nTx);
+		C->grid_init=0;
+		ssdp_reset_errors();
+eTx:
+efnlist:
+efnspush:
+		cvec_free(fns);
+ecvec:
+epars:
+		free(word);
+eword:
+		if (ifconfig)
+				Warning("Error: config_topogdal failed!\n");
+		else
+				Warning("Error: add_topogdal failed!\n");
+		return;
+}
+
+
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation Configuration
@@ -661,86 +852,20 @@ END_DESCRIPTION
 */
 void ConfigTOPOGrid (char *in)
 {
-	simulation_config *C;
-	array *z;
-	double x1, y1, x2, y2;
-	int Nx, Ny;
-	char *word;
-	word=malloc((strlen(in)+1)*sizeof(char));
-	
-	if (FetchConfig(in, "C", word, &C))
-	{
-		free(word);
-		return;
-	}
-		
-	if (FetchFloat(in, "x1", word, &x1))
-	{
-		free(word);
-		return;
-	}
-	if (FetchFloat(in, "y1", word, &y1))
-	{
-		free(word);
-		return;
-	}
-	if (FetchFloat(in, "x2", word, &x2))
-	{
-		free(word);
-		return;
-	}
-	if (FetchFloat(in, "y2", word, &y2))
-	{
-		free(word);
-		return;
-	}
-	if (FetchInt(in, "Nx", word, &Nx))
-	{
-		free(word);
-		return;
-	}
-	if (FetchInt(in, "Ny", word, &Ny))
-	{
-		free(word);
-		return;
-	}
-	if (FetchArray(in, "z", word, &z))
-	{
-		free(word);
-		return;
-	}
-	free(word);
-	if (z->N!=Nx*Ny)
-	{
-		Warning("Number of steps in x- and y- directions do not match the number of elements in the z array (%d != %d x %d)\n", z->N, Nx, Ny); 
-		return;
-	}
-	
-	if (C->grid_init)
-	{
-		ssdp_free_topogrid(&C->Tx);
-	}
-	else
-		C->grid_init=1;
-	printf("Configuring topogrid with %d points\n", z->N);
-	C->Tx=ssdp_make_topogrid(z->D, x1, y1, x2, y2, Nx, Ny);
-	if (ssdp_error_state)
-	{
-		ssdp_print_error_messages();
-		ssdp_free_topogrid(&C->Tx);
-		C->grid_init=0;
-		ssdp_reset_errors();
-	}
-	ssdp_rtreecache_reset(&(C->hcache));
-	InitConfigGridMask(C);
-	if (ssdp_error_state)
-	{
-		ssdp_print_error_messages();
-		ssdp_free_topogrid(&C->Tx);
-		C->grid_init=0;
-		ssdp_reset_errors();
-	}
-	return;
+		configadd_topogrid(in, 1);
+}
+
+/*
+BEGIN_DESCRIPTION
+SECTION Simulation Configuration
+PARSEFLAG add_topogrid AddTOPOGrid "C=<out-config> z=<in-array> Nx=<int-value> Ny=<int-value> x1=<float-value> y1=<float-value> x2=<float-value> y2=<float-value>"
+DESCRIPTION Add topogrid the existing topogrid. Same arguments as in config_topogrid
+ARGUMENT all same as in config_topogrid
+END_DESCRIPTION
+*/
+void AddTOPOGrid (char *in)
+{
+		configadd_topogrid(in, 0);
 }
 
 
@@ -762,79 +887,19 @@ END_DESCRIPTION
 */
 void ConfigTOPOGDAL (char *in)
 {
-        simulation_config *C;
-        double x1, y1, x2, y2, step;
-        int i = 0, epsg = -1;
-        char *word;
-        word=malloc((strlen(in)+1)*sizeof(*word));
-        if (NULL == word) goto eword;
+		configadd_topogdal(in, 1);
+}
 
-        if (FetchConfig(in, "C", word, &C)) goto epars;
-        if (FetchFloat(in, "lat1", word, &x1)) goto epars;
-        if (FetchFloat(in, "lon1", word, &y1)) goto epars;
-        if (FetchFloat(in, "lat2", word, &x2)) goto epars;
-        if (FetchFloat(in, "lon2", word, &y2)) goto epars;
-        if (FetchFloat(in, "step", word, &step)) goto epars;
-		if (step < 0) {
-				Warning("Error: step must be positive!\n");
-				goto epars;
-		}
-
-        struct cvec *fns = cvec_init(4);
-        if (NULL == fns) goto ecvec;
-        while(GetNumOption(in, "f", i, word)) {
-                if (cvec_push(fns, word)) goto efnspush;
-                word=malloc((strlen(in)+1)*sizeof(*word));
-                if (NULL == word) goto efnspush;
-                ++i;
-        }
-
-        if (GetOption(in, "flist", word))
-                if (read_filelist(word, fns)) {
-                        Warning("Error: Failed to read path list from the file!\n");
-                        goto efnlist;
-                }
-
-        if (FetchOptInt(in, "epsg", word, &epsg))
-                epsg = determine_utm((x1+x2)/2, (y1+y2)/2);
-
-        printf("Sampling with step=%.3f epsg=%d\n"
-               "\tbox: %.5f %.5f %.5f %.5f\n"
-               "\tfiles:\n",
-               step, epsg, x1, y1, x2, y2);
-        for (i=0; i < fns->n; ++i)
-                printf("\t%s\n", fns->s[i]);
-
-        if (C->grid_init)
-                ssdp_free_topogrid(&C->Tx);
-        else
-                C->grid_init = 1;
-
-        TIC();
-        C->Tx = ssdp_make_topogdal(x1, y1, x2, y2, fns->s, fns->n, step, epsg);
-        if (ssdp_error_state) goto emaketopogdal;
-        if (ssdp_rtreecache_reset(&(C->hcache))) goto emaketopogdal;
-        InitConfigGridMask(C);
-        if (ssdp_error_state) goto emaketopogdal;
-        printf("Initialised topogrid in %g s\n", TOC());
-
-        cvec_free(fns);
-        free(word);
-        return;
-emaketopogdal:
-        ssdp_print_error_messages();
-        ssdp_free_topogrid(&C->Tx);
-        C->grid_init=0;
-        ssdp_reset_errors();
-efnlist:
-efnspush:
-        cvec_free(fns);
-ecvec:
-epars:
-        free(word);
-eword:
-        Warning("Error: config_topogdal failed!\n");
-        return;
+/*
+BEGIN_DESCRIPTION
+SECTION Simulation Configuration
+PARSEFLAG add_topogdal AddTOPOGDAL "C=<out-config> lat1=<float-value> lon1=<float-value> lat2=<float-value> lon2=<float-value> step=<float-value> f0=<file-str> f1=<file-str> .. fN=<file-str> [flist=<file-str>] [epsg=<int-value>]"
+DESCRIPTION Add topography with GDAL to existing topogrid. Arguments same as in config_topogdal
+END_DESCRIPTION
+*/
+void AddTOPOGDAL (char *in)
+{
+		configadd_topogdal(in, 0);
 }
 
 /*
@@ -951,32 +1016,14 @@ void ConfigLoc(char *in)
 						goto ehcache;
 		C->hcache->xydelta = xydelta / 2.0;
 		C->hcache->zdelta = zdelta / 2.0;
+		C->approx_n = approx_n;
+		C->approx_scale = approx_scale;
+		C->approx_shape = approx_shape;
 
 		if ((C->topo_init==1)&&(type=='t'))
 				InitConfigMask(C);
-		if ((C->grid_init==1)&&(type=='g')) {
-				double dt; TIC();
-				int i=ssdp_topogrid_approxhorizon
-						(&(C->Tx), approx_n, approx_scale, approx_shape);
-				dt = TOC();
-
-				switch (i) {
-				case -1:
-						goto enapprox;
-						break;
-				case 0:
-						break;
-				case -2:
-						ssdp_rtreecache_reset(&(C->hcache));
-						break;
-				default:
-						printf("Initialised topography sample set in %g s, unique points: %d\n", dt, i);
-						ssdp_rtreecache_reset(&(C->hcache));
-						break;
-				}
-
+		if ((C->grid_init==1)&&(type=='g'))
 				InitConfigGridMask(C);
-		}
 
 		if (ssdp_error_state)
 		{
@@ -990,7 +1037,6 @@ void ConfigLoc(char *in)
 		free(word);
 		return;
 elocs:
-enapprox:
 ehcache:
 		free(C->o);
 eo:
@@ -1010,14 +1056,14 @@ eword:
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation Configuration
-PARSEFLAG export_horizon_sampleset ExportHorizSample "C=<in-config> z=<out-array> nx=<out-1dim-array> ny=<out-1dim-array>"
+PARSEFLAG export_horizon_sampleset ExportHorizSample "C=<in-config> z=<out-array> nx=<out-1dim-array> ny=<out-1dim-array> [rasterid=<int-value>]"
 DESCRIPTION Export topography sample set, which is used for horizon computations. Only works when config_locations has been called.
 OUTPUT z,nx,ny binary mask array and its dimensions
 END_DESCRIPTION
 */
 void ExportHorizSample(char *in)
 {
-		int i;
+		int i, r=0;
 		char *word, *oz, *onx, *ony;
 		simulation_config *C;
 		array z, nx, ny;
@@ -1031,27 +1077,33 @@ void ExportHorizSample(char *in)
 		if (!GetArg(in, "z", oz)) goto eargs;
 		if (!GetArg(in, "nx", onx)) goto eargs;
 		if (!GetArg(in, "ny", ony)) goto eargs;
+		if (FetchOptInt(in, "rasterid", word, &r)) r=0;
 
 		if (C->grid_init==0) {
 				Warning("ERROR: simulation config does not contain a topogrid\n");
 				goto eargs;
 		}
-		if (NULL == C->Tx.horizon_sample) {
+		if (r >= C->nTx) {
+				Warning("ERROR: only %d topogrids configured\n", C->nTx);
+				goto eargs;
+
+		}
+		if (NULL == C->Tx[r].horizon_sample) {
 				Warning("ERROR: approximate horizon sampling set is not computed yet\n");
 				goto eargs;
 		}
 
-		z.N = (2*C->Tx.Nx-1)*(2*C->Tx.Ny-1);
+		z.N = (2*C->Tx[r].Nx-1)*(2*C->Tx[r].Ny-1);
 		if (NULL==(z.D=malloc(z.N*sizeof(*(z.D))))) goto ez;
 		nx.N = 1;
 		if (NULL==(nx.D=malloc(nx.N*sizeof(*(nx.D))))) goto enx;
-		nx.D[0] = 2*C->Tx.Nx-1;
+		nx.D[0] = 2*C->Tx[r].Nx-1;
 		ny.N = 1;
 		if (NULL==(ny.D=malloc(ny.N*sizeof(*(ny.D))))) goto eny;
-		ny.D[0] = 2*C->Tx.Ny-1;
+		ny.D[0] = 2*C->Tx[r].Ny-1;
 
 		for (i=0; i < z.N; ++i)
-				z.D[i] = (double) C->Tx.horizon_sample[i];
+				z.D[i] = (double) C->Tx[r].horizon_sample[i];
 
 		if(AddArray(ony, ny)) goto eo;
 		if(AddArray(onx, nx)) goto eo;

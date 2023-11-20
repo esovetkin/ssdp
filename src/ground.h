@@ -32,6 +32,7 @@ typedef struct topogrid {
 	int Nx,Ny;	// number of points
 	double x1, y1; // lower left corner
 	double x2, y2; // upper right corner
+	double dx, dy; // dx and dy step size
 	int horizon_nsample; // number of points horizon is checked
 	double horizon_scale; // Weibull scale
 	double horizon_shape; // Weibull shape

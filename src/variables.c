@@ -33,6 +33,8 @@ simulation_config InitConf()
 	C.sky_init=0;
 	C.S=NULL;
 	C.nS=0;
+	C.Tx=NULL;
+	C.nTx=0;
 	C.topo_init=0;
 	C.grid_init=0;
 	C.albedo=0.0; 
@@ -53,6 +55,9 @@ simulation_config InitConf()
 	C.uST=NULL;
 	C.uSTi=NULL;
 	C.uSTii=NULL;
+	C.approx_n=-1;
+	C.approx_scale= (double) 12;
+	C.approx_shape= (double) 0.56;
 	return C;
 }
 void FreeConf(simulation_config *C)
@@ -83,7 +88,9 @@ void FreeConf(simulation_config *C)
 	}
 	if (C->grid_init)
 	{
-		ssdp_free_topogrid(&C->Tx);
+		ssdp_free_topogrid(C->Tx, C->nTx);
+		free(C->Tx); C->Tx=NULL;
+		C->nTx=0;
 		C->grid_init=0;
 	}
 	if (C->loc_init)

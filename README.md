@@ -19,7 +19,7 @@ surface normal).
 	* variable size hexagonal sky-dome mesh
 	* sun taken separately as a point source a alleviate sky-mesh 
 	resolution requirements
-* Computes solar position given the latitude and lonitude and the 
+* Computes solar position given the latitude and longitude and the
 UTC time (specified as Unix Time) using the spa algorithm [2] 
 as implemented by freespa [3]
 	* also supports a manual specification of azimuth and zenith angles
@@ -30,11 +30,14 @@ as implemented by freespa [3]
 	* Crude "one bounce" approximation for albedo (no ray tracing, it 
 	is a fully "local" model)
 	* only computes irradiance at specified locations
+    * r-tree-based cache for sky with similar orientations
     * faster approximate horizon algorithm based on the radial Sobol
       topography samples
 * 2.5D topography
-	* Supports both unstructured and regular meshes for the topography
-    * Supports topography specification using georasters with GDAL
+	* both unstructured and regular meshes for the topography
+    * topography specification using georasters with GDAL
+    * r-tree-based cache for horizon in the same locations
+    * multiple topography with different resolution levels and covered areas
 * input/output in tab-separated and HDF5 formats
 
 ## Examples

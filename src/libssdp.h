@@ -59,8 +59,8 @@ void ssdp_free_location(location *l);
 int ssdp_init_transfer(sky_transfer* st, sky_grid *sky, double albedo, sky_pos pn, AOI_Model_Data *M);
 int ssdp_setup_transfer(location *l, sky_grid *sky, sky_transfer *initsky);
 int ssdp_setup_horizon(horizon *h, sky_grid *sky, topology *T, double xoff, double yoff, double zoff);
-int ssdp_setup_grid_horizon(horizon *h, sky_grid *sky, topogrid *T, double xoff, double yoff, double zoff);
-int ssdp_topogrid_approxhorizon(topogrid *T, int nsample, double scale, double shape);
+int ssdp_setup_grid_horizon(horizon *h, sky_grid *sky, topogrid *T, int nT, double xoff, double yoff, double zoff);
+int ssdp_topogrid_approxhorizon(topogrid *T, int nT, int nsample, double scale, double shape);
 double ssdp_diffuse_poa(sky_grid *sky, location *l);
 double ssdp_direct_poa(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, location *l);
 double ssdp_total_poa(sky_grid *sky, sky_pos pn, AOI_Model_Data *M, location *l);
@@ -69,11 +69,12 @@ int ssdp_below_horizon(location *l, sky_pos p);
 // create a topology from a point cloud
 topology ssdp_make_topology(double *x, double *y, double *z, int N);
 topogrid ssdp_make_topogrid(double *z, double x1, double y1, double x2, double y2, int Nx, int Ny);
+void ssdp_min_topogrids(topogrid *T, int nT);
 topogrid ssdp_make_topogdal(double x1, double y1, double x2, double y2, char **fns, int nfns, double step, int epsg);
 // create random topologies for testing
 topology ssdp_make_rand_topology(double dx, double dy, double dz, int N1, int N2);
 void ssdp_free_topology(topology *T);
-void ssdp_free_topogrid(topogrid *T);
+void ssdp_free_topogrid(topogrid *T, int nT);
 // compute elevation (z) at any point x and y in the topology
 // beware: will extrapolate from closest triangle to points outside the hull without warning
 // Also computes the surface normal if you pass it a non NULL pointer to a sky_pos
