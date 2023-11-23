@@ -326,6 +326,60 @@ eword:
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation
+PARSEFLAG sim_sky SimSky "C=<in-config> POA=<out-array>"
+DESCRIPTION Do simulations with the configured sky
+ARGUMENT C Simulation config variable
+OUTPUT POA plane of array irradiance for each configured location
+END_DESCRIPTION
+*/
+void SimSky(char *in)
+{
+		int i;
+		char *word, *nout;
+		simulation_config *C;
+		double tpoa = 0;
+		array out;
+
+		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
+		if (NULL==(nout=malloc((strlen(in)+1)*sizeof(*nout)))) goto enout;
+
+		if (FetchConfig(in, "C", word, &C)) goto eargs;
+		if (!GetArg(in, "POA", nout)) goto eargs;
+		if (check_simconfig(C, 1, 0)) goto eargs;
+
+		if (NULL==(out.D=malloc(C->Nl*sizeof(*(out.D))))) goto eout;
+		out.N=C->Nl;
+
+		TIC();
+#pragma omp parallel private(i) shared(C)
+		{
+#pragma omp for schedule(runtime)
+				for (i=0;i<C->Nl;i++)
+						out.D[i]+=ssdp_total_poa
+								(C->S, C->o[i], &(C->M), C->L+i);
+		}
+		tpoa=TOC();
+
+		printf("Computed %d POA Irradiances in %g s (%g s/POA)\n", C->Nl, tpoa, tpoa/((double)(C->Nl)));
+		printf("Creating array %s\n",nout);
+		if(AddArray(nout, out)) goto eoutadd;
+
+		free(word);
+		return;
+eoutadd:
+		free(out.D);
+eout:
+eargs:
+		free(nout);
+enout:
+		free(word);
+eword:
+		Warning("Error: sim_sky failed!\n");
+}
+
+/*
+BEGIN_DESCRIPTION
+SECTION Simulation
 PARSEFLAG sim_route SimRoute "C=<in-config> t=<in-array> [p=<in-array>] [T=<in-array>] GHI=<in-array> DHI=<in-array> POA=<out-array>"
 DESCRIPTION Computes the POA irradiance along a route along all configured locations using the Perez All Weather Sky Model.
 ARGUMENT C Simulation config variable
@@ -829,4 +883,164 @@ efile:
 		free(word);
 eword:
 		Warning("Error: export_horizon failed!\n");
+}
+
+/*
+BEGIN_DESCRIPTION
+SECTION Simulation
+PARSEFLAG compute_sky ComputeSky "C=<config_file> t=<in-array> GHI=<in-array> DHI=<in-array> [p=<in-array>] [T=<in-array>]"
+DESCRIPTION Compute sky. Currently only implemented integral sky
+ARGUMENT C Simulation configuration
+ARGUMENT t unix time array.
+ARGUMENT GHI global horizontal irradiance as a function of time
+ARGUMENT DHI diffuse horizontal irradiance as a function of time
+ARGUMENT p air pressure in mb (default: 1010)
+ARGUMENT T air temperature in C (default: 10)
+ARGUMENT type type of sky to compute (default: integral)
+OUTPUT C the computed sky is saved in the simulation configuration
+END_DESCRIPTION
+*/
+void ComputeSky(char *in)
+{
+		int N, fp = 0, fT = 0;
+		char *word;
+		simulation_config *C;
+		array *t, *GH, *DH, *p, *T;
+		double tsky=0;
+
+		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
+
+		if (FetchConfig(in, "C", word, &C)) goto eargs;
+		// if (check_simconfig(C, 1, 0)) goto eargs;
+		if (FetchArray(in, "t", word, &t)) goto eargs;
+		if (FetchArray(in, "GHI", word, &GH)) goto eargs;
+		if (FetchArray(in, "DHI", word, &DH)) goto eargs;
+		if (FetchOptArray(in, "p", word, &p))
+				if ((fp=default_array(&p, 1010.0)) < 0) goto eargsp;
+		if (FetchOptArray(in, "T", word, &T))
+				if ((fT=default_array(&T, 10.0)) < 0) goto eargsT;
+
+		N = check_shapes(5,(array*[]){t, GH, DH, p, T});
+		if (N < 0) goto eshapes;
+
+		if (N != t->N || t->N != GH->N || t->N != DH->N) {
+				Warning("Error: t, GHI, DHI must be of the same length!\n");
+				goto eshapes;
+		}
+
+		printf("Computing perez integrated sky...\n");
+		TIC();
+		ssdp_make_perez_cumulative_sky_coordinate
+				(C->S, t->D, C->lon, C->lat, C->E,
+				 p->D, p->N, T->D, T->N, GH->D, DH->D, t->N);
+		tsky=TOC();
+		printf("Integrated %d skies in %g s (%g s/sky)\n", t->N, tsky, tsky/((double)t->N));
+
+		free(word);
+		return;
+eshapes:
+		free_default_array(&T, fT);
+eargsT:
+		free_default_array(&p, fp);
+eargsp:
+eargs:
+		free(word);
+eword:
+		Warning("Error: compute_sky failed!\n");
+}
+
+
+/*
+BEGIN_DESCRIPTION
+SECTION Simulation
+PARSEFLAG write_sky WriteSky "C=<config_file> file=<in-string> [dataset=<in-string>]"
+DESCRIPTION save currently configured sky in h5 file
+ARGUMENT C Simulation config variable
+ARGUMENT file name of the output file
+ARGUMENT dataset optional name of dataset (default "skydata")
+OUTPUT file the sky is save uncompressed in a structured h5file
+END_DESCRIPTION
+*/
+void WriteSky(char *in)
+{
+		char *fn, *word, *dst;
+		simulation_config *C;
+
+		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
+		if (NULL==(fn=malloc((strlen(in)+1)*sizeof(*fn)))) goto efn;
+		if (NULL==(dst=malloc((strlen(in)+1)*sizeof(*dst)))) goto edst;
+
+		if (FetchConfig(in, "C", word, &C)) goto eargs;
+		if (!GetArg(in, "file", fn)) goto eargs;
+		if (!GetOption(in, "dataset", dst)) snprintf(dst, strlen(in), "skydata");
+
+		TIC();
+		if (ssdp_write_sky(C->S, fn, dst)) {
+				printf("Error: failed to write %s to %s\n", dst, fn);
+				goto ewrite;
+		}
+		printf("Wrote sky to %s::%s in %g s\n", fn, dst, TOC());
+
+		free(dst);
+		free(fn);
+		free(word);
+		return;
+ewrite:
+eargs:
+		free(dst);
+edst:
+		free(fn);
+efn:
+		free(word);
+eword:
+		printf("Error: write_sky failed!\n");
+		return;
+}
+
+
+/*
+BEGIN_DESCRIPTION
+SECTION Simulation
+PARSEFLAG read_sky ReadSky "C=<config_file> file=<in-string> [dataset=<in-string>]"
+DESCRIPTION load sky from a h5 file to the configuration file
+ARGUMENT C Simulation config variable
+ARGUMENT file name of the output file
+ARGUMENT dataset optional name of dataset (default "skydata")
+OUTPUT file the sky is save uncompressed in a structured h5file
+END_DESCRIPTION
+*/
+void ReadSky(char *in)
+{
+		char *fn, *word, *dst;
+		simulation_config *C;
+
+		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
+		if (NULL==(fn=malloc((strlen(in)+1)*sizeof(*fn)))) goto efn;
+		if (NULL==(dst=malloc((strlen(in)+1)*sizeof(*dst)))) goto edst;
+
+		if (FetchConfig(in, "C", word, &C)) goto eargs;
+		if (!GetArg(in, "file", fn)) goto eargs;
+		if (!GetOption(in, "dataset", dst)) snprintf(dst, strlen(in), "skydata");
+
+		// read sky for each thread
+		if (ssdp_read_sky(C->S, C->nS, fn, dst)) {
+				printf("Error: failed to read %s to %s\n", dst, fn);
+				goto ewrite;
+		}
+		printf("Read sky from %s::%s\n", fn, dst);
+
+		free(dst);
+		free(fn);
+		free(word);
+		return;
+ewrite:
+eargs:
+		free(dst);
+edst:
+		free(fn);
+efn:
+		free(word);
+eword:
+		printf("Error: read_sky failed!\n");
+		return;
 }

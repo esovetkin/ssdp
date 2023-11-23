@@ -96,3 +96,6 @@ void ssdp_horizoncache_free(struct rtreecache* hc);
 
 sky_transfer* ssdp_stcache_get(struct rtreecache* hc, double x, double y, double z);
 void ssdp_stcache_free(struct rtreecache* hc);
+
+int ssdp_write_sky(sky_grid* sky, const char* ofn, const char *dataset);
+int ssdp_read_sky(sky_grid* sky, int nskies, const char* ifn, const char* dataset);

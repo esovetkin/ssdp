@@ -20,27 +20,34 @@
 #define _SKY_DOME_H
 
 //BEGIN_SSDP_EXPORT
+
+#include <hdf5.h>
+
 typedef struct hexpatch {
-	double I;
-	sky_pos p;
-	int NL[7]; // next level neighbors
-	int PL[3]; // previous level neighbors
-	int NI;    // iso level next
-	int PI;    // iso level previous
+		double I;
+		sky_pos p;
+		int NL[7]; // next level neighbors
+		int PL[3]; // previous level neighbors
+		int NI;    // iso level next
+		int PI;    // iso level previous
 } hexpatch;
 
+
 typedef struct sky_grid {
-	hexpatch *P;
-	// get sun out of the hexpatch dome so we can separate contributions
-	// if we want
-	sky_pos sp;	// solar position
-	double sI;	// solar intensity
-	int suni; // index of the sky patch the sun is in
-	double *cosz; // per patch cosine of zenith
-	double *sa; // per patch solid angle
-	double icosz; // integral of all cosz and solid angle factors, used for normalization
-	int N;		
-	int Nz;
+		hexpatch *P;
+		// get sun out of the hexpatch dome so we can separate contributions
+		// if we want
+		hvl_t h5b_P;
+		sky_pos sp;	// solar position
+		double sI;	// solar intensity
+		int suni; // index of the sky patch the sun is in
+		double *cosz; // per patch cosine of zenith
+		hvl_t h5b_cosz;
+		double *sa; // per patch solid angle
+		hvl_t h5b_sa;
+		double icosz; // integral of all cosz and solid angle factors, used for normalization
+		int N;
+		int Nz;
 } sky_grid;
 //END_SSDP_EXPORT
 
@@ -49,6 +56,11 @@ void Connectivity(int Nz);
 sky_grid InitSky(int Nz);
 void free_sky_grid(sky_grid *sky);
 int FindPatch(sky_grid *sky, sky_pos p);
+
+hid_t h5t_hexpatch();
+hid_t h5t_sky_grid();
+int h5write_sky_grid(sky_grid* data, const char* ofn, const char* dataset);
+int h5read_sky_grid(sky_grid* data, const char* ifn, const char *dataset);
 
 int NNZ(int n);	// number of elements in a mesh given a number of levels (zenith discretizations)
 int NZN(int n);	// inverse of above, i.e. give it a index and it returns the level (zenith) index
@@ -59,5 +71,5 @@ int NZN(int n);	// inverse of above, i.e. give it a index and it returns the lev
  * solid angle : ~ A/d^2 = (pi * 1391400 ^2 / 4) / 149597870.7^2 = 6.7942739713694071218e-05
  * Note that the actual distance sun-earth varies about 3% so the result is not to be taken as accurate
  */
-#define SUNSR 6.794e-5	
+#define SUNSR 6.794e-5
 #endif

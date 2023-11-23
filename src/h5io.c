@@ -20,7 +20,6 @@
 #define malloc(x) random_fail_malloc(x)
 #endif
 
-static hid_t h5io_fopen(const char *);
 static hid_t subgroups(void);
 static hid_t float16(void);
 static hid_t chunks(int, int, int);
@@ -160,7 +159,7 @@ edsp:
 }
 
 
-int h5io_isin(struct h5io* self)
+int h5_datasetisin(hid_t file, const char* dst)
 {
         // I want to avoid any additional error messages from
         // HDF. That's why I test that every subgroup exist, starting
@@ -168,18 +167,18 @@ int h5io_isin(struct h5io* self)
         // https://docs.hdfgroup.org/hdf5/v1_12/group___h5_l.html#title11
         int res=1;
         // ensure appending delimeter last '/' is okay
-        int n = strlen(self->dataset) + 1;
+        int n = strlen(dst) + 1;
         char *token, *x, *p, delim[] = "/";
         if (NULL == (x=malloc((n+1)*sizeof(*x)))) goto ex;
         if (NULL == (p=malloc((n+1)*sizeof(*p)))) goto ep;
-        strncpy(x, self->dataset, n+1);
+        strncpy(x, dst, n+1);
         p[0] = '\0';
 
         token = strtok(x,"/");
         while (NULL != token) {
                 strcat(p, token);
 
-                res = H5Lexists(self->file, p, H5P_DEFAULT);
+                res = H5Lexists(file, p, H5P_DEFAULT);
                 if (res <= 0)
                         break;
 
@@ -197,7 +196,13 @@ ex:
 }
 
 
-static hid_t h5io_fopen(const char *fn)
+int h5io_isin(struct h5io* self)
+{
+		return h5_datasetisin(self->file, self->dataset);
+}
+
+
+hid_t h5io_fopen(const char *fn)
 {
         if (0 == access(fn, F_OK))
                 return H5Fopen(fn, H5F_ACC_RDWR, H5P_DEFAULT);

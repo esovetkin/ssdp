@@ -57,4 +57,7 @@ int h5io_write(struct h5io* self, double **data, int arrlen, int narr);
 */
 int h5io_isin(struct h5io* self);
 
+hid_t h5io_fopen(const char *fn);
+int h5_datasetisin(hid_t file, const char* dst);
+
 #endif

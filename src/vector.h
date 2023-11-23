@@ -18,6 +18,9 @@
 */
 #ifndef _VECTOR_H
 #define _VECTOR_H
+
+#include <hdf5.h>
+
 // basic 3D vector calculation
 //BEGIN_SSDP_EXPORT
 typedef struct sky_pos {
@@ -43,4 +46,7 @@ sky_pos rrf(sky_pos p, sky_pos axis, double beta);
 #define DEGPRAD 5.729577951308232e+01
 #define rad2deg(r) (DEGPRAD*(r))
 #define deg2rad(d) (RADPDEG*(d))
+
+hid_t h5t_sky_pos();
+
 #endif

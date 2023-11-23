@@ -482,3 +482,22 @@ int ssdp_rtreecache_reset(struct rtreecache** hc)
 
 		return 0;
 }
+
+
+int ssdp_write_sky(sky_grid* sky, const char* ofn, const char* dataset)
+{
+		return h5write_sky_grid(sky, ofn, dataset);
+}
+
+
+int ssdp_read_sky(sky_grid* sky, int nskies, const char* ifn, const char* dataset)
+{
+		int i, ret=0;
+
+		for (i=0; i < nskies; ++i) {
+				free_sky_grid(sky+i);
+				ret+= h5read_sky_grid(sky+i, ifn, dataset);
+		}
+
+		return ret;
+}

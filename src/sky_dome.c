@@ -19,8 +19,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+#include <hdf5.h>
 #include "vector.h"
 #include "sky_dome.h"
+#include "h5io.h"
 #include "error.h"
 #include "print.h"
 
@@ -398,6 +400,8 @@ sky_grid InitSky(int Nz)
 		sky.N=0;
 		return sky;
 	}
+	sky.h5b_P.len = sky.N+1;
+	sky.h5b_P.p = sky.P;
 	if ((sky.cosz=malloc((sky.N+1)*sizeof(double)))==NULL)
 	{
 		free(sky.P);
@@ -407,6 +411,8 @@ sky_grid InitSky(int Nz)
 		sky.N=0;
 		return sky;
 	}
+	sky.h5b_cosz.len = sky.N+1;
+	sky.h5b_cosz.p = sky.cosz;
 	if ((sky.sa=malloc((sky.N+1)*sizeof(double)))==NULL)
 	{
 		free(sky.P);
@@ -416,6 +422,8 @@ sky_grid InitSky(int Nz)
 		sky.N=0;
 		return sky;
 	}
+	sky.h5b_sa.len = sky.N+1;
+	sky.h5b_sa.p = sky.sa;
 	sky.icosz=0;
 	
 	for (i=0;i<sky.N;i++)
@@ -438,12 +446,182 @@ void free_sky_grid(sky_grid *sky)
 	if (sky->P)
 		free(sky->P);
 	sky->P=NULL;
+	sky->h5b_P.len=0;
+	sky->h5b_P.p=NULL;
 	if (sky->cosz)
 		free(sky->cosz);
 	sky->cosz=NULL;	
+	sky->h5b_cosz.len=0;
+	sky->h5b_cosz.p=NULL;
 	if (sky->sa)
 		free(sky->sa);
 	sky->sa=NULL;	
+	sky->h5b_sa.len=0;
+	sky->h5b_sa.p=NULL;
 	sky->Nz=0;
 	sky->N=0;
+}
+
+
+hid_t h5t_hexpatch()
+{
+		hid_t t_nl, t_pl, t_res, t_sky_pos;
+
+		t_nl=H5Tarray_create(H5T_NATIVE_INT,1,(hsize_t[]){7});
+		if (H5I_INVALID_HID==t_nl) goto et_nl;
+		t_pl = H5Tarray_create(H5T_NATIVE_INT,1,(hsize_t[]){3});
+		if (H5I_INVALID_HID==t_pl) goto et_pl;
+		t_sky_pos = h5t_sky_pos();
+		if (H5I_INVALID_HID==t_sky_pos) goto et_sky_pos;
+
+		t_res = H5Tcreate(H5T_COMPOUND, sizeof(hexpatch));
+		if (H5I_INVALID_HID==t_res) goto et_res;
+		if (0>H5Tinsert(t_res, "I", HOFFSET(hexpatch, I), H5T_NATIVE_DOUBLE)) goto einsert;
+		if (0>H5Tinsert(t_res, "p", HOFFSET(hexpatch, p), t_sky_pos)) goto einsert;
+		if (0>H5Tinsert(t_res, "NL", HOFFSET(hexpatch, NL), t_nl)) goto einsert;
+		if (0>H5Tinsert(t_res, "PL", HOFFSET(hexpatch, PL), t_pl)) goto einsert;
+		if (0>H5Tinsert(t_res, "NI", HOFFSET(hexpatch, NI), H5T_NATIVE_INT)) goto einsert;
+		if (0>H5Tinsert(t_res, "PI", HOFFSET(hexpatch, PI), H5T_NATIVE_INT)) goto einsert;
+
+		H5Tclose(t_sky_pos);
+		H5Tclose(t_pl);
+		H5Tclose(t_nl);
+		return t_res;
+einsert:
+		H5Tclose(t_res);
+et_res:
+		H5Tclose(t_sky_pos);
+et_sky_pos:
+		H5Tclose(t_pl);
+et_pl:
+		H5Tclose(t_nl);
+et_nl:
+		return H5I_INVALID_HID;
+}
+
+
+hid_t h5t_sky_grid()
+{
+		hid_t t_vld, t_res, t_hexpatch, t_sky_pos, t_vl_hexpatch;
+		t_vld = H5Tvlen_create(H5T_NATIVE_DOUBLE);
+		if (H5I_INVALID_HID==t_vld) goto et_vld;
+		t_hexpatch=h5t_hexpatch();
+		if (H5I_INVALID_HID==t_hexpatch) goto et_hexpatch;
+		t_vl_hexpatch=H5Tvlen_create(t_hexpatch);
+		if (H5I_INVALID_HID==t_vl_hexpatch) goto et_vl_hexpatch;
+		t_sky_pos = h5t_sky_pos();
+		if (H5I_INVALID_HID==t_sky_pos) goto et_sky_pos;
+
+		t_res = H5Tcreate(H5T_COMPOUND, sizeof(sky_grid));
+		if (H5I_INVALID_HID==t_res) goto et_res;
+		if (0>H5Tinsert(t_res, "P", HOFFSET(sky_grid, h5b_P), t_vl_hexpatch)) goto einsert;
+		if (0>H5Tinsert(t_res, "sp", HOFFSET(sky_grid, sp), t_sky_pos)) goto einsert;
+		if (0>H5Tinsert(t_res, "sI", HOFFSET(sky_grid, sI), H5T_NATIVE_DOUBLE)) goto einsert;
+		if (0>H5Tinsert(t_res, "suni", HOFFSET(sky_grid, suni), H5T_NATIVE_INT)) goto einsert;
+		if (0>H5Tinsert(t_res, "cosz", HOFFSET(sky_grid, h5b_cosz), t_vld)) goto einsert;
+		if (0>H5Tinsert(t_res, "sa", HOFFSET(sky_grid, h5b_sa), t_vld)) goto einsert;
+		if (0>H5Tinsert(t_res, "icosz", HOFFSET(sky_grid, icosz), H5T_NATIVE_DOUBLE)) goto einsert;
+		if (0>H5Tinsert(t_res, "N", HOFFSET(sky_grid, N), H5T_NATIVE_INT)) goto einsert;
+		if (0>H5Tinsert(t_res, "Nz", HOFFSET(sky_grid, Nz), H5T_NATIVE_INT)) goto einsert;
+
+		H5Tclose(t_sky_pos);
+		H5Tclose(t_vl_hexpatch);
+		H5Tclose(t_hexpatch);
+		H5Tclose(t_vld);
+		return t_res;
+einsert:
+		H5Tclose(t_res);
+et_res:
+		H5Tclose(t_sky_pos);
+et_sky_pos:
+		H5Tclose(t_vl_hexpatch);
+et_vl_hexpatch:
+		H5Tclose(t_hexpatch);
+et_hexpatch:
+		H5Tclose(t_vld);
+et_vld:
+		return H5I_INVALID_HID;
+}
+
+
+int h5write_sky_grid(sky_grid* data, const char* ofn, const char *dataset)
+{
+		hid_t dsp, file, dst, t_sky_grid;
+
+		if (H5I_INVALID_HID == (file=h5io_fopen(ofn))) goto efile;
+		if (0 != h5_datasetisin(file, dataset)) goto edataset;
+
+		dsp = H5Screate_simple(1, (hsize_t[]){1}, NULL);
+		if (H5I_INVALID_HID == dsp) goto edsp;
+		t_sky_grid = h5t_sky_grid();
+		if (H5I_INVALID_HID == t_sky_grid) goto et_sky_grid;
+
+		dst = H5Dcreate(file, dataset, t_sky_grid, dsp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+		if (H5I_INVALID_HID == dst) goto edst;
+
+		if (0>H5Dwrite(dst, t_sky_grid, H5S_ALL, H5S_ALL,	H5P_DEFAULT, data)) goto ewrite;
+
+		H5Dclose(dst);
+		H5Tclose(t_sky_grid);
+		H5Sclose(dsp);
+		H5Fclose(file);
+		return 0;
+ewrite:
+		H5Dclose(dst);
+edst:
+		H5Tclose(t_sky_grid);
+et_sky_grid:
+		H5Sclose(dsp);
+edsp:
+edataset:
+		H5Fclose(file);
+efile:
+		return -1;
+}
+
+
+int h5read_sky_grid(sky_grid* data, const char* ifn, const char *dataset)
+{
+		hid_t file, dst, t_sky_grid, t_ftype;
+
+		file=H5Fopen(ifn, H5F_ACC_RDONLY, H5P_DEFAULT);
+		if (H5I_INVALID_HID == file) goto efile;
+		if (1 > h5_datasetisin(file, dataset)) goto edataset;
+
+		dst = H5Dopen(file, dataset, H5P_DEFAULT);
+		if (H5I_INVALID_HID == dst) goto edst;
+
+		if (H5I_INVALID_HID==(t_ftype=H5Dget_type(dst))) goto et_ftype;
+		if (H5I_INVALID_HID==(t_sky_grid=h5t_sky_grid())) goto et_sky_grid;
+
+		htri_t status = H5Tequal(t_sky_grid, t_ftype);
+		if (status < 0) goto efaileq;
+		if (0 == status) goto enonmatch;
+
+		// data must be freed before
+		// NO! free_sky_grid(data);
+		if (0>H5Dread(dst, t_sky_grid, H5S_ALL, H5S_ALL, H5P_DEFAULT, data)) goto eread;
+
+		data->P = data->h5b_P.p;
+		data->cosz = data->h5b_cosz.p;
+		data->sa = data->h5b_sa.p;
+
+		H5Tclose(t_sky_grid);
+		H5Tclose(t_ftype);
+		H5Dclose(dst);
+		H5Fclose(file);
+		return 0;
+eread:
+enonmatch:
+efaileq:
+		H5Tclose(t_sky_grid);
+et_sky_grid:
+		H5Tclose(t_ftype);
+et_ftype:
+		H5Fclose(dst);
+edst:
+edataset:
+		H5Fclose(file);
+efile:
+		return -1;
 }

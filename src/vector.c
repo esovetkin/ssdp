@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+#include <hdf5.h>
 #include "config.h"
 #include "fatan2.h"
 #include "vector.h"
@@ -125,3 +126,17 @@ double adiff(double a1, double a2)
 	return d;
 }
 
+
+hid_t h5t_sky_pos()
+{
+		hid_t t_res;
+		t_res = H5Tcreate(H5T_COMPOUND, sizeof(sky_pos));
+		if (H5I_INVALID_HID==t_res) goto et_res;
+		if (0>H5Tinsert(t_res, "z", HOFFSET(sky_pos, z), H5T_NATIVE_DOUBLE)) goto einsert;
+		if (0>H5Tinsert(t_res, "a", HOFFSET(sky_pos, a), H5T_NATIVE_DOUBLE)) goto einsert;
+		return t_res;
+einsert:
+		H5Tclose(t_res);
+et_res:
+		return H5I_INVALID_HID;
+}
