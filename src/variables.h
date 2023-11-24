@@ -31,8 +31,6 @@ typedef struct simulation_config {
 	int *uSTi;  // index uST -> index location, len(uSTi) = Nl
 	int *uSTii; // inverse of uSTi, len(uSTi) = Nl
 	int approx_n; // number of points used in the approximate horizon
-	double approx_scale; // Weibull scale parameter
-	double approx_shape; // Weibull shape parameter
 } simulation_config;
 
 typedef struct array {

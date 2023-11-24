@@ -31,6 +31,8 @@
 #define malloc(x) random_fail_malloc(x)
 #endif
 
+#define UNUSED(x) (void)(x)
+
 // helper routines for indexing hex meshes
 int i_sqrt(int x)	// integer sqrt
 {
@@ -111,20 +113,22 @@ int GridIndex(int Nz, sky_pos p)
 
 
 // routines to connect patches
-int NextIsoL(int Nz, int index) // same level next
+static int NextIsoL(int Nz, int index) // same level next
 {
+	UNUSED(Nz);
 	int nz;
 	if (index==0)
 		return -1;
-		
+
 	nz=NZN(index);
 	if (nz==NZN(index+1))
 		return index+1;
 	return index-nz*6+1;// last of this level, must go to first of this level
 }
 
-int PrevIsoL(int Nz, int index) // same level previous
+static int PrevIsoL(int Nz, int index) // same level previous
 {
+	UNUSED(Nz);
 	int nz;
 	if (index==0)
 		return -1;
@@ -182,11 +186,12 @@ void NextL(int Nz, int index, int *N) // next level
 
 void PrevL(int Nz, int index, int *N) // previous level
 {
+	UNUSED(Nz);
 	int nz, i, aoff, n=0;
 	nz=NZN(index); // this level
 	i=NNZ(nz-1);   // start index of this level
 	aoff=index-i;  // offset at this level
-	
+
 	if (index==0) // hexpatch 0 only has no previous level
 	{
 		N[n++]=-1;

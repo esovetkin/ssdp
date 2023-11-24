@@ -45,6 +45,46 @@
 #define malloc(x) random_fail_malloc(x)
 #endif
 
+
+static topology default_topology()
+{
+		return (topology) {
+				.x  = NULL,
+				.y  = NULL,
+				.z  = NULL,
+				.N  = 0,
+				.T  = NULL,
+				.Nt = 0,
+				.P  = NULL,
+		};
+}
+
+
+static topogrid default_topogrid()
+{
+		return (topogrid) {
+				.z               = NULL,
+				.sort            = NULL,
+				.A1              = NULL,
+				.A2              = NULL,
+				.Na              = 0,
+				.Nx              = 0,
+				.Ny              = 0,
+				.x1              = (double) 0,
+				.y1              = (double) 0,
+				.x2              = (double) 1,
+				.y2              = (double) 1,
+				.dx              = (double) 1,
+				.dy              = (double) 1,
+				.horizon_nsample = -1,
+				.horizon_sample  = NULL,
+				.horizon_idx     = NULL,
+				.horizon_dstr    = NULL,
+				.horizon_dstrn   = 0,
+		};
+}
+
+
 // sort triangle list by height
 int tcomp(const void *a, const void *b)
 { 
@@ -59,45 +99,39 @@ void tsort(triangles *T, int Nt)
 	qsort(T, Nt, sizeof(triangles), tcomp);
 }
 
+
 topology MakeTopology(double *x, double *y, double *z, int N)
 {
-	topology T;
-	topology T0={NULL,NULL,NULL,0,NULL,0,NULL};
-	int i;
-	// ERRORFLAG MALLOCFAILTOPOLOGY  "Error memory allocation failed in creating a topology"
-	T.x=malloc(N*sizeof(double));
-	T.y=malloc(N*sizeof(double));
-	T.z=malloc(N*sizeof(double));
-	if ((T.x==NULL)||(T.y==NULL)||(T.z==NULL))
-	{
+		int i;
+		topology T=default_topology();
+
+		// ERRORFLAG MALLOCFAILTOPOLOGY  "Error memory allocation failed in creating a topology"
+		if (NULL==(T.x=malloc(N*sizeof(*T.x)))) goto err;
+		if (NULL==(T.y=malloc(N*sizeof(*T.y)))) goto err;
+		if (NULL==(T.z=malloc(N*sizeof(*T.z)))) goto err;
+
+		for (i=0;i<N;i++) {
+				T.x[i]=x[i];
+				T.y[i]=y[i];
+				T.z[i]=z[i];
+		}
+		T.N=N;
+		T.T=Triangulate(T.x, T.y, T.N, &T.Nt);
+		if (ssdp_error_state) goto err;
+		for (i=0;i<T.Nt;i++)
+				T.T[i].ccz=(T.z[T.T[i].i]+T.z[T.T[i].j]+T.z[T.T[i].k])/3;
+		tsort(T.T, T.Nt); // sorting triangles
+
+		T.P=InitTree(T.T, T.Nt, T.x, T.y, N);
+		if (ssdp_error_state) goto err;
+
+		return T;
+err:
 		AddErr(MALLOCFAILTOPOLOGY);
-		return T0;
-	}
-	for (i=0;i<N;i++)
-	{
-		T.x[i]=x[i];
-		T.y[i]=y[i];
-		T.z[i]=z[i];
-	}
-	T.N=N;
-	T.T=Triangulate(T.x, T.y, T.N, &T.Nt);
-	if (ssdp_error_state)
-	{
 		free_topo(&T);
-		return T0;
-	}
-	for (i=0;i<T.Nt;i++)
-		T.T[i].ccz=(T.z[T.T[i].i]+T.z[T.T[i].j]+T.z[T.T[i].k])/3;
-	tsort(T.T, T.Nt); // sorting triangles
-	
-	T.P=InitTree(T.T, T.Nt, T.x, T.y, N);
-	if (ssdp_error_state)
-	{
-		free_topo(&T);
-		return T0;
-	}
-	return T;
+		return default_topology();
 }
+
 
 // sort grid index by height
 // ERRORFLAG MALLOCFAILTOPOGRID  "Error memory allocation failed in creating a topogrid"
@@ -276,74 +310,62 @@ int Arange(int dx, int dy, double *a1, double *a2, double *A1, double *A2)
 
 topogrid MakeTopogrid(double *z, double x1, double y1, double x2, double y2, int Nx, int Ny)
 {
-	topogrid T;
-	topogrid T0={NULL,NULL,NULL,NULL,0,0,0,0,0,1,1,1,1,-1,12,0.56,NULL,NULL};
-	int i, N;
-	double dx, dy;
-	N=Nx*Ny;
-	T.z=malloc(N*sizeof(double));
-	if (T.z==NULL)
-	{
+		topogrid T=default_topogrid();
+
+		int i, N;
+		N=Nx*Ny;
+
+		if (NULL==(T.z=malloc(N*sizeof(*T.z)))) goto err;
+
+		for (i=0;i<N;++i)
+				T.z[i]=z[i];
+		T.sort=gsort(T.z, N);
+		if (ssdp_error_state) goto err;
+
+		if (NULL==(T.horizon_idx=malloc(N*sizeof(*T.horizon_idx)))) goto err;
+		for (i=0; i < N; ++i)
+				T.horizon_idx[i] = (2*Ny-1)*(T.sort[i]/Ny) + T.sort[i]%Ny;
+
+		T.Nx=Nx; T.Ny=Ny;
+		T.x1=x1; T.y1=y1;
+		T.x2=x2; T.y2=y2;
+		T.dx = (Nx > 0) ? (x2-x1)/Nx : (x2-x1);
+		T.dy = (Ny > 0) ? (y2-y1)/Ny : (y2-y1);
+
+		T.horizon_dstrn = 1000;
+		T.horizon_dstr=malloc(T.horizon_dstrn*sizeof(*T.horizon_dstr));
+		if (NULL==T.horizon_dstr) goto err;
+		for (i=0; i < T.horizon_dstrn; ++i)
+				T.horizon_dstr[i] = 300*((double) i)/T.horizon_dstrn;
+
+		if (Nx>Ny)
+				MakeAngles(Nx, T.dx, T.dy, &(T.A1), &(T.A2), &(T.Na));
+		else
+				MakeAngles(Ny, T.dx, T.dy, &(T.A1), &(T.A2), &(T.Na));
+		if (ssdp_error_state) goto err;
+
+		return T;
+err:
+		free_topogrid(&T);
 		AddErr(MALLOCFAILTOPOGRID);
-		return T0;
-	}
-	for (i=0;i<N;i++)
-		T.z[i]=z[i];
-	T.sort=gsort(T.z, N);	
-	if (ssdp_error_state)
-	{
-		free_topogrid(&T);
-		return T0;
-	}
-
-	if (NULL==(T.horizon_idx=malloc(N*sizeof(*T.horizon_idx)))) {
-		free_topogrid(&T);
-		return T0;
-	}
-	for (i=0; i < N; ++i)
-		T.horizon_idx[i] = (2*Ny-1)*(T.sort[i]/Ny) + T.sort[i]%Ny;
-
-	dx=(x2-x1)/((double)Nx);
-	dy=(y2-y1)/((double)Nx);
-	if (Nx>Ny)
-		MakeAngles(Nx, dx, dy, &(T.A1), &(T.A2), &(T.Na));
-	else
-		MakeAngles(Ny, dx, dy, &(T.A1), &(T.A2), &(T.Na));	
-	if (ssdp_error_state)
-	{
-		free_topogrid(&T);
-		return T0;
-	}
-	T.Nx=Nx;
-	T.Ny=Ny;
-	T.horizon_sample = NULL;
-	T.horizon_nsample = -1;
-	T.horizon_scale = (double) 12;
-	T.horizon_shape = (double) 0.56;
-	T.x1=x1;
-	T.y1=y1;
-	T.x2=x2;
-	T.y2=y2;
-	T.dx = (Nx > 0) ? (x2-x1)/Nx : (x2-x1);
-	T.dy = (Ny > 0) ? (y2-y1)/Ny : (y2-y1);
-	return T;
+		return default_topogrid();
 }
 
 
 topogrid MakeTopoGDAL(double x1, double y1, double x2, double y2, char **fns, int nfns, double step, int epsg)
 {
-        topogrid T={NULL,NULL,NULL,NULL,0,0,0,0,0,1,1,1,1,-1,12,0.56,NULL,NULL};
+        topogrid T;
         struct coordinates *lcs = box2coordinates(x1,y1,x2,y2,step,epsg);
-        if (NULL == lcs) goto maketopogdal_elcs;
+        if (NULL == lcs) goto elcs;
 
         printf("Location box dimensions: %d, %d\n", lcs->nx, lcs->ny);
 
         struct gdaldata *gd = gdaldata_init((const char **)fns, nfns);
-        if (NULL == gd) goto maketopogdal_egd;
+        if (NULL == gd) goto egd;
 
         double *z;
         z = topogrid_from_gdal(gd, lcs);
-        if (NULL == z) goto maketopogdal_ez;
+        if (NULL == z) goto ez;
 
         T = MakeTopogrid(z, lcs->y1, lcs->x1, lcs->y2, lcs->x2, lcs->ny, lcs->nx);
 
@@ -351,80 +373,49 @@ topogrid MakeTopoGDAL(double x1, double y1, double x2, double y2, char **fns, in
         gdaldata_free(gd);
         coordinates_free(lcs);
         return T;
-maketopogdal_ez:
+ez:
         gdaldata_free(gd);
-maketopogdal_egd:
+egd:
         coordinates_free(lcs);
-maketopogdal_elcs:
+elcs:
         AddErr(MALLOCFAILTOPOGRID);
-        return T;
+        return default_topogrid();
 }
 
 
 void free_topo (topology *T)
 {
-	if (T)
-	{
-		if (T->x)
-			free(T->x);
-		if (T->y)
-			free(T->y);
-		if (T->z)
-			free(T->z);
-		if (T->T)
-			free(T->T);
-		T->x=NULL;
-		T->y=NULL;
-		T->z=NULL;	
-		T->T=NULL;	
-		T->N=0;	
-		if (T->P)
-		{
-			FreeTree(T->P);
-			free(T->P);
-			T->P=NULL;
-		}
-	}
+		if (NULL==T) return;
+		if (T->x) {free(T->x);T->x=NULL;}
+		if (T->y) {free(T->y);T->y=NULL;}
+		if (T->z) {free(T->z);T->z=NULL;}
+		if (T->T) {free(T->T);T->T=NULL;}
+		if (T->P) {FreeTree(T->P); free(T->P); T->P=NULL;}
+
+		T->N=0;
+		T->Nt=0;
 }
+
+
 void free_topogrid (topogrid *T)
 {
-	if (T)
-	{
-		if (T->z)
-		{
-			free(T->z);
-			T->z=NULL;
-		}
-		if (T->A1)
-		{
-			free(T->A1);
-			T->A1=NULL;
-		}
-		if (T->A2)
-		{
-			free(T->A2);
-			T->A2=NULL;
-		}
-		if (T->sort)
-		{
-			free(T->sort);
-			T->sort=NULL;
-		}
-		T->Nx=0;
-		T->Ny=0;
-		T->x1=0;
-		T->y1=0;
-		T->x2=1;
-		T->y1=1;
-		T->dx=1;
-		T->dy=1;
+		if (NULL==T) return;
+		if (T->z)    {free(T->z);T->z=NULL;}
+		if (T->sort) {free(T->sort);T->sort=NULL;}
+		if (T->A1)   {free(T->A1);T->A1=NULL;}
+		if (T->A2)   {free(T->A2);T->A2=NULL;}
+		if (T->horizon_sample) {free(T->horizon_sample); T->horizon_sample=NULL;}
+		if (T->horizon_idx) {free(T->horizon_idx); T->horizon_idx=NULL;}
+		if (T->horizon_dstr) {free(T->horizon_dstr); T->horizon_dstr=NULL;}
+
+		T->Na=0; T->Nx=0; T->Ny=0;
+		T->x1=(double) 0; T->y1= (double) 0;
+		T->x2=(double) 1; T->y2= (double) 1;
+		T->dx=(double) 1; T->dy=(double) 1;
 		T->horizon_nsample = -1;
-		T->horizon_scale = (double) 12;
-		T->horizon_shape = (double) 0.56;
-		free(T->horizon_sample); T->horizon_sample=NULL;
-		free(T->horizon_idx); T->horizon_idx=NULL;
-	}
+		T->horizon_dstrn = 0;
 }
+
 
 // should export norm somehow as we may want to rotate the pv panel accordingly
 double SampleTopo(double x, double y, topology *T, sky_pos *sn)
@@ -693,7 +684,7 @@ topology CreateRandomTopology(double dx, double dy, double dz, int N1, int N2)
 	double xmin, xmax, ymin, ymax, zmin, zmax;
 	double *x, *y, *z;
 	topology T;
-	topology T0={NULL,NULL,NULL,0,NULL,0,NULL};
+	topology T0=default_topology();
 	int i, n;
 	if (N1>N2)
 	{
@@ -921,34 +912,25 @@ horizon MakeHorizon(sky_grid *sky, topology *T, double xoff, double yoff, double
 }
 
 
-int HorizonSobolSet(topogrid *T, int n, double scale, double shape)
+int HorizonSobolSet(topogrid *T, int n)
 {
-		if ((T->horizon_nsample==n) &&
-			(fabs(T->horizon_scale-scale)<1e-5) &&
-			(fabs(T->horizon_shape-shape)<1e-5))
-				return 0;
+		if (n==T->horizon_nsample) return 0;
 		T->horizon_nsample = n;
-		T->horizon_scale = scale;
-		T->horizon_shape = shape;
-
 		if (T->horizon_nsample < 0) return -2;
+
 		free(T->horizon_sample);
 		T->horizon_sample=calloc((2*T->Nx-1)*(2*T->Ny-1), sizeof(T->horizon_sample));
 		if (NULL == T->horizon_sample) goto ecalloc;
 
-		int i, x, y, N=(T->Nx>T->Ny)?T->Nx:T->Ny;
+		int i, x, y;
 		double p[2];
 		struct sobolseq* sq;
 		if (NULL==(sq=sobolseq_init(2))) goto esq;
 
-		double lambda = T->horizon_scale/((T->x2-T->x1)/T->Nx),
-				kr = 1/T->horizon_shape;
-
 		for (i=0; i < n; ++i) {
 				if (sobolseq_gen(sq, p)) goto egen;
 				p[0] *= 2*M_PI;
-				// Weibull distribution inverse cdf
-				p[1] = lambda*pow(-log(p[1]), kr);
+				p[1] = T->horizon_dstr[(int)floor(p[1]*T->horizon_dstrn)];
 				x = (int) (p[1]*cos(p[0]));
 				y = (int) (p[1]*sin(p[0]));
 
@@ -974,6 +956,31 @@ esq:
 ecalloc:
 		return -1;
 }
+
+
+int HorizonSetDstr(topogrid *T, double *d, int nd)
+{
+		double *tmp_d = T->horizon_dstr;
+		int tmp_dn = T->horizon_dstrn;
+
+		T->horizon_dstrn = 0;
+		T->horizon_dstr = malloc(nd*sizeof(*T->horizon_dstr));
+		if (NULL==T->horizon_dstr) goto err;
+		T->horizon_dstrn = nd;
+
+		int i;
+		for (i=0; i < nd; ++i)
+				T->horizon_dstr[i] = d[i];
+
+		// cleanup old data
+		if (tmp_d) free(tmp_d);
+		return 0;
+err:
+		T->horizon_dstr = tmp_d;
+		T->horizon_dstrn = tmp_dn;
+		return -1;
+}
+
 
 // take a topology and rize the horizon accordingly
 void ComputeGridHorizon(horizon *H, topogrid *T, double minzen, double xoff, double yoff, double zoff)

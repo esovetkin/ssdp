@@ -679,7 +679,6 @@ void SolarTimes(char *in)
 {
 		int i, r, N, fE = 0, fp = 0, fT = 0;
 		char *word, *nsunrise, *nsunset, *ntransit;
-		sky_pos s;
 		array *t, *p, *T, *E, *lon, *lat, sunrise, sunset, transit;
 		time_t t1, t2, t3;
 

@@ -56,8 +56,6 @@ simulation_config InitConf()
 	C.uSTi=NULL;
 	C.uSTii=NULL;
 	C.approx_n=-1;
-	C.approx_scale= (double) 12;
-	C.approx_shape= (double) 0.56;
 	return C;
 }
 void FreeConf(simulation_config *C)

@@ -44,7 +44,6 @@ sky_pos sunpos(time_t t, double lat, double lon, double e, double p, double T)
 
 int suntimes(time_t t, double lat, double lon, double e, double p, double T, time_t *sunrise, time_t *transit, time_t *sunset)
 {
-	sol_pos S;
 	solar_day D;
 	struct tm ut, *tp;
 	int r=0;

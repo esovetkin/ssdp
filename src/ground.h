@@ -16,28 +16,30 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+
 //BEGIN_SSDP_EXPORT
 typedef struct topology {
-	double *x, *y, *z;  // 3D coordinates
-	int N;		 		// number of points
-	triangles *T;
-	int Nt;		 		// number of triangles
-	nodetree *P;
+		double *x, *y, *z;  // 3D coordinates
+		int N;		 		// number of points
+		triangles *T;
+		int Nt;		 		// number of triangles
+		nodetree *P;
 } topology;
+
 typedef struct topogrid {
-	double *z;  // z coordinate in column-major format
-	int *sort;  // sorted indexing with increasing height
-	double *A1, *A2; // pre computed discrete angles
-	int Na;		// number of discrete angles in A1 and A2 arrays
-	int Nx,Ny;	// number of points
-	double x1, y1; // lower left corner
-	double x2, y2; // upper right corner
-	double dx, dy; // dx and dy step size
-	int horizon_nsample; // number of points horizon is checked
-	double horizon_scale; // Weibull scale
-	double horizon_shape; // Weibull shape
-	char* horizon_sample; // locations where topography for horizon is sampled
-	int* horizon_idx; // precomputed index of the for horizon_sample. len(horizon_idx)==Nx*Ny
+		double *z;  // z coordinate in column-major format
+		int *sort;  // sorted indexing with increasing height
+		double *A1, *A2; // pre computed discrete angles
+		int Na;		// number of discrete angles in A1 and A2 arrays
+		int Nx,Ny;	// number of points
+		double x1, y1; // lower left corner
+		double x2, y2; // upper right corner
+		double dx, dy; // dx and dy step size
+		int horizon_nsample; // number of points horizon is checked, -1 means precise algorithm
+		char* horizon_sample; // locations where topography for horizon is sampled
+		int* horizon_idx; // precomputed index of the for horizon_sample. len(horizon_idx)==Nx*Ny
+		double *horizon_dstr; // sampling distribution (ordered quantiles)
+		int horizon_dstrn; // len(horizon_dstr)
 } topogrid;
 //END_SSDP_EXPORT
 
@@ -56,7 +58,8 @@ int FillMissingTopoGrid(topogrid *T, double na, int maxwalk);
 int AddHeightTopoGrid(topogrid *T, double *x, double *y, double *z, int nx, int nz);
 int BlurTopoGrid(topogrid *T, int size);
 
-int HorizonSobolSet(topogrid *T, int nsample, double scale, double shape);
+int HorizonSobolSet(topogrid *T, int nsample);
+int HorizonSetDstr(topogrid *T, double *d, int nd);
 
 void ComputeHorizon(horizon *H, topology *T, double minzen, double xoff, double yoff, double zoff);
 void ComputeGridHorizon(horizon *H, topogrid *T, double minzen, double xoff, double yoff, double zoff);

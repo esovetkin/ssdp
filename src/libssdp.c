@@ -274,12 +274,12 @@ estate:
 }
 
 
-int ssdp_topogrid_approxhorizon(topogrid *T, int nT, int nsample, double scale, double shape)
+int ssdp_topogrid_approxhorizon(topogrid *T, int nT, int nsample)
 {
 		int i, x, ec = 0;
 
 		for (i=0; i < nT; ++i) {
-				x = HorizonSobolSet(T+i, nsample, scale, shape);
+				x = HorizonSobolSet(T+i, nsample);
 				if (-1 == x) goto esobol;
 				if (0 != x) ec = x;
 				if (x > 0)
@@ -289,6 +289,12 @@ int ssdp_topogrid_approxhorizon(topogrid *T, int nT, int nsample, double scale, 
 		return ec;
 esobol:
 		return -1;
+}
+
+
+int ssdp_topogrid_approxlaw(topogrid *T, double *q, int nq)
+{
+		return HorizonSetDstr(T, q, nq);
 }
 
 

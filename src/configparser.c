@@ -448,8 +448,7 @@ void InitConfigGridMask(simulation_config *C)
 
 		TIC();
 		i = ssdp_topogrid_approxhorizon
-				(C->Tx, C->nTx, C->approx_n,
-				 C->approx_scale, C->approx_shape);
+				(C->Tx, C->nTx, C->approx_n);
 		dt=TOC();
 
 		switch (i) {
@@ -932,7 +931,7 @@ eword:
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation Configuration
-PARSEFLAG config_locations ConfigLoc "C=<out-config> x=<in-array> y=<in-array> z=<in-array> azimuth=<in-array> zenith=<in-array> [type=<topology/topogrid>] [albedo=<float-value>] [xydelta=<float-value>] [zdelta=<float-value] [approx_n=<int-value>] [approx_scale=<float-value>] [approx_shape=<float-value>]"
+PARSEFLAG config_locations ConfigLoc "C=<out-config> x=<in-array> y=<in-array> z=<in-array> azimuth=<in-array> zenith=<in-array> [type=<topology/topogrid>] [albedo=<float-value>] [xydelta=<float-value>] [zdelta=<float-value] [approx_n=<int-value>]"
 DESCRIPTION Setup the topography. Load the x, y, and z data of the unstructured topography mesh into the configuration data.
 ARGUMENT x x coordinates
 ARGUMENT y y coordinates
@@ -942,15 +941,14 @@ ARGUMENT azimuth azimuth angle of tilted surface
 ARGUMENT zenith zenith angle of tilted surface
 ARGUMENT albedo optionally provide an albedo value between 0-1
 ARGUMENT xydelta,zdelta the coordinates within xydelta in xy plane and zdelta within z direction are considered the same (default: 0.05)
-ARGUMENT approx_n optional, if positive determine number of raster points used for computing the horizon. For sample points are used polar Sobol 2-d set (s_1, s_2), where pixel location is computed using approx_scale/raster_step*(-log(s_1)^(1/approx_shape))*exp(i*s_2*2*pi) (default: -1)
-ARGUMENT approx_scale,approx_shape optional, parameters of the Weibull distribution, determines the density of points distribution around the location. Defaults values are based on the LIDAR-statistics (default: approx_scale=12, approx_shape=0.56)
+ARGUMENT approx_n optional, if positive determine number of raster points used for computing the horizon. For sample points are used polar Sobol 2-d set (s_1, s_2), where pixel location is computed using F^{-1}(s_1)*exp(1i*2*pi*s_2), where F^{-1} is provided inverse cumulative distribution function, see `horizon_dstr` (default: -1)
 OUTPUT C configuration variable
 END_DESCRIPTION
 */
 void ConfigLoc(char *in)
 {
 		simulation_config *C;
-		double xydelta, zdelta, approx_scale, approx_shape;
+		double xydelta, zdelta;
 		array *x, *y, *z, *az, *ze;
 		int N, i, approx_n;
 		char type='t';
@@ -988,8 +986,6 @@ void ConfigLoc(char *in)
 		if (FetchOptFloat(in, "xydelta", word, &(xydelta))) xydelta=0.05;
 		if (FetchOptFloat(in, "zdelta", word, &(zdelta))) zdelta=0.05;
 		if (FetchOptInt(in, "approx_n", word, &approx_n)) approx_n = -1;
-		if (FetchOptFloat(in, "approx_scale", word, &approx_scale)) approx_scale = 12;
-		if (FetchOptFloat(in, "approx_shape", word, &approx_shape)) approx_shape = 0.56;
 
 		N = check_shapes(5,(array*[]){x,y,z,az,ze});
 
@@ -1017,8 +1013,6 @@ void ConfigLoc(char *in)
 		C->hcache->xydelta = xydelta / 2.0;
 		C->hcache->zdelta = zdelta / 2.0;
 		C->approx_n = approx_n;
-		C->approx_scale = approx_scale;
-		C->approx_shape = approx_shape;
 
 		if ((C->topo_init==1)&&(type=='t'))
 				InitConfigMask(C);
@@ -1052,6 +1046,62 @@ eword:
 		Warning("config_locations: failed!\n");
 		return;
 }
+
+/*
+BEGIN_DESCRIPTION
+SECTION Simulation Configuration
+PARSEFLAG horizon_sample_distr HorizonSampleDistr "C=<in-config> q=<float-array> [rasterid=<int-value>]"
+DESCRIPTION Set the radial distribution for the approximate horizon sampling. The distribution is set using an array q of quantiles. The distribution can be set per raster. Can only be used with topogrid topogrpaphies.
+ARGUMENT C simulation configuration with topogrid
+ARGUMENT q an array of quantiles. Must be a monotonically increasing vector, where q[0]: 0-quantile, q[len(q)-1]: 1-quantule.
+ARGUMENT rasterid optional id of the raster, where the distribution is set (default: 0)
+OUTPUT C distribution law of horizon sample set
+END_DESCRIPTION
+*/
+void HorizonSampleDistr(char *in)
+{
+		int i, r=0;
+		char *word;
+		simulation_config *C;
+		array *q;
+
+		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
+
+		if (FetchConfig(in, "C", word, &C)) goto eargs;
+        if (FetchArray(in, "q", word, &q)) goto eargs;
+		if (FetchOptInt(in, "rasterid", word, &r)) r=0;
+
+		if (C->grid_init==0) {
+				Warning("ERROR: simulation config does not contain a topogrid\n");
+				goto eargs;
+		}
+		if (r >= C->nTx) {
+				Warning("ERROR: only %d topogrids configured\n", C->nTx);
+				goto eargs;
+
+		}
+
+		for (i=1; i < q->N; ++i)
+				if (q->D[i-1] > q->D[i]) {
+						Warning("Error: provided quantiles are not monotone\n");
+						goto eargs;
+				}
+
+		TIC();
+		if (ssdp_topogrid_approxlaw(C->Tx+r, q->D, q->N)) goto esetlaw;
+		printf("Sampled new horizon sample in %g s", TOC());
+		ssdp_rtreecache_reset(&(C->hcache));
+		printf("Reset horizon cache, since there new sampling distribution\n");
+
+		free(word);
+		return;
+esetlaw:
+eargs:
+		free(word);
+eword:
+		Warning("Error: horizon_sample_distr failed!\n");
+}
+
 
 /*
 BEGIN_DESCRIPTION
