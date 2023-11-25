@@ -448,7 +448,7 @@ void InitConfigGridMask(simulation_config *C)
 
 		TIC();
 		i = ssdp_topogrid_approxhorizon
-				(C->Tx, C->nTx, C->approx_n);
+				(C->Tx, C->nTx, C->approx_n, C->approx_stype);
 		dt=TOC();
 
 		switch (i) {
@@ -931,7 +931,7 @@ eword:
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation Configuration
-PARSEFLAG config_locations ConfigLoc "C=<out-config> x=<in-array> y=<in-array> z=<in-array> azimuth=<in-array> zenith=<in-array> [type=<topology/topogrid>] [albedo=<float-value>] [xydelta=<float-value>] [zdelta=<float-value] [approx_n=<int-value>]"
+PARSEFLAG config_locations ConfigLoc "C=<out-config> x=<in-array> y=<in-array> z=<in-array> azimuth=<in-array> zenith=<in-array> [type=<topology/topogrid>] [albedo=<float-value>] [xydelta=<float-value>] [zdelta=<float-value] [approx_n=<int-value>] [approx_type=<str>]"
 DESCRIPTION Setup the topography. Load the x, y, and z data of the unstructured topography mesh into the configuration data.
 ARGUMENT x x coordinates
 ARGUMENT y y coordinates
@@ -941,7 +941,8 @@ ARGUMENT azimuth azimuth angle of tilted surface
 ARGUMENT zenith zenith angle of tilted surface
 ARGUMENT albedo optionally provide an albedo value between 0-1
 ARGUMENT xydelta,zdelta the coordinates within xydelta in xy plane and zdelta within z direction are considered the same (default: 0.05)
-ARGUMENT approx_n optional, if positive determine number of raster points used for computing the horizon. For sample points are used polar Sobol 2-d set (s_1, s_2), where pixel location is computed using F^{-1}(s_1)*exp(1i*2*pi*s_2), where F^{-1} is provided inverse cumulative distribution function, see `horizon_dstr` (default: -1)
+ARGUMENT approx_n optional, if positive determine number of raster points used for computing the horizon. For sample points are used polar Sobol 2-d set (s_1, s_2), where pixel location is computed using F^{-1}(s_1)*exp(1i*2*pi*s_2), where F^{-1} is provided inverse cumulative distribution function, see `horizon_dstr` (default: 10000)
+ARGUMENT approx_type type of sampling used. Either "precise", "sobol", "iid", "rays". For rays approx_n means number of azimuthal discretisations. (default: "precise")
 OUTPUT C configuration variable
 END_DESCRIPTION
 */
@@ -953,6 +954,8 @@ void ConfigLoc(char *in)
 		int N, i, approx_n;
 		char type='t';
 		char *word;
+		enum SampleType stype = PRECISE;
+
 		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
 
 		if (FetchConfig(in, "C", word, &C)) goto eargs;
@@ -985,7 +988,17 @@ void ConfigLoc(char *in)
 		if (C->albedo < 0 || C->albedo > 1) Warning("Warning: albedo=%f lies outside [0,1]\n", C->albedo);
 		if (FetchOptFloat(in, "xydelta", word, &(xydelta))) xydelta=0.05;
 		if (FetchOptFloat(in, "zdelta", word, &(zdelta))) zdelta=0.05;
-		if (FetchOptInt(in, "approx_n", word, &approx_n)) approx_n = -1;
+		if (FetchOptInt(in, "approx_n", word, &approx_n)) approx_n = 10000;
+		if (GetOption(in, "approx_type", word)) {
+				if (strncmp(word,"precise",10)==0) stype=PRECISE;
+				else if (strncmp(word,"sobol",10)==0) stype=SOBOL;
+				else if (strncmp(word,"iid",10)==0) stype=IID;
+				else if (strncmp(word,"rays16",10)==0) stype=RAYS16;
+				else if (strncmp(word,"rays32",10)==0) stype=RAYS32;
+				else if (strncmp(word,"rays64",10)==0) stype=RAYS64;
+				else if (strncmp(word,"rays128",10)==0) stype=RAYS128;
+				else Warning("Warning: unsupported approx_type=%s, continue with precise\n", word);
+		}
 
 		N = check_shapes(5,(array*[]){x,y,z,az,ze});
 
@@ -1013,6 +1026,7 @@ void ConfigLoc(char *in)
 		C->hcache->xydelta = xydelta / 2.0;
 		C->hcache->zdelta = zdelta / 2.0;
 		C->approx_n = approx_n;
+		C->approx_stype = stype;
 
 		if ((C->topo_init==1)&&(type=='t'))
 				InitConfigMask(C);
@@ -1089,7 +1103,7 @@ void HorizonSampleDistr(char *in)
 
 		TIC();
 		if (ssdp_topogrid_approxlaw(C->Tx+r, q->D, q->N)) goto esetlaw;
-		printf("Sampled new horizon sample in %g s", TOC());
+		printf("Sampled new horizon sample in %g s\n", TOC());
 		ssdp_rtreecache_reset(&(C->hcache));
 		printf("Reset horizon cache, since there new sampling distribution\n");
 

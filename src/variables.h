@@ -31,6 +31,7 @@ typedef struct simulation_config {
 	int *uSTi;  // index uST -> index location, len(uSTi) = Nl
 	int *uSTii; // inverse of uSTi, len(uSTi) = Nl
 	int approx_n; // number of points used in the approximate horizon
+	enum SampleType approx_stype; // approximate horizon sampling type
 } simulation_config;
 
 typedef struct array {

@@ -1,4 +1,4 @@
-bin_PROGRAMS = ssdptest_edt ssdptest_minfill ssdptest_epsg ssdptest_coords ssdptest_topogdal ssdptest_pngout ssdptest_h5io ssdptest_iset ssdptest_rtree ssdptest_sobolseq
+bin_PROGRAMS = ssdptest_edt ssdptest_minfill ssdptest_epsg ssdptest_coords ssdptest_topogdal ssdptest_pngout ssdptest_h5io ssdptest_iset ssdptest_rtree ssdptest_sobolseq ssdptest_lcg
 
 ssdptest_edt_SOURCES = $(top_builddir)/src/edt.c
 ssdptest_edt_CFLAGS = -DRUNTEST
@@ -33,6 +33,9 @@ ssdptest_rtree_CFLAGS = -DRUNTEST
 ssdptest_sobolseq_SOURCES = $(top_builddir)/src/sobolseq.c
 ssdptest_sobolseq_CFLAGS = -DRUNTEST
 
+ssdptest_lcg_SOURCES = $(top_builddir)/src/lcg.c
+ssdptest_lcg_CFLAGS = -fopenmp -DRUNTEST
+
 ssdptest_coords_SOURCES = $(top_builddir)/src/coordinates.c
 ssdptest_coords_CFLAGS = -DRUNTEST
 ssdptest_coords_LDFLAGS = -lproj
@@ -50,4 +53,4 @@ libedt_la_SOURCES = $(top_builddir)/src/edt.c
 libiset_la_SOURCES = $(top_builddir)/src/iset.c
 libfmem_la_SOURCES = $(top_builddir)/src/random_fail_malloc.c
 
-TESTS=ssdptest_edt ssdptest_minfill ssdptest_epsg ssdptest_coords ssdptest_topogdal ssdptest_pngout ssdptest_h5io ssdptest_iset ssdptest_rtree
+TESTS=ssdptest_edt ssdptest_minfill ssdptest_epsg ssdptest_coords ssdptest_topogdal ssdptest_pngout ssdptest_h5io ssdptest_iset ssdptest_rtree ssdptest_sobolseq ssdptest_lcg

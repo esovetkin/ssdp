@@ -26,6 +26,24 @@ typedef struct topology {
 		nodetree *P;
 } topology;
 
+
+enum SampleType {
+/** Approximate horizon sampling strategy type
+ */
+		PRECISE = 0, // precise horizon algorithm. Walk through all
+				     // available topography pixels
+		SOBOL   = 1, // Sobol low-discrepancy sequence (quasi MC)
+		IID     = 2, // draw iid random varaibles (MC)
+		/** use fixed number of rays and measure horizon along the
+		 * centreline
+		 */
+		RAYS16  = 16,
+		RAYS32  = 32,
+		RAYS64  = 64,
+		RAYS128 = 128,
+};
+
+
 typedef struct topogrid {
 		double *z;  // z coordinate in column-major format
 		int *sort;  // sorted indexing with increasing height
@@ -36,6 +54,7 @@ typedef struct topogrid {
 		double x2, y2; // upper right corner
 		double dx, dy; // dx and dy step size
 		int horizon_nsample; // number of points horizon is checked, -1 means precise algorithm
+		enum SampleType horizon_stype; // type of sampling
 		char* horizon_sample; // locations where topography for horizon is sampled
 		int* horizon_idx; // precomputed index of the for horizon_sample. len(horizon_idx)==Nx*Ny
 		double *horizon_dstr; // sampling distribution (ordered quantiles)
@@ -58,7 +77,7 @@ int FillMissingTopoGrid(topogrid *T, double na, int maxwalk);
 int AddHeightTopoGrid(topogrid *T, double *x, double *y, double *z, int nx, int nz);
 int BlurTopoGrid(topogrid *T, int size);
 
-int HorizonSobolSet(topogrid *T, int nsample);
+int HorizonSet(topogrid *T, int nsample, enum SampleType type);
 int HorizonSetDstr(topogrid *T, double *d, int nd);
 
 void ComputeHorizon(horizon *H, topology *T, double minzen, double xoff, double yoff, double zoff);

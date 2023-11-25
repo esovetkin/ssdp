@@ -56,6 +56,7 @@ simulation_config InitConf()
 	C.uSTi=NULL;
 	C.uSTii=NULL;
 	C.approx_n=-1;
+	C.approx_stype=PRECISE;
 	return C;
 }
 void FreeConf(simulation_config *C)

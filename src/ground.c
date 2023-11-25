@@ -38,12 +38,99 @@
 #include "minfill.h"
 #include "topogdal.h"
 #include "sobolseq.h"
+#include "lcg.h"
 #include "filterimage/filter.h"
 
 #ifdef RUNMEMTEST
 #include "random_fail_malloc.h"
 #define malloc(x) random_fail_malloc(x)
 #endif
+
+
+struct genseq {
+		enum SampleType st;
+		int ns;
+		double *d;
+		int nd;
+		int sampleid;
+		struct sobolseq* sobol;
+		struct lcg* iid;
+};
+
+
+struct genseq* genseq_init(enum SampleType st, int ns, double *d, int nd)
+{
+		struct genseq* self = malloc(sizeof(*self));
+		if (NULL == self) goto eself;
+
+		self->st = st;
+		self->ns = ns;
+		self->d  = d;
+		self->nd = nd;
+		self->sampleid = 0;
+		if (NULL == (self->sobol = sobolseq_init(2))) goto esobol;
+		if (NULL == (self->iid = lcg_init(time(0)))) goto eiid;
+
+		if (RAYS16 == st) self->ns = 16*self->nd;
+		if (RAYS32 == st) self->ns = 32*self->nd;
+		if (RAYS64 == st) self->ns = 64*self->nd;
+		if (RAYS128 == st) self->ns = 128*self->nd;
+
+		return self;
+		lcg_free(self->iid);
+eiid:
+		sobolseq_free(self->sobol);
+esobol:
+		free(self);
+eself:
+		return NULL;
+}
+
+
+void genseq_free(struct genseq* self)
+{
+		if (NULL==self) return;
+		sobolseq_free(self->sobol);
+		lcg_free(self->iid);
+		free(self);
+}
+
+
+int genseq_gen(struct genseq *self, double *res)
+{
+		double p[2];
+
+		switch (self->st) {
+		case SOBOL:
+				sobolseq_gen(self->sobol, p);
+				break;
+		case IID:
+				p[0] = lcg_unif(self->iid, 0);
+				p[1] = lcg_unif(self->iid, 0);
+				break;
+		case RAYS16:
+		case RAYS32:
+		case RAYS64:
+		case RAYS128:
+				p[0] = ((double)(self->sampleid % self->st))
+						/ ((double) self->st);
+				p[1] = ((double)(self->sampleid / self->st))
+						/ ((double) self->nd);
+				++self->sampleid;
+				break;
+		default:
+				goto err;
+		}
+
+		p[0] *= 2*M_PI;
+		p[1] = self->d[(int)floor(p[1]*self->nd)];
+		res[0] = p[1]*cos(p[0]);
+		res[1] = p[1]*sin(p[0]);
+
+		return 0;
+err:
+		return -1;
+}
 
 
 static topology default_topology()
@@ -77,6 +164,7 @@ static topogrid default_topogrid()
 				.dx              = (double) 1,
 				.dy              = (double) 1,
 				.horizon_nsample = -1,
+				.horizon_stype   = SOBOL,
 				.horizon_sample  = NULL,
 				.horizon_idx     = NULL,
 				.horizon_dstr    = NULL,
@@ -332,11 +420,12 @@ topogrid MakeTopogrid(double *z, double x1, double y1, double x2, double y2, int
 		T.dx = (Nx > 0) ? (x2-x1)/Nx : (x2-x1);
 		T.dy = (Ny > 0) ? (y2-y1)/Ny : (y2-y1);
 
-		T.horizon_dstrn = 1000;
+		double d = sqrt(T.Nx*T.Nx*T.dx*T.dx + T.Ny*T.Ny*T.dy*T.dy);
+		T.horizon_dstrn = (int) sqrt(T.Nx*T.Nx + T.Ny*T.Ny);
 		T.horizon_dstr=malloc(T.horizon_dstrn*sizeof(*T.horizon_dstr));
 		if (NULL==T.horizon_dstr) goto err;
 		for (i=0; i < T.horizon_dstrn; ++i)
-				T.horizon_dstr[i] = 300*((double) i)/T.horizon_dstrn;
+				T.horizon_dstr[i] = d*((double) i)/T.horizon_dstrn;
 
 		if (Nx>Ny)
 				MakeAngles(Nx, T.dx, T.dy, &(T.A1), &(T.A2), &(T.Na));
@@ -912,11 +1001,15 @@ horizon MakeHorizon(sky_grid *sky, topology *T, double xoff, double yoff, double
 }
 
 
-int HorizonSobolSet(topogrid *T, int n)
+int HorizonSet(topogrid *T, int n, enum SampleType stype)
 {
-		if (n==T->horizon_nsample) return 0;
+		if (n==T->horizon_nsample &&
+			stype==T->horizon_stype) return 0;
 		T->horizon_nsample = n;
-		if (T->horizon_nsample < 0) return -2;
+		T->horizon_stype = stype;
+
+		if (T->horizon_nsample < 0 ||
+			PRECISE == T->horizon_stype) return -2;
 
 		free(T->horizon_sample);
 		T->horizon_sample=calloc((2*T->Nx-1)*(2*T->Ny-1), sizeof(T->horizon_sample));
@@ -924,15 +1017,16 @@ int HorizonSobolSet(topogrid *T, int n)
 
 		int i, x, y;
 		double p[2];
-		struct sobolseq* sq;
-		if (NULL==(sq=sobolseq_init(2))) goto esq;
+		struct genseq *sq = genseq_init
+				(T->horizon_stype, T->horizon_nsample,
+				 T->horizon_dstr, T->horizon_dstrn);
+		if (NULL==sq) goto esq;
 
-		for (i=0; i < n; ++i) {
-				if (sobolseq_gen(sq, p)) goto egen;
-				p[0] *= 2*M_PI;
-				p[1] = T->horizon_dstr[(int)floor(p[1]*T->horizon_dstrn)];
-				x = (int) (p[1]*cos(p[0]));
-				y = (int) (p[1]*sin(p[0]));
+		for (i=0; i < sq->ns; ++i) {
+				if (genseq_gen(sq, p)) goto egen;
+
+				x = (int) (p[0]/T->dx);
+				y = (int) (p[1]/T->dy);
 
 				if ((abs(x)>=T->Nx)||(abs(y)>=T->Ny))
 						continue;
@@ -945,11 +1039,11 @@ int HorizonSobolSet(topogrid *T, int n)
 		for (i=0; i < 4*T->Nx*T->Ny; ++i)
 				if (T->horizon_sample[i]) ++x;
 
-		sobolseq_free(sq);
+		genseq_free(sq);
 		return x;
 egen:
 		T->horizon_nsample = -1;
-		sobolseq_free(sq);
+		genseq_free(sq);
 esq:
 		free(T->horizon_sample);
 		T->horizon_sample = NULL;
@@ -1038,7 +1132,7 @@ void ComputeGridHorizon(horizon *H, topogrid *T, double minzen, double xoff, dou
 		kl0 = (T->Nx-1-k)*(2*T->Ny-1) + T->Ny-1-l;
 		i=T->Nx*T->Ny-1;
 		while (i>=0) {
-				if ((T->horizon_nsample > 0) &&
+				if ((PRECISE != T->horizon_stype) &&
 					(0==T->horizon_sample[kl0+T->horizon_idx[i]])) {
 						--i;
 						continue;
@@ -1062,6 +1156,7 @@ void ComputeGridHorizon(horizon *H, topogrid *T, double minzen, double xoff, dou
 				if ((T->z[T->sort[i]]-zoff)/d>r) // do not compute anything for triangles below the zenith threshold
 						if (Arange(m, n, &a1, &a2, T->A1, T->A2)) // compute azimuthal range
 						{
+								// TODO if RAYS adjust a1 and a2
 								RizeHorizon(H, (double)a1, (double)a2, d/(T->z[T->sort[i]]-zoff)); // for now store the ratio, do atan2's on the horizon array at the end
 						}
 				--i;
