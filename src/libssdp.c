@@ -295,7 +295,14 @@ esobol:
 
 int ssdp_topogrid_approxlaw(topogrid *T, double *q, int nq)
 {
-		return HorizonSetDstr(T, q, nq);
+		int r = HorizonSetDstr(T, q, nq);
+
+		if (T->horizon_sample) {
+				free(T->horizon_sample);
+				T->horizon_sample=NULL;
+		}
+
+		return r;
 }
 
 

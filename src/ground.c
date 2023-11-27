@@ -1003,7 +1003,8 @@ horizon MakeHorizon(sky_grid *sky, topology *T, double xoff, double yoff, double
 
 int HorizonSet(topogrid *T, int n, enum SampleType stype)
 {
-		if (n==T->horizon_nsample &&
+		if (T->horizon_sample &&
+			n==T->horizon_nsample &&
 			stype==T->horizon_stype) return 0;
 		T->horizon_nsample = n;
 		T->horizon_stype = stype;
@@ -1011,7 +1012,10 @@ int HorizonSet(topogrid *T, int n, enum SampleType stype)
 		if (T->horizon_nsample < 0 ||
 			PRECISE == T->horizon_stype) return -2;
 
-		free(T->horizon_sample);
+		if (T->horizon_sample) {
+				free(T->horizon_sample);
+				T->horizon_sample=NULL;
+		}
 		T->horizon_sample=calloc((2*T->Nx-1)*(2*T->Ny-1), sizeof(T->horizon_sample));
 		if (NULL == T->horizon_sample) goto ecalloc;
 
