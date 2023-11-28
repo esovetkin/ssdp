@@ -1080,17 +1080,48 @@ err:
 }
 
 
+static void RaysInterval(enum SampleType t, double *a, double* b)
+{
+		if (RAYS16 != t && RAYS32 != t &&
+			RAYS64 != t && RAYS128 != t)
+				return;
+
+		double dpi = 2*M_PI;
+		*a = fmod(*a + dpi, dpi);
+		*b = fmod(*b + dpi, dpi);
+
+		int k;
+		int i = (int) floor(*a * t / dpi);
+		int j = (int) floor(*b * t / dpi);
+		if (i > j) {k=i; i=j; j=k;}
+		if (j - i >= (int) t/2) {
+				*a = dpi * j / t;
+				*b = dpi * (i+1) / t;
+				return;
+		}
+
+		*a = dpi * (j+1) / t;
+		*b = dpi * i / t;
+}
+
+
 // take a topology and rize the horizon accordingly
 void ComputeGridHorizon(horizon *H, topogrid *T, double minzen, double xoff, double yoff, double zoff)
 // the minzen parameter can save alot of work
 // it specifies the minimum zenith angle to consider a triangle for the horizon
 // I would set it to 0.5 times the zenith step in the sky. Especially for large topographies it reduces the amount of work considerably as far away triangles are less likely of consequence
 {
-		int i, kl0, k, l, m, n;
+		int i, kl0, k, l, m, n, ifrays = 0;
 		double d, Dx, Dy, a1, a2, r;
 		r=tan(minzen);// compute threshold height over distance ratio
 		k=(int)round((xoff-T->x1)/T->dx);
 		l=(int)round((yoff-T->y1)/T->dy);
+
+		if (RAYS16 == T->horizon_stype ||
+			RAYS32 == T->horizon_stype ||
+			RAYS64 == T->horizon_stype ||
+			RAYS128 == T->horizon_stype)
+				ifrays = 1;
 
 		/*
 		  if (k<0)
@@ -1160,7 +1191,7 @@ void ComputeGridHorizon(horizon *H, topogrid *T, double minzen, double xoff, dou
 				if ((T->z[T->sort[i]]-zoff)/d>r) // do not compute anything for triangles below the zenith threshold
 						if (Arange(m, n, &a1, &a2, T->A1, T->A2)) // compute azimuthal range
 						{
-								// TODO if RAYS adjust a1 and a2
+								if (ifrays) RaysInterval(T->horizon_stype, &a1, &a2);
 								RizeHorizon(H, (double)a1, (double)a2, d/(T->z[T->sort[i]]-zoff)); // for now store the ratio, do atan2's on the horizon array at the end
 						}
 				--i;
