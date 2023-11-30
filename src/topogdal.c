@@ -267,10 +267,10 @@ struct raster* raster_init(struct gdaldata *gd, int i, struct poly4 *cb)
         struct raster *self;
         self = malloc(sizeof(*self));
         if (NULL == self)
-                goto self_emalloc;
+                goto eself;
 
         if (NULL == gd || i >= gd->nds)
-                goto self_emalloc;
+                goto egd;
 
         GDALRasterBandH hband;
         hband = GDALGetRasterBand(gd->ds[i], 1);
@@ -312,8 +312,9 @@ struct raster* raster_init(struct gdaldata *gd, int i, struct poly4 *cb)
 erasterio:
         CPLFree(self->d);
 ecplmalloc:
+egd:
         free(self);
-self_emalloc:
+eself:
         return NULL;
 }
 

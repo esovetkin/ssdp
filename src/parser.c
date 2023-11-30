@@ -391,7 +391,7 @@ struct cvec* cvec_init(int a) {
         struct cvec *self = malloc(sizeof(*self));
         if (NULL==self) goto cvec_init_eself;
 
-        self->astep = a > 0 ? a : 1;
+        self->a = self->astep = a > 0 ? a : 1;
         self->n = 0;
         self->s = malloc(self->astep * sizeof(*self->s));
         if (NULL == self->s) goto cvec_init_es;

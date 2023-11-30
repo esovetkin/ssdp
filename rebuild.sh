@@ -12,6 +12,10 @@ case "$1" in
         CFLAGS=' -g -Wall -Wpedantic -Wextra '
         LDFLAGS=' -fsanitize=leak  '
         ;;
+    "address")
+        CFLAGS=' -g -Wall -Wpedantic -Wextra -fsanitize=address '
+        LDFLAGS=' -fsanitize=address  '
+        ;;
     "opt")
         CFLAGS=' -O3 -Wall -Wpedantic -Wextra '
         ;;
