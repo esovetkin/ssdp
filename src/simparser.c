@@ -292,7 +292,7 @@ void SimStaticInt(char *in)
 		{
 #pragma omp for schedule(runtime)
 				for (i=0;i<C->Nl;i++)
-						out.D[i]+=ssdp_total_poa
+						out.D[i]=ssdp_total_poa
 								(C->S, C->o[i], &(C->M), C->L+i);
 	}
 		tpoa=TOC();
@@ -355,7 +355,7 @@ void SimSky(char *in)
 		{
 #pragma omp for schedule(runtime)
 				for (i=0;i<C->Nl;i++)
-						out.D[i]+=ssdp_total_poa
+						out.D[i]=ssdp_total_poa
 								(C->S, C->o[i], &(C->M), C->L+i);
 		}
 		tpoa=TOC();
