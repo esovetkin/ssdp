@@ -26,10 +26,6 @@
 #include "error.h"
 #include "print.h"
 
-#ifdef RUNMEMTEST
-#include "random_fail_malloc.h"
-#define malloc(x) random_fail_malloc(x)
-#endif
 
 #define UNUSED(x) (void)(x)
 

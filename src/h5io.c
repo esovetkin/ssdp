@@ -15,10 +15,6 @@
 
 #include "h5io.h"
 
-#ifdef RUNMEMTEST
-#include "random_fail_malloc.h"
-#define malloc(x) random_fail_malloc(x)
-#endif
 
 static hid_t subgroups(void);
 static hid_t float16(void);
@@ -189,8 +185,9 @@ int h5_datasetisin(hid_t file, const char* dst)
         free(p);
         free(x);
         return res;
-ep:
         free(p);
+ep:
+		free(x);
 ex:
         return -2;
 }
@@ -494,6 +491,7 @@ void test_timing()
 int test_isin(const char* fn, const char *name)
 {
         struct h5io* io = h5io_init(fn);
+        assert(io);
         h5io_setdataset(io, name);
         int res = h5io_isin(io);
         h5io_free(io);

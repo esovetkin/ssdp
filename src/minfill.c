@@ -68,6 +68,7 @@ static struct ipair* reallocate(struct queue* self)
 		self->N = n;
 		return tmp;
 erealloc:
+		free(self->x); self->x=NULL;
 		return NULL;
 }
 
@@ -255,7 +256,7 @@ void test_queue(int N)
 {
 		int i;
 		struct queue *x;
-		x = queue_init(N);
+		assert(x = queue_init(N));
 
 		for (i=0; i < 5*N; ++i)
 				assert(0 == queue_append(x, (struct ipair){i,0}));

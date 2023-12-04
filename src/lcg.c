@@ -49,7 +49,7 @@ double lcg_unif(struct lcg* self, int thread_id)
 double test(int n)
 {
 		int i;
-		double x, tic;
+		double x = 0.0, tic;
 
 		struct lcg* lcg;
 		assert((lcg=lcg_init(1234)));

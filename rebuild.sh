@@ -4,12 +4,12 @@ git submodule sync
 git submodule update --init
 
 case "$1" in
-    "fmem")
-        CFLAGS=' -g -Wall -Wpedantic -Wextra -DRUNMEMTEST '
-        LDFLAGS=' -fsanitize=leak  '
-        ;;
     "leak")
         CFLAGS=' -g -Wall -Wpedantic -Wextra '
+        LDFLAGS=' -fsanitize=leak  '
+        ;;
+    "analyzer")
+        CFLAGS=' -g -Wall -Wpedantic -Wextra -fanalyzer -Wno-analyzer-imprecise-fp-arithmetic '
         LDFLAGS=' -fsanitize=leak  '
         ;;
     "address")
@@ -37,4 +37,5 @@ esac
              --sysconfdir=/etc
 
 make clean
-make && sudo make install
+make
+sudo make install

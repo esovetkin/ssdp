@@ -8,10 +8,6 @@
 
 #define MAXSTRLEN 1028
 
-#ifdef RUNMEMTEST
-#include "random_fail_malloc.h"
-#define malloc(x) random_fail_malloc(x)
-#endif
 
 topology LoadTopo(char *fn)
 {

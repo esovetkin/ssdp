@@ -41,11 +41,6 @@
 #include "lcg.h"
 #include "filterimage/filter.h"
 
-#ifdef RUNMEMTEST
-#include "random_fail_malloc.h"
-#define malloc(x) random_fail_malloc(x)
-#endif
-
 
 struct genseq {
 		enum SampleType st;
@@ -408,7 +403,7 @@ topogrid MakeTopogrid(double *z, double x1, double y1, double x2, double y2, int
 		for (i=0;i<N;++i)
 				T.z[i]=z[i];
 		T.sort=gsort(T.z, N);
-		if (ssdp_error_state) goto err;
+		if (NULL==T.sort || ssdp_error_state) goto err;
 
 		if (NULL==(T.horizon_idx=malloc(N*sizeof(*T.horizon_idx)))) goto err;
 		for (i=0; i < N; ++i)

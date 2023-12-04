@@ -385,7 +385,7 @@ void CumulativePerezSky(sky_grid * sky, sky_pos *sun, double *t, double *GHI, do
 {
 	sky_pos s0={0,0};
 	double dhi0, dir, g;
-	double dt;
+	double dt = 0.0;
 	int i, j;
 	double a, b, c, d, e;
 	double eps, delta, *I;

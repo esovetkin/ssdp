@@ -32,10 +32,6 @@
 #include "sunpos.h"
 #include <config.h>
 
-#ifdef RUNMEMTEST
-#include "random_fail_malloc.h"
-#define malloc(x) random_fail_malloc(x)
-#endif
 
 /* libssdp entry points */
 void ssdp_print_version(void)

@@ -5,11 +5,6 @@
 #include <stdint.h>
 #include "pngout.h"
 
-#ifdef RUNMEMTEST
-#include "random_fail_malloc.h"
-#define malloc(x) random_fail_malloc(x)
-#endif
-
 
 struct pixel {
         uint8_t red;

@@ -117,12 +117,10 @@ struct sobolseq* sobolseq_init(unsigned sdim)
 
 		unsigned i, j;
 
-		if (!sdim || sdim > MAXDIM)
-				return 0;
+		if (!sdim || sdim > MAXDIM) goto esdim;
 
 		sd->mdata = (uint32_t *) malloc(sizeof(uint32_t) * (sdim * 32));
-		if (!sd->mdata)
-				return 0;
+		if (NULL == sd->mdata) goto emdata;
 
 		for (j = 0; j < 32; ++j) {
 				sd->m[j] = sd->mdata + j * sdim;
@@ -154,17 +152,10 @@ struct sobolseq* sobolseq_init(unsigned sdim)
 		}
 
 		sd->x = (uint32_t *) malloc(sizeof(uint32_t) * sdim);
-		if (!sd->x) {
-				free(sd->mdata);
-				return 0;
-		}
+		if (NULL==sd->x) goto ex;
 
 		sd->b = (unsigned *) malloc(sizeof(unsigned) * sdim);
-		if (!sd->b) {
-				free(sd->x);
-				free(sd->mdata);
-				return 0;
-		}
+		if (NULL==sd->b) goto eb;
 
 		for (i = 0; i < sdim; ++i) {
 				sd->x[i] = 0;
@@ -175,6 +166,13 @@ struct sobolseq* sobolseq_init(unsigned sdim)
 		sd->sdim = sdim;
 
 		return sd;
+		free(sd->b);
+eb:
+		free(sd->x);
+ex:
+		free(sd->mdata);
+emdata:
+esdim:
 		free(sd);
 eself:
 		return NULL;

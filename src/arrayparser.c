@@ -16,11 +16,6 @@
 
 #define ARRAY_BS 4
 
-#ifdef RUNMEMTEST
-#include "random_fail_malloc.h"
-#define malloc(x) random_fail_malloc(x)
-#endif
-
 typedef enum arrayops{ARR_PLUS,ARR_MINUS,ARR_MULT,ARR_DIV} arrayops;
 /*
 BEGIN_DESCRIPTION
@@ -216,6 +211,7 @@ static void* reallocate(void *data, size_t size, int n, int *bs)
 
         return tmp;
 erealloc:
+        free(data);
         return NULL;
 }
 
@@ -247,9 +243,11 @@ static int getnames(char *in, char ***names, int *len)
         return 0;
 enoargs:
 eloop:
-        for (int i=0; i < n; ++i)
-                free((*names)[i]);
-        free(*names);
+		if (*names) {
+				for (int i=0; i < n; ++i)
+						free((*names)[i]);
+				free(*names);
+		}
 ename:
         free(word);
 eword:
@@ -795,6 +793,7 @@ void GetGrid(char *in)
 {
 		simulation_config *C;
 		array x, y, nx, ny;
+		x.D=y.D=nx.D=ny.D=NULL;
 		int i, j, r=0;
 		double xx;
 		char *word=NULL, *wx=NULL, *wy=NULL, *wnx=NULL, *wny=NULL;

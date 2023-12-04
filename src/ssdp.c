@@ -57,10 +57,6 @@
 #include "variables.h"
 #include "config.h"
 
-#ifdef RUNMEMTEST
-#include "random_fail_malloc.h"
-#define malloc(x) random_fail_malloc(x)
-#endif
 
 #define MAXLINELEN 4096
 void StripEndline(char *line)

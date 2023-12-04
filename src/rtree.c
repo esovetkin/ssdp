@@ -903,13 +903,13 @@ int main(void)
         printf("testing rtree ...\n");
 
 		struct rtree *tr = rtree_new();
-
+		assert(tr);
 		printf("lon=%f lat=%f\n", phx.lon, phx.lat);
-		rtree_insert(tr, (double[2]){phx.lon, phx.lat}, NULL, &phx);
+		rtree_insert(tr, (double[3]){phx.lon, phx.lat,0}, NULL, &phx);
 		phx.lat = 0; phx.lon = 0;
 		printf("&phx: %p\n", (void *) &phx);
 		const struct city *test;
-		rtree_search(tr, (double[2]){-180,0}, (double[2]){0, 90}, city_iter, &test);
+		rtree_search(tr, (double[3]){-180,0,0}, (double[3]){0, 90,0}, city_iter, &test);
 		printf("&test: %p\n", (void *) test);
 		printf("test->name: %s\n", test->name);
 		rtree_free(tr);

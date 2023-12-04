@@ -18,10 +18,6 @@
 #include "epsg.h"
 #include "coordinates.h"
 
-#ifdef RUNMEMTEST
-#include "random_fail_malloc.h"
-#define malloc(x) random_fail_malloc(x)
-#endif
 
 /*
 BEGIN_DESCRIPTION
@@ -1511,10 +1507,10 @@ void PlaceBody(char *in)
 
 		if (NULL==(nox=malloc((strlen(in)+1)*sizeof(*nox)))) goto enox;
 		if (NULL==(noy=malloc((strlen(in)+1)*sizeof(*noy)))) goto enoy;
-		if (iz && NULL==(noz=malloc((strlen(in)+1)*sizeof(*noz)))) goto enoz;
-		if (iazi && NULL==(noazi=malloc((strlen(in)+1)*sizeof(*noazi))))
+		if (iz && (NULL==(noz=malloc((strlen(in)+1)*sizeof(*noz))))) goto enoz;
+		if (iazi && (NULL==(noazi=malloc((strlen(in)+1)*sizeof(*noazi)))))
 				goto enoazi;
-		if (izen && NULL==(nozen=malloc((strlen(in)+1)*sizeof(*nozen))))
+		if (izen && (NULL==(nozen=malloc((strlen(in)+1)*sizeof(*nozen)))))
 				goto enozen;
 
 		if (!GetArg(in, "ox", nox)) goto eopars;
@@ -1535,10 +1531,10 @@ void PlaceBody(char *in)
 
 		if (NULL==(ox.D=malloc(lat->N*ix->N*sizeof(*ox.D)))) goto eox;
 		if (NULL==(oy.D=malloc(lat->N*ix->N*sizeof(*oy.D)))) goto eoy;
-		if (iz && NULL==(oz.D=malloc(lat->N*ix->N*sizeof(*oz.D)))) goto eoz;
-		if (iazi && NULL==(oazi.D=malloc(lat->N*ix->N*sizeof(*oazi.D))))
+		if (iz && (NULL==(oz.D=malloc(lat->N*ix->N*sizeof(*oz.D))))) goto eoz;
+		if (iazi && (NULL==(oazi.D=malloc(lat->N*ix->N*sizeof(*oazi.D)))))
 				goto eoazi;
-		if (izen && NULL==(ozen.D=malloc(lat->N*ix->N*sizeof(*ozen.D))))
+		if (izen && (NULL==(ozen.D=malloc(lat->N*ix->N*sizeof(*ozen.D)))))
 				goto eozen;
 		ox.N = oy.N = oz.N = oazi.N = ozen.N = lat->N*ix->N;
 
@@ -1559,11 +1555,11 @@ void PlaceBody(char *in)
 							  deg2rad(beta->D[i%beta->N]), x, y, ix->N);
 		}
 
-		if (izen && AddArray(nozen, ozen)) goto eozen;
-		if (iazi && AddArray(noazi, oazi)) goto enozen;
-		if (iz && AddArray(noz, oz)) goto enoazi;
-		if (AddArray(noy, oy)) goto enoz;
-		if (AddArray(nox, ox)) goto enoy;
+		if (izen && AddArray(nozen, ozen)) {free(nozen); nozen=NULL; free(ozen.D); ozen.D=NULL;}
+		if (iazi && AddArray(noazi, oazi)) {free(noazi); noazi=NULL; free(oazi.D); oazi.D=NULL;}
+		if (iz && AddArray(noz, oz)) {free(noz); noz=NULL; free(oz.D); oz.D=NULL;}
+		if (AddArray(noy, oy)) {free(noy); noy=NULL; free(oy.D); oy.D=NULL;}
+		if (AddArray(nox, ox)) {free(nox); nox=NULL; free(ox.D); ox.D=NULL;}
 
 		epsg_free(pc);
 		free(word);
@@ -1582,19 +1578,14 @@ eox:
 eepsg:
 eopars:
 		free(nozen);
-		free(ozen.D);
 enozen:
 		free(noazi);
-		free(oazi.D);
 enoazi:
 		free(noz);
-		free(oz.D);
 enoz:
 		free(noy);
-		free(oy.D);
 enoy:
 		free(nox);
-		free(ox.D);
 enox:
 		free(word);
 epars:

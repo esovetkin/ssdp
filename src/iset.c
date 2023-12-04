@@ -7,11 +7,6 @@ int COLLISIONS = 0;
 int REALLOCATE = 0;
 #endif
 
-#ifdef RUNMEMTEST
-#include "random_fail_malloc.h"
-#define malloc(x) random_fail_malloc(x)
-#endif
-
 
 static unsigned int hash(unsigned int x)
 {
@@ -45,6 +40,7 @@ static int* reallocate(struct iset* self)
 
 		return tmp;
 erealloc:
+		free(self->values); self->values=NULL;
 		return NULL;
 }
 
