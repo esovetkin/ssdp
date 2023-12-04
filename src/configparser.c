@@ -739,6 +739,7 @@ static void configadd_topogrid(char *in, int ifconfig)
 essdp:
 		ssdp_print_error_messages();
 		ssdp_free_topogrid(C->Tx, C->nTx);
+		free(C->Tx); C->Tx=NULL; C->nTx=0;
 		C->grid_init=0;
 		ssdp_reset_errors();
 eTx:
@@ -816,6 +817,7 @@ static void configadd_topogdal(char *in, int ifconfig)
 emaketopogdal:
 		ssdp_print_error_messages();
 		ssdp_free_topogrid(C->Tx, C->nTx);
+		free(C->Tx); C->Tx=NULL; C->nTx=0;
 		C->grid_init=0;
 		ssdp_reset_errors();
 eTx:
