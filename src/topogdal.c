@@ -1,6 +1,8 @@
 #include <cpl_conv.h> /* for CPLMalloc() */
 #include <math.h>
 #include <float.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "error.h"
 #include "epsg.h"
@@ -260,6 +262,20 @@ static void conv_box(int out[4], struct gdaldata *gd, int i,
 }
 
 
+static double scale_to_meters(const char * type)
+{
+		if (NULL==type || 0 == strlen(type)) {
+				printf("WARNING: unknown raster elevation units. Assuming meters!\n");
+				return 1.0;
+		}
+
+		if (strstr(type, "foot") || strstr(type, "feet"))
+				return 0.3048;
+
+		return 1.0;
+}
+
+
 // ERRORFLAG GDALRASTEREMALLOC "Cannot allocate memory for the raster"
 // ERRORFLAG GDALRASTEREREAD "Error on GDALRasterIO!"
 struct raster* raster_init(struct gdaldata *gd, int i, struct poly4 *cb)
@@ -285,6 +301,7 @@ struct raster* raster_init(struct gdaldata *gd, int i, struct poly4 *cb)
         self->xsize = (int) rb[2];
         self->ysize = (int) rb[3];
         self->n = self->xsize * self->ysize;
+        self->to_meters = scale_to_meters(GDALGetRasterUnitType(hband));
 
         // special case when raster has no data
         if (0 == self->n) {
@@ -349,7 +366,11 @@ static double get_pixel(struct geotransform *gt, struct raster *r, struct point 
         if (u < 0 || u >= r->xsize || v < 0 || v >= r->ysize)
                 return nodatav;
 
-        return r->d[(int) u * r->ysize + (int) v];
+        u = r->d[(int) u * r->ysize + (int) v];
+        if (u <= nodatav)
+                return u;
+
+        return u * r->to_meters;
 }
 
 
@@ -413,7 +434,6 @@ z_emalloc:
 
 #ifdef RUNTEST
 
-#include <stdio.h>
 #include <assert.h>
 
 void test_dummyinit()

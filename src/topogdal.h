@@ -80,6 +80,7 @@ void gdaldata_free(struct gdaldata*);
 struct raster {
         double *d;
         int xoff, yoff, xsize, ysize, n;
+        double to_meters;
 };
 
 /**
