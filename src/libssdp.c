@@ -289,11 +289,14 @@ esobol:
 }
 
 
-int ssdp_topogrid_approxlaw(topogrid *T, double *q, int nq)
+int ssdp_topogrid_approxlaw(topogrid *T, double *q, int nq, double *phi, int nphi)
 {
-		int r = HorizonSetDstr(T, q, nq);
+		int r = 0;
+		if (q) r |= HorizonSetDstr(T, q, nq);
+		if (phi) r |= HorizonSetPhi(T, phi, nphi);
 
-		if (T->horizon_sample) {
+		// this will reset horizon_sample
+		if (!r && T->horizon_sample) {
 				free(T->horizon_sample);
 				T->horizon_sample=NULL;
 		}

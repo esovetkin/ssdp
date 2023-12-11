@@ -45,31 +45,36 @@
 struct genseq {
 		enum SampleType st;
 		int ns;
-		double *d;
-		int nd;
+		double *rd;
+		int nrd;
+		double *phid;
+		int nphid;
 		int sampleid;
 		struct sobolseq* sobol;
 		struct lcg* iid;
 };
 
 
-struct genseq* genseq_init(enum SampleType st, int ns, double *d, int nd)
+struct genseq* genseq_init(enum SampleType st, int ns, double *rd, int nrd,
+						   double *phid, int nphid)
 {
 		struct genseq* self = malloc(sizeof(*self));
 		if (NULL == self) goto eself;
 
 		self->st = st;
 		self->ns = ns;
-		self->d  = d;
-		self->nd = nd;
+		self->rd  = rd;
+		self->nrd = nrd;
+		self->phid  = phid;
+		self->nphid = nphid;
 		self->sampleid = 0;
 		if (NULL == (self->sobol = sobolseq_init(2))) goto esobol;
 		if (NULL == (self->iid = lcg_init(time(0)))) goto eiid;
 
-		if (RAYS16 == st) self->ns = 16*self->nd;
-		if (RAYS32 == st) self->ns = 32*self->nd;
-		if (RAYS64 == st) self->ns = 64*self->nd;
-		if (RAYS128 == st) self->ns = 128*self->nd;
+		if (RAYS16 == st) self->ns = 16*self->nrd;
+		if (RAYS32 == st) self->ns = 32*self->nrd;
+		if (RAYS64 == st) self->ns = 64*self->nrd;
+		if (RAYS128 == st) self->ns = 128*self->nrd;
 
 		return self;
 		lcg_free(self->iid);
@@ -110,15 +115,16 @@ int genseq_gen(struct genseq *self, double *res)
 				p[0] = ((double)(self->sampleid % self->st))
 						/ ((double) self->st);
 				p[1] = ((double)(self->sampleid / self->st))
-						/ ((double) self->nd);
+						/ ((double) self->nrd);
 				++self->sampleid;
 				break;
 		default:
 				goto err;
 		}
 
+		p[0] = self->phid[(int)floor(p[0]*self->nphid)];
 		p[0] *= 2*M_PI;
-		p[1] = self->d[(int)floor(p[1]*self->nd)];
+		p[1] = self->rd[(int)floor(p[1]*self->nrd)];
 		res[0] = p[1]*cos(p[0]);
 		res[1] = p[1]*sin(p[0]);
 
@@ -164,6 +170,8 @@ static topogrid default_topogrid()
 				.horizon_idx     = NULL,
 				.horizon_dstr    = NULL,
 				.horizon_dstrn   = 0,
+				.horizon_phid    = NULL,
+				.horizon_nphid   = 0,
 		};
 }
 
@@ -422,6 +430,12 @@ topogrid MakeTopogrid(double *z, double x1, double y1, double x2, double y2, int
 		for (i=0; i < T.horizon_dstrn; ++i)
 				T.horizon_dstr[i] = d*((double) i)/T.horizon_dstrn;
 
+		T.horizon_nphid = (int) (2*M_PI / (ATAN2(T.Ny,T.Nx)-ATAN2(T.Ny-1,T.Nx)));
+		T.horizon_phid = malloc(T.horizon_nphid*sizeof(*T.horizon_phid));
+		if (NULL == T.horizon_phid) goto err;
+		for (i=0; i < T.horizon_nphid; ++i)
+				T.horizon_phid[i] = ((double) i)/T.horizon_nphid;
+
 		if (Nx>Ny)
 				MakeAngles(Nx, T.dx, T.dy, &(T.A1), &(T.A2), &(T.Na));
 		else
@@ -491,6 +505,7 @@ void free_topogrid (topogrid *T)
 		if (T->horizon_sample) {free(T->horizon_sample); T->horizon_sample=NULL;}
 		if (T->horizon_idx) {free(T->horizon_idx); T->horizon_idx=NULL;}
 		if (T->horizon_dstr) {free(T->horizon_dstr); T->horizon_dstr=NULL;}
+		if (T->horizon_phid) {free(T->horizon_phid); T->horizon_phid=NULL;}
 
 		T->Na=0; T->Nx=0; T->Ny=0;
 		T->x1=(double) 0; T->y1= (double) 0;
@@ -498,6 +513,7 @@ void free_topogrid (topogrid *T)
 		T->dx=(double) 1; T->dy=(double) 1;
 		T->horizon_nsample = -1;
 		T->horizon_dstrn = 0;
+		T->horizon_nphid = 0;
 }
 
 
@@ -1018,7 +1034,8 @@ int HorizonSet(topogrid *T, int n, enum SampleType stype)
 		double p[2];
 		struct genseq *sq = genseq_init
 				(T->horizon_stype, T->horizon_nsample,
-				 T->horizon_dstr, T->horizon_dstrn);
+				 T->horizon_dstr, T->horizon_dstrn,
+				 T->horizon_phid, T->horizon_nphid);
 		if (NULL==sq) goto esq;
 
 		for (i=0; i < sq->ns; ++i) {
@@ -1071,6 +1088,30 @@ int HorizonSetDstr(topogrid *T, double *d, int nd)
 err:
 		T->horizon_dstr = tmp_d;
 		T->horizon_dstrn = tmp_dn;
+		return -1;
+}
+
+
+int HorizonSetPhi(topogrid *T, double *phi, int nphi)
+{
+		double *tmp_d = T->horizon_phid;
+		int tmp_dn = T->horizon_nphid;
+
+		T->horizon_nphid = 0;
+		T->horizon_phid = malloc(nphi*sizeof(*T->horizon_phid));
+		if (NULL==T->horizon_phid) goto err;
+		T->horizon_nphid = nphi;
+
+		int i;
+		for (i=0; i < nphi; ++i)
+				T->horizon_phid[i] = phi[i];
+
+		// cleanup old data
+		if (tmp_d) free(tmp_d);
+		return 0;
+err:
+		T->horizon_phid = tmp_d;
+		T->horizon_nphid = tmp_dn;
 		return -1;
 }
 

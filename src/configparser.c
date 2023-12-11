@@ -1062,10 +1062,11 @@ eword:
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation Configuration
-PARSEFLAG horizon_sample_distr HorizonSampleDistr "C=<in-config> q=<float-array> [rasterid=<int-value>]"
+PARSEFLAG horizon_sample_distr HorizonSampleDistr "C=<in-config> [q=<float-array>] [phi=<float-array>] [rasterid=<int-value>]"
 DESCRIPTION Set the radial distribution for the approximate horizon sampling. The distribution is set using an array q of quantiles. The distribution can be set per raster. Can only be used with topogrid topogrpaphies.
 ARGUMENT C simulation configuration with topogrid
-ARGUMENT q an array of quantiles. Must be a monotonically increasing vector, where q[0]: 0-quantile, q[len(q)-1]: 1-quantule.
+ARGUMENT q an array of quantiles for radial distribution. Must be a monotonically increasing vector, where q[0]: 0-quantile, q[len(q)-1]: 1-quantule.
+ARGUMENT phi an array of quantiles for azimuthal distribution. Must be a monotonically increasing vector and must generate distribution in the interval [0,1]
 ARGUMENT rasterid optional id of the raster, where the distribution is set (default: 0)
 OUTPUT C distribution law of horizon sample set
 END_DESCRIPTION
@@ -1075,12 +1076,13 @@ void HorizonSampleDistr(char *in)
 		int i, r=0;
 		char *word;
 		simulation_config *C;
-		array *q;
+		array *q, *phi;
 
 		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
 
 		if (FetchConfig(in, "C", word, &C)) goto eargs;
-        if (FetchArray(in, "q", word, &q)) goto eargs;
+        if (FetchOptArray(in, "q", word, &q)) q = NULL;
+        if (FetchOptArray(in, "phi", word, &phi)) phi = NULL;
 		if (FetchOptInt(in, "rasterid", word, &r)) r=0;
 
 		if (C->grid_init==0) {
@@ -1093,14 +1095,28 @@ void HorizonSampleDistr(char *in)
 
 		}
 
-		for (i=1; i < q->N; ++i)
-				if (q->D[i-1] > q->D[i]) {
-						Warning("Error: provided quantiles are not monotone\n");
-						goto eargs;
-				}
+		if (!q && !phi) {
+				Warning("Error: neither q nor phi quantiles are provded!\n");
+				goto eargs;
+		}
+
+		if (q)
+				for (i=1; i < q->N; ++i)
+						if (q->D[i-1] > q->D[i]) {
+								Warning("Error: provided quantiles in q are not monotone\n");
+								goto eargs;
+						}
+		if (phi)
+				for (i=1; i < phi->N; ++i)
+						if (phi->D[i-1] > phi->D[i]) {
+								Warning("Error: provided quantiles in phi are not monotone\n");
+								goto eargs;
+						}
 
 		TIC();
-		if (ssdp_topogrid_approxlaw(C->Tx+r, q->D, q->N)) goto esetlaw;
+		if (q && !phi && ssdp_topogrid_approxlaw(C->Tx+r, q->D, q->N, NULL, 0)) goto esetlaw;
+		if (!q && phi && ssdp_topogrid_approxlaw(C->Tx+r, NULL, 0, phi->D, phi->N)) goto esetlaw;
+		if (q && phi && ssdp_topogrid_approxlaw(C->Tx+r, q->D, q->N, phi->D, phi->N)) goto esetlaw;
 		printf("Sampled new horizon sample in %g s\n", TOC());
 		ssdp_rtreecache_reset(&(C->hcache));
 		printf("Reset horizon cache, since there new sampling distribution\n");

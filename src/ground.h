@@ -59,6 +59,8 @@ typedef struct topogrid {
 		int* horizon_idx; // precomputed index of the for horizon_sample. len(horizon_idx)==Nx*Ny
 		double *horizon_dstr; // sampling distribution (ordered quantiles)
 		int horizon_dstrn; // len(horizon_dstr)
+		double *horizon_phid; // azimuth sample distribution
+		int horizon_nphid; // len(horizon_phid)
 } topogrid;
 //END_SSDP_EXPORT
 
@@ -79,6 +81,7 @@ int BlurTopoGrid(topogrid *T, int size);
 
 int HorizonSet(topogrid *T, int nsample, enum SampleType type);
 int HorizonSetDstr(topogrid *T, double *d, int nd);
+int HorizonSetPhi(topogrid *T, double *phi, int nphi);
 
 void ComputeHorizon(horizon *H, topology *T, double minzen, double xoff, double yoff, double zoff);
 void ComputeGridHorizon(horizon *H, topogrid *T, double minzen, double xoff, double yoff, double zoff);
