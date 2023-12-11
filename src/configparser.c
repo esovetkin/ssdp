@@ -536,7 +536,7 @@ BEGIN_DESCRIPTION
 SECTION Simulation Configuration
 PARSEFLAG config_sky ConfigSKY "C=<out-config> N=<int-value>"
 DESCRIPTION Setup the sky. This commands allocates space and initializes the sky data.
-ARGUMENT N The number of zenith discretizations. The total number of sky patches equals Ntotal(N)=3N(N-1)+1, e.g. with Ntotal(7)=127
+ARGUMENT N The number of zenith discretizations. The total number of sky patches equals Ntotal(N)=3N(N+1)+1, e.g. with Ntotal(7)=127. The first layer of sky induces the azimuth discretisation, which equals 6N.
 OUTPUT C configuration variable
 END_DESCRIPTION
 */
