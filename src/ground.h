@@ -44,6 +44,12 @@ enum SampleType {
 };
 
 
+struct hsample_data {
+		int x, y;
+		double d;
+};
+
+
 typedef struct topogrid {
 		double *z;  // z coordinate in column-major format
 		int *sort;  // sorted indexing with increasing height
@@ -53,10 +59,10 @@ typedef struct topogrid {
 		double x1, y1; // lower left corner
 		double x2, y2; // upper right corner
 		double dx, dy; // dx and dy step size
-		int horizon_nsample; // number of points horizon is checked, -1 means precise algorithm
 		enum SampleType horizon_stype; // type of sampling
-		char* horizon_sample; // locations where topography for horizon is sampled
-		int* horizon_idx; // precomputed index of the for horizon_sample. len(horizon_idx)==Nx*Ny
+		struct hsample_data* horizon_sample; // locations where topography for horizon is sampled
+		int horizon_nsample; // number of points horizon sample points
+		int horizon_nsample_eff; // effective number of horizon sample points
 		double *horizon_dstr; // sampling distribution (ordered quantiles)
 		int horizon_dstrn; // len(horizon_dstr)
 		double *horizon_phid; // azimuth sample distribution

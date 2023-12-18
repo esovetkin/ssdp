@@ -940,7 +940,7 @@ ARGUMENT zenith zenith angle of tilted surface
 ARGUMENT albedo optionally provide an albedo value between 0-1
 ARGUMENT xydelta,zdelta the coordinates within xydelta in xy plane and zdelta within z direction are considered the same (default: 0.05)
 ARGUMENT approx_n optional, if positive determine number of raster points used for computing the horizon. For sample points are used polar Sobol 2-d set (s_1, s_2), where pixel location is computed using F^{-1}(s_1)*exp(1i*2*pi*s_2), where F^{-1} is provided inverse cumulative distribution function, see `horizon_sample_dstr` (default: 10000)
-ARGUMENT approx_type type of sampling used. Either "precise", "sobol", "iid", "rays". For rays approx_n means number of azimuthal discretisations. (default: "precise")
+ARGUMENT approx_type type of sampling used. Either "precise", "sobol", "iid", "rays16", "rays32", "rays64", and "rays128" (default: "precise")
 OUTPUT C configuration variable
 END_DESCRIPTION
 */
@@ -1171,8 +1171,9 @@ void ExportHorizSample(char *in)
 				goto eargs;
 		}
 
-		z.N = (2*C->Tx[r].Nx-1)*(2*C->Tx[r].Ny-1);
-		if (NULL==(z.D=malloc(z.N*sizeof(*(z.D))))) goto ez;
+		int k, Nx = C->Tx[r].Nx, Ny = C->Tx[r].Ny;
+		z.N = (2*Nx-1)*(2*Ny-1);
+		if (NULL==(z.D=calloc(z.N, sizeof(*(z.D))))) goto ez;
 		nx.N = 1;
 		if (NULL==(nx.D=malloc(nx.N*sizeof(*(nx.D))))) goto enx;
 		nx.D[0] = 2*C->Tx[r].Nx-1;
@@ -1180,8 +1181,10 @@ void ExportHorizSample(char *in)
 		if (NULL==(ny.D=malloc(ny.N*sizeof(*(ny.D))))) goto eny;
 		ny.D[0] = 2*C->Tx[r].Ny-1;
 
-		for (i=0; i < z.N; ++i)
-				z.D[i] = (double) C->Tx[r].horizon_sample[i];
+		for (i=0; i < C->Tx[r].horizon_nsample_eff; ++i) {
+				k = (Nx - 1 + C->Tx[r].horizon_sample[i].x)*(2*Ny-1) + Ny - 1 + C->Tx[r].horizon_sample[i].y;
+				z.D[k] = (double) 1.0;
+		}
 
 		if(AddArray(ony, ny)) goto eo;
 		if(AddArray(onx, nx)) goto eo;

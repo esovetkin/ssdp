@@ -151,27 +151,27 @@ static topology default_topology()
 static topogrid default_topogrid()
 {
 		return (topogrid) {
-				.z               = NULL,
-				.sort            = NULL,
-				.A1              = NULL,
-				.A2              = NULL,
-				.Na              = 0,
-				.Nx              = 0,
-				.Ny              = 0,
-				.x1              = (double) 0,
-				.y1              = (double) 0,
-				.x2              = (double) 1,
-				.y2              = (double) 1,
-				.dx              = (double) 1,
-				.dy              = (double) 1,
-				.horizon_nsample = -1,
-				.horizon_stype   = SOBOL,
-				.horizon_sample  = NULL,
-				.horizon_idx     = NULL,
-				.horizon_dstr    = NULL,
-				.horizon_dstrn   = 0,
-				.horizon_phid    = NULL,
-				.horizon_nphid   = 0,
+				.z                   = NULL,
+				.sort                = NULL,
+				.A1                  = NULL,
+				.A2                  = NULL,
+				.Na                  = 0,
+				.Nx                  = 0,
+				.Ny                  = 0,
+				.x1                  = (double) 0,
+				.y1                  = (double) 0,
+				.x2                  = (double) 1,
+				.y2                  = (double) 1,
+				.dx                  = (double) 1,
+				.dy                  = (double) 1,
+				.horizon_stype       = PRECISE,
+				.horizon_sample      = NULL,
+				.horizon_nsample     = 0,
+				.horizon_nsample_eff = 0,
+				.horizon_dstr        = NULL,
+				.horizon_dstrn       = 0,
+				.horizon_phid        = NULL,
+				.horizon_nphid       = 0,
 		};
 }
 
@@ -413,10 +413,6 @@ topogrid MakeTopogrid(double *z, double x1, double y1, double x2, double y2, int
 		T.sort=gsort(T.z, N);
 		if (NULL==T.sort || ssdp_error_state) goto err;
 
-		if (NULL==(T.horizon_idx=malloc(N*sizeof(*T.horizon_idx)))) goto err;
-		for (i=0; i < N; ++i)
-				T.horizon_idx[i] = (2*Ny-1)*(T.sort[i]/Ny) + T.sort[i]%Ny;
-
 		T.Nx=Nx; T.Ny=Ny;
 		T.x1=x1; T.y1=y1;
 		T.x2=x2; T.y2=y2;
@@ -503,7 +499,6 @@ void free_topogrid (topogrid *T)
 		if (T->A1)   {free(T->A1);T->A1=NULL;}
 		if (T->A2)   {free(T->A2);T->A2=NULL;}
 		if (T->horizon_sample) {free(T->horizon_sample); T->horizon_sample=NULL;}
-		if (T->horizon_idx) {free(T->horizon_idx); T->horizon_idx=NULL;}
 		if (T->horizon_dstr) {free(T->horizon_dstr); T->horizon_dstr=NULL;}
 		if (T->horizon_phid) {free(T->horizon_phid); T->horizon_phid=NULL;}
 
@@ -1014,56 +1009,71 @@ horizon MakeHorizon(sky_grid *sky, topology *T, double xoff, double yoff, double
 
 int HorizonSet(topogrid *T, int n, enum SampleType stype)
 {
-		if (T->horizon_sample &&
-			n==T->horizon_nsample &&
+		if (T->horizon_sample && n==T->horizon_nsample &&
 			stype==T->horizon_stype) return 0;
 		T->horizon_nsample = n;
 		T->horizon_stype = stype;
 
-		if (T->horizon_nsample < 0 ||
+		if (0 == T->horizon_nsample ||
 			PRECISE == T->horizon_stype) return -2;
 
 		if (T->horizon_sample) {
 				free(T->horizon_sample);
 				T->horizon_sample=NULL;
 		}
-		T->horizon_sample=calloc((2*T->Nx-1)*(2*T->Ny-1), sizeof(T->horizon_sample));
-		if (NULL == T->horizon_sample) goto ecalloc;
 
-		int i, x, y;
-		double p[2];
+		int j, i, x, y, k;
+		double p[2], Dx, Dy;
 		struct genseq *sq = genseq_init
 				(T->horizon_stype, T->horizon_nsample,
 				 T->horizon_dstr, T->horizon_dstrn,
 				 T->horizon_phid, T->horizon_nphid);
 		if (NULL==sq) goto esq;
 
-		for (i=0; i < sq->ns; ++i) {
+		T->horizon_sample=malloc(sq->ns*sizeof(*(T->horizon_sample)));
+		if (NULL == T->horizon_sample) goto ehorizon_sample;
+
+		struct iset *seen = iset_init(4*T->Nx*T->Ny);
+		if (NULL==seen) goto eseen;
+
+		for (j=i=0; i < sq->ns; ++i) {
 				if (genseq_gen(sq, p)) goto egen;
 
 				x = (int) (p[0]/T->dx);
 				y = (int) (p[1]/T->dy);
+				k = x*(2*T->Ny-1) + y;
 
-				if ((abs(x)>=T->Nx)||(abs(y)>=T->Ny))
+				if (iset_isin(seen, (unsigned int) k))
 						continue;
+				if (iset_insert(seen, (unsigned int) k)) goto egen;
 
-				x = (T->Nx - 1 + x)*(2*T->Ny-1) + T->Ny - 1 + y;
-				T->horizon_sample[x] = 1;
+				T->horizon_sample[j].x = x;
+				T->horizon_sample[j].y = y;
+				Dx = T->dx * (double)x;
+				Dy = T->dy * (double)y;
+				T->horizon_sample[j].d = sqrt(Dx*Dx + Dy*Dy);
+				++j;
 		}
 
-		x=0;
-		for (i=0; i < 4*T->Nx*T->Ny; ++i)
-				if (T->horizon_sample[i]) ++x;
+		// reallocate horizon sample to have smaller size j
+		struct hsample_data* tmp = realloc(T->horizon_sample, j*sizeof(*tmp));
+		if (NULL == tmp) goto egen;
+		T->horizon_sample = tmp;
+		T->horizon_nsample_eff = j;
 
+		iset_free(seen);
 		genseq_free(sq);
-		return x;
+		return T->horizon_nsample_eff;
 egen:
-		T->horizon_nsample = -1;
+		T->horizon_nsample = 0;
+		T->horizon_nsample_eff = 0;
+		iset_free(seen);
+eseen:
+ehorizon_sample:
 		genseq_free(sq);
 esq:
 		free(T->horizon_sample);
 		T->horizon_sample = NULL;
-ecalloc:
 		return -1;
 }
 
@@ -1141,17 +1151,10 @@ static void RaysInterval(enum SampleType t, double *a, double* b)
 }
 
 
-// take a topology and rize the horizon accordingly
-void ComputeGridHorizon(horizon *H, topogrid *T, double minzen, double xoff, double yoff, double zoff)
-// the minzen parameter can save alot of work
-// it specifies the minimum zenith angle to consider a triangle for the horizon
-// I would set it to 0.5 times the zenith step in the sky. Especially for large topographies it reduces the amount of work considerably as far away triangles are less likely of consequence
+static void compute_approx_horizon(horizon *H, topogrid *T, double r, int k, int l, double zoff)
 {
-		int i, kl0, k, l, m, n, ifrays = 0;
-		double d, Dx, Dy, a1, a2, r;
-		r=tan(minzen);// compute threshold height over distance ratio
-		k=(int)round((xoff-T->x1)/T->dx);
-		l=(int)round((yoff-T->y1)/T->dy);
+		double a1, a2;
+		int m, n, i, j, ifrays=0;
 
 		if (RAYS16 == T->horizon_stype ||
 			RAYS32 == T->horizon_stype ||
@@ -1159,77 +1162,80 @@ void ComputeGridHorizon(horizon *H, topogrid *T, double minzen, double xoff, dou
 			RAYS128 == T->horizon_stype)
 				ifrays = 1;
 
-		/*
-		  if (k<0)
-		  {
+		for (i=0; i < T->horizon_nsample_eff; ++i) {
+				m = T->horizon_sample[i].x + k;
+				n = T->horizon_sample[i].y + l;
 
-		  if (k<-1)
-		  {
-		  // ERRORFLAG LOCNOTINTOPO  "Error: location outside topography"
-		  AddErr(LOCNOTINTOPO);
-		  return;
-		  }
-		  k=0;
+				if (m < 0 || m >= T->Nx || n < 0 || n >= T->Ny)
+						continue;
 
-		  }
-		  if (k>=T->Nx)
-		  {
-		  if (k>T->Nx)
-		  {
-		  AddErr(LOCNOTINTOPO);
-		  return;
-		  }
-		  k=T->Nx-1;
-		  }
-		  if (l<0)
-		  {
-		  if (l<-1)
-		  {
-		  AddErr(LOCNOTINTOPO);
-		  return;
-		  }
-		  l=0;
-		  }
-		  if (l>=T->Ny)
-		  {
-		  if (l>T->Ny)
-		  {
-		  AddErr(LOCNOTINTOPO);
-		  return;
-		  }
-		  l=T->Ny-1;
-		  }*/
+				j = m*T->Ny+n;
 
-		kl0 = (T->Nx-1-k)*(2*T->Ny-1) + T->Ny-1-l;
+                // do not compute anything for triangles below the zenith threshold
+				if ( (T->z[j]-zoff) > r * T->horizon_sample[i].d )
+						// compute azimuthal range
+						// TODO: in principle the Arange data can be part of the horizon_sample.
+						if (Arange(T->horizon_sample[i].x, T->horizon_sample[i].y, &a1, &a2, T->A1, T->A2))
+						{
+								if (ifrays) RaysInterval(T->horizon_stype, &a1, &a2);
+								// for now store the ratio, do atan2's on the horizon array at the end
+								RizeHorizon(H, (double)a1, (double)a2, T->horizon_sample[i].d/(T->z[j]-zoff));
+						}
+		}
+}
+
+
+static void compute_precise_horizon(horizon *H, topogrid *T, double r, int k, int l, double zoff)
+{
+		int i, m, n;
+		double d, Dx, Dy, a1, a2;
+
 		i=T->Nx*T->Ny-1;
 		while (i>=0) {
-				if ((PRECISE != T->horizon_stype) &&
-					(0==T->horizon_sample[kl0+T->horizon_idx[i]])) {
-						--i;
-						continue;
-				}
-
 				// go backwards through the list till the triangles are lower than the projection point
 				if (T->z[T->sort[i]]<=zoff) break;
 
 				m=XINDEX(T->sort[i], T->Ny)-k;
 				n=YINDEX(T->sort[i], T->Ny)-l;
 
-				if ((abs(m)>=T->Nx)||(abs(n)>=T->Ny))
-				{
+				if ((abs(m)>=T->Nx)||(abs(n)>=T->Ny)) {
 						--i;
 						continue;
 				}
+
 				Dx=T->dx*(double)m;
 				Dy=T->dy*(double)n;
 				d=sqrt(Dx*Dx+Dy*Dy);
 
-				if ((T->z[T->sort[i]]-zoff)/d>r) // do not compute anything for triangles below the zenith threshold
-						if (Arange(m, n, &a1, &a2, T->A1, T->A2)) // compute azimuthal range
-						{
-								if (ifrays) RaysInterval(T->horizon_stype, &a1, &a2);
-								RizeHorizon(H, (double)a1, (double)a2, d/(T->z[T->sort[i]]-zoff)); // for now store the ratio, do atan2's on the horizon array at the end
-						}
+				// do not compute anything for triangles below the zenith threshold
+				if ((T->z[T->sort[i]]-zoff) > r * d)
+						// compute azimuthal range
+						if (Arange(m, n, &a1, &a2, T->A1, T->A2))
+								// for now store the ratio, do atan2's on the horizon array at the end
+								RizeHorizon(H, (double)a1, (double)a2, d/(T->z[T->sort[i]]-zoff));
 				--i;
 		}
+}
+
+
+// take a topology and rize the horizon accordingly
+void ComputeGridHorizon(horizon *H, topogrid *T, double minzen, double xoff, double yoff, double zoff)
+// the minzen parameter can save alot of work
+// it specifies the minimum zenith angle to consider a triangle for the horizon
+// I would set it to 0.5 times the zenith step in the sky. Especially for large topographies it reduces the amount of work considerably as far away triangles are less likely of consequence
+{
+		int k, l;
+		double r = tan(minzen); // compute threshold height over distance ratio
+
+		k=(int)round((xoff-T->x1)/T->dx);
+		l=(int)round((yoff-T->y1)/T->dy);
+
+		// ? TODO check is outside the topography
+
+		if (PRECISE == T->horizon_stype) {
+				compute_precise_horizon(H, T, r, k, l, zoff);
+				return;
+		}
+
+		compute_approx_horizon(H, T, r, k, l, zoff);
 }
