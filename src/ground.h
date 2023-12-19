@@ -45,8 +45,8 @@ enum SampleType {
 
 
 struct hsample_data {
+		double d, a1, a2;
 		int x, y;
-		double d;
 };
 
 

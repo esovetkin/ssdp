@@ -1007,6 +1007,31 @@ horizon MakeHorizon(sky_grid *sky, topology *T, double xoff, double yoff, double
 }
 
 
+static void RaysInterval(enum SampleType t, double *a, double* b)
+{
+		if (RAYS16 != t && RAYS32 != t &&
+			RAYS64 != t && RAYS128 != t)
+				return;
+
+		double dpi = 2*M_PI;
+		*a = fmod(*a + dpi, dpi);
+		*b = fmod(*b + dpi, dpi);
+
+		int k;
+		int i = (int) floor(*a * t / dpi);
+		int j = (int) floor(*b * t / dpi);
+		if (i > j) {k=i; i=j; j=k;}
+		if (j - i >= (int) t/2) {
+				*a = dpi * j / t;
+				*b = dpi * (i+1) / t;
+				return;
+		}
+
+		*a = dpi * (j+1) / t;
+		*b = dpi * i / t;
+}
+
+
 int HorizonSet(topogrid *T, int n, enum SampleType stype)
 {
 		if (T->horizon_sample && n==T->horizon_nsample &&
@@ -1022,8 +1047,14 @@ int HorizonSet(topogrid *T, int n, enum SampleType stype)
 				T->horizon_sample=NULL;
 		}
 
-		int j, i, x, y, k;
+		int j, i, x, y, k, ifrays = 0;
 		double p[2], Dx, Dy;
+		if (RAYS16 == T->horizon_stype ||
+			RAYS32 == T->horizon_stype ||
+			RAYS64 == T->horizon_stype ||
+			RAYS128 == T->horizon_stype)
+				ifrays = 1;
+
 		struct genseq *sq = genseq_init
 				(T->horizon_stype, T->horizon_nsample,
 				 T->horizon_dstr, T->horizon_dstrn,
@@ -1036,6 +1067,7 @@ int HorizonSet(topogrid *T, int n, enum SampleType stype)
 		struct iset *seen = iset_init(4*T->Nx*T->Ny);
 		if (NULL==seen) goto eseen;
 
+		struct hsample_data *t;
 		for (j=i=0; i < sq->ns; ++i) {
 				if (genseq_gen(sq, p)) goto egen;
 
@@ -1047,12 +1079,16 @@ int HorizonSet(topogrid *T, int n, enum SampleType stype)
 						continue;
 				if (iset_insert(seen, (unsigned int) k)) goto egen;
 
-				T->horizon_sample[j].x = x;
-				T->horizon_sample[j].y = y;
+				t = T->horizon_sample + j;
+				t->x = x;
+				t->y = y;
 				Dx = T->dx * (double)x;
 				Dy = T->dy * (double)y;
-				T->horizon_sample[j].d = sqrt(Dx*Dx + Dy*Dy);
-				++j;
+				t->d = sqrt(Dx*Dx + Dy*Dy);
+				// do not add point if Arange returns zero
+				if (Arange(x,y,&(t->a1),&(t->a2),T->A1,T->A2)) ++j;
+				// special case for the RAYS strategy
+				if (ifrays) RaysInterval(T->horizon_stype, &(t->a1), &(t->a2));
 		}
 
 		// reallocate horizon sample to have smaller size j
@@ -1126,61 +1162,24 @@ err:
 }
 
 
-static void RaysInterval(enum SampleType t, double *a, double* b)
-{
-		if (RAYS16 != t && RAYS32 != t &&
-			RAYS64 != t && RAYS128 != t)
-				return;
-
-		double dpi = 2*M_PI;
-		*a = fmod(*a + dpi, dpi);
-		*b = fmod(*b + dpi, dpi);
-
-		int k;
-		int i = (int) floor(*a * t / dpi);
-		int j = (int) floor(*b * t / dpi);
-		if (i > j) {k=i; i=j; j=k;}
-		if (j - i >= (int) t/2) {
-				*a = dpi * j / t;
-				*b = dpi * (i+1) / t;
-				return;
-		}
-
-		*a = dpi * (j+1) / t;
-		*b = dpi * i / t;
-}
-
-
 static void compute_approx_horizon(horizon *H, topogrid *T, double r, int k, int l, double zoff)
 {
-		double a1, a2;
-		int m, n, i, j, ifrays=0;
-
-		if (RAYS16 == T->horizon_stype ||
-			RAYS32 == T->horizon_stype ||
-			RAYS64 == T->horizon_stype ||
-			RAYS128 == T->horizon_stype)
-				ifrays = 1;
+		struct hsample_data *t;
+		int m, n, i;
+		double x;
 
 		for (i=0; i < T->horizon_nsample_eff; ++i) {
-				m = T->horizon_sample[i].x + k;
-				n = T->horizon_sample[i].y + l;
+				t = T->horizon_sample + i;
+				m = t->x + k;
+				n = t->y + l;
 
 				if (m < 0 || m >= T->Nx || n < 0 || n >= T->Ny)
 						continue;
 
-				j = m*T->Ny+n;
+				x = (t->d)/(T->z[m*T->Ny+n]-zoff);
 
-                // do not compute anything for triangles below the zenith threshold
-				if ( (T->z[j]-zoff) > r * T->horizon_sample[i].d )
-						// compute azimuthal range
-						// TODO: in principle the Arange data can be part of the horizon_sample.
-						if (Arange(T->horizon_sample[i].x, T->horizon_sample[i].y, &a1, &a2, T->A1, T->A2))
-						{
-								if (ifrays) RaysInterval(T->horizon_stype, &a1, &a2);
-								// for now store the ratio, do atan2's on the horizon array at the end
-								RizeHorizon(H, (double)a1, (double)a2, T->horizon_sample[i].d/(T->z[j]-zoff));
-						}
+				// do not compute anything for triangles below the zenith threshold
+				if (x < r) RizeHorizon(H, t->a1, t->a2, x);
 		}
 }
 
@@ -1208,7 +1207,7 @@ static void compute_precise_horizon(horizon *H, topogrid *T, double r, int k, in
 				d=sqrt(Dx*Dx+Dy*Dy);
 
 				// do not compute anything for triangles below the zenith threshold
-				if ((T->z[T->sort[i]]-zoff) > r * d)
+				if (r*(T->z[T->sort[i]]-zoff) > d)
 						// compute azimuthal range
 						if (Arange(m, n, &a1, &a2, T->A1, T->A2))
 								// for now store the ratio, do atan2's on the horizon array at the end
@@ -1225,7 +1224,7 @@ void ComputeGridHorizon(horizon *H, topogrid *T, double minzen, double xoff, dou
 // I would set it to 0.5 times the zenith step in the sky. Especially for large topographies it reduces the amount of work considerably as far away triangles are less likely of consequence
 {
 		int k, l;
-		double r = tan(minzen); // compute threshold height over distance ratio
+		double r = 1/tan(minzen); // compute threshold height over distance ratio
 
 		k=(int)round((xoff-T->x1)/T->dx);
 		l=(int)round((yoff-T->y1)/T->dy);
