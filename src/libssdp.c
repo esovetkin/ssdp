@@ -271,12 +271,12 @@ estate:
 
 
 int ssdp_topogrid_approxhorizon(topogrid *T, int nT, int nsample,
-								enum SampleType stype)
+								enum SampleType stype, sky_grid *sky)
 {
-		int i, x, ec = 0;
+		int i, x, ec = 0, nH = 6*sky->Nz;
 
 		for (i=0; i < nT; ++i) {
-				x = HorizonSet(T+i, nsample, stype);
+				x = HorizonSet(T+i, nsample, stype, nH, 2*M_PI/((double)nH));
 				if (-1 == x) goto esobol;
 				if (0 != x) ec = x;
 				if (x > 0)

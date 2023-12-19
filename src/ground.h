@@ -45,8 +45,8 @@ enum SampleType {
 
 
 struct hsample_data {
-		double d, a1, a2;
-		int x, y;
+		double d;
+		int i, j, x, y;
 };
 
 
@@ -85,7 +85,7 @@ int FillMissingTopoGrid(topogrid *T, double na, int maxwalk);
 int AddHeightTopoGrid(topogrid *T, double *x, double *y, double *z, int nx, int nz);
 int BlurTopoGrid(topogrid *T, int size);
 
-int HorizonSet(topogrid *T, int nsample, enum SampleType type);
+int HorizonSet(topogrid *T, int nsample, enum SampleType type, int nH, double stepH);
 int HorizonSetDstr(topogrid *T, double *d, int nd);
 int HorizonSetPhi(topogrid *T, double *phi, int nphi);
 

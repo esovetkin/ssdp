@@ -442,9 +442,11 @@ void InitConfigGridMask(simulation_config *C)
 		double dt;
 		int i, pco=0;
 
+		if (! ((C->sky_init)&&(C->grid_init)&&(C->loc_init))) goto esgl;
+
 		TIC();
 		i = ssdp_topogrid_approxhorizon
-				(C->Tx, C->nTx, C->approx_n, C->approx_stype);
+				(C->Tx, C->nTx, C->approx_n, C->approx_stype, C->S);
 		dt=TOC();
 
 		switch (i) {
@@ -463,7 +465,6 @@ void InitConfigGridMask(simulation_config *C)
 		}
 
 
-		if (! ((C->sky_init)&&(C->grid_init)&&(C->loc_init))) goto esgl;
 		if (init_hcache(C)) goto einitL;
 
 		// process all necessary horizons separately
@@ -490,8 +491,8 @@ void InitConfigGridMask(simulation_config *C)
 estate:
 		FreeConfigMask(C); // make sure we are clear to allocate new memory
 einitL:
-esgl:
 enapprox:
+esgl:
 		return;
 }
 

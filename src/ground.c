@@ -880,6 +880,28 @@ void RizeHorizon(horizon *H, double azi1, double azi2, double zen)
 	}
 }
 
+
+static inline void RizeHorizon_i(horizon *H, int i, int j, double zen)
+{
+		if (zen<0) return;
+		int k;
+
+		if (j-i>=H->N/2)
+		{
+				for (k=j; k<H->N; ++k)
+						if (H->zen[k]>zen) H->zen[k]=zen;
+
+				for (k=0; k<=i; ++k)
+						if (H->zen[k]>zen) H->zen[k]=zen;
+
+				return;
+		}
+
+		for (k=i; k<=j; ++k)
+				if (H->zen[k]>zen) H->zen[k]=zen;
+}
+
+
 // MakeHorizon relies on the triangulation producing right handed triangles
 double pcross(double ax, double ay, double bx, double by, double cx, double cy) 
 { 
@@ -1032,7 +1054,7 @@ static void RaysInterval(enum SampleType t, double *a, double* b)
 }
 
 
-int HorizonSet(topogrid *T, int n, enum SampleType stype)
+int HorizonSet(topogrid *T, int n, enum SampleType stype, int nH, double stepH)
 {
 		if (T->horizon_sample && n==T->horizon_nsample &&
 			stype==T->horizon_stype) return 0;
@@ -1048,7 +1070,7 @@ int HorizonSet(topogrid *T, int n, enum SampleType stype)
 		}
 
 		int j, i, x, y, k, ifrays = 0;
-		double p[2], Dx, Dy;
+		double p[2], Dx, Dy, a1, a2;
 		if (RAYS16 == T->horizon_stype ||
 			RAYS32 == T->horizon_stype ||
 			RAYS64 == T->horizon_stype ||
@@ -1086,9 +1108,16 @@ int HorizonSet(topogrid *T, int n, enum SampleType stype)
 				Dy = T->dy * (double)y;
 				t->d = sqrt(Dx*Dx + Dy*Dy);
 				// do not add point if Arange returns zero
-				if (Arange(x,y,&(t->a1),&(t->a2),T->A1,T->A2)) ++j;
+				if (Arange(x,y,&a1,&a2,T->A1,T->A2)) ++j;
 				// special case for the RAYS strategy
-				if (ifrays) RaysInterval(T->horizon_stype, &(t->a1), &(t->a2));
+				if (ifrays) RaysInterval(T->horizon_stype, &a1, &a2);
+				t->i = (int)round(a1/stepH);
+				t->j = (int)round(a2/stepH);
+				if (t->i < 0) t->i += nH;
+				if (t->j < 0) t->j += nH;
+				t->i %= nH;
+				t->j %= nH;
+				if (t->i > t->j) {k=t->i; t->i=t->j; t->j=k;}
 		}
 
 		// reallocate horizon sample to have smaller size j
@@ -1179,7 +1208,7 @@ static void compute_approx_horizon(horizon *H, topogrid *T, double r, int k, int
 				x = (t->d)/(T->z[m*T->Ny+n]-zoff);
 
 				// do not compute anything for triangles below the zenith threshold
-				if (x < r) RizeHorizon(H, t->a1, t->a2, x);
+				if (x < r) RizeHorizon_i(H, t->i, t->j, x);
 		}
 }
 
