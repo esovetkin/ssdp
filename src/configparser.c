@@ -803,9 +803,10 @@ static void configadd_topogdal(char *in, int ifconfig)
 		ssdp_min_topogrids(C->Tx, C->nTx);
 		if (ssdp_error_state) goto emaketopogdal;
 		if (ssdp_rtreecache_reset(&(C->hcache))) goto emaketopogdal;
+		printf("Initialised topogrid in %g s\n", TOC());
+
 		InitConfigGridMask(C);
 		if (ssdp_error_state) goto emaketopogdal;
-		printf("Initialised topogrid in %g s\n", TOC());
 
 		cvec_free(fns);
 		free(word);
