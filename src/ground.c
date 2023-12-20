@@ -1086,7 +1086,7 @@ int HorizonSet(topogrid *T, int n, enum SampleType stype, int nH, double stepH)
 		T->horizon_sample=malloc(sq->ns*sizeof(*(T->horizon_sample)));
 		if (NULL == T->horizon_sample) goto ehorizon_sample;
 
-		struct iset *seen = iset_init(4*T->Nx*T->Ny);
+		struct iset *seen = iset_init(sq->ns);
 		if (NULL==seen) goto eseen;
 
 		struct hsample_data *t;
