@@ -3,7 +3,7 @@
 #include <float.h>
 #include <stdio.h>
 #include <string.h>
-
+#include <omp.h>
 #include "error.h"
 #include "epsg.h"
 #include "topogdal.h"
@@ -369,61 +369,63 @@ static double get_pixel(struct geotransform *gt, struct raster *r, struct point 
 }
 
 
-static int process_raster(double *z, struct gdaldata *gd, int raster_id, struct coordinates *locs)
+static void process_raster(double *z, struct gdaldata *gd,
+						   struct raster *rd, int raster_id,
+						   struct coordinates *locs)
 {
-        struct raster *rd;
-        rd = raster_init(gd, raster_id, &locs->br);
-        if (NULL == rd) goto eraster_init;
+		int i;
+		double x;
+		struct point p;
 
-        int i;
-        double x;
-        struct point p;
+		for (i=0; i<locs->np; ++i) {
+				p.x = locs->p[i].x; p.y = locs->p[i].y;
+				convert_point(gd->pj[raster_id], &p, 1);
 
-        for (i=0; i<locs->np; ++i) {
-                // init z with the missing value
-                if (0 == raster_id)
-                        z[i] = gd->na_value;
-
-                p.x = locs->p[i].x; p.y = locs->p[i].y;
-                convert_point(gd->pj[raster_id], &p, 1);
-
-                // take maximum from all rasters
-                x = get_pixel(&gd->gt[raster_id], rd, &p, gd->na_value);
-                z[i] = x > z[i] ? x : z[i];
-        }
-
-        raster_free(rd);
-        return 0;
-eraster_init:
-        return -1;
+				// take maximum from all rasters
+				x = get_pixel(&gd->gt[raster_id], rd, &p, gd->na_value);
+				z[i] = x > z[i] ? x : z[i];
+		}
 }
 
 
 double* topogrid_from_gdal(struct gdaldata *gd, struct coordinates *locs)
 {
-        double *z;
-        if (NULL == (z = malloc(locs->np*sizeof(*z))))
-                goto z_emalloc;
+		double *z;
+		int i, err = 0;
+		if (NULL == (z=malloc(locs->np*sizeof(*z)))) goto z_emalloc;
+		// init z with the missing value
+		for (i=0; i < locs->np; ++i) z[i] = gd->na_value;
 
-        int i, err;
-        for (i=0; i<gd->nds; ++i) {
-                err = process_raster(z, gd, i, locs);
-                if (err < 0) goto eprocess_raster;
-        }
+#pragma omp parallel private(i) shared(locs, gd, z)
+		{
+#pragma omp for schedule(runtime)
+				for (i=0; i < gd->nds; ++i) {
+						struct raster *rd = raster_init(gd, i, &locs->br);
+						if (NULL == rd) {err |= 1; continue;}
+#pragma omp critical
+						{
+								process_raster(z, gd, rd, i, locs);
+						}
+						raster_free(rd);
+				}
+		}
 
-        // fill the missing values
-        struct edt *dt = edt_init(z, locs->np, locs->nx, locs->ny, gd->na_value);
-        if (NULL == dt) goto eedt_init;
-        edt_compute(dt);
-        edt_fill(dt);
-        edt_free(dt);
+		if (err) goto eprocess_raster;
 
-        return z;
+		// fill the missing values
+		struct edt *dt = edt_init(z, locs->np, locs->nx, locs->ny,
+								  gd->na_value);
+		if (NULL == dt) goto eedt_init;
+		edt_compute(dt);
+		edt_fill(dt);
+		edt_free(dt);
+
+		return z;
 eedt_init:
 eprocess_raster:
-        free(z);
+		free(z);
 z_emalloc:
-        return NULL;
+		return NULL;
 }
 
 

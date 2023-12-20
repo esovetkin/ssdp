@@ -36,7 +36,7 @@ ssdptest_coords_CFLAGS = -DRUNTEST
 ssdptest_coords_LDADD = libepsg.la -lproj
 
 ssdptest_topogdal_SOURCES = $(top_builddir)/src/topogdal.c $(top_builddir)/src/error.c
-ssdptest_topogdal_CFLAGS = -DRUNTEST $(GDAL_CFLAGS)
+ssdptest_topogdal_CFLAGS = -fopenmp -DRUNTEST $(GDAL_CFLAGS)
 ssdptest_topogdal_LDADD = libedt.la libepsg.la libcoordinates.la -lproj $(GDAL_LDFLAGS)
 
 noinst_LTLIBRARIES = libcoordinates.la libepsg.la libedt.la libiset.la
