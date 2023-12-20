@@ -889,16 +889,16 @@ static inline void RizeHorizon_i(horizon *H, int i, int j, double zen)
 		if (j-i>=H->N/2)
 		{
 				for (k=j; k<H->N; ++k)
-						if (H->zen[k]>zen) H->zen[k]=zen;
+						if (H->zen[k]<zen) H->zen[k]=zen;
 
 				for (k=0; k<=i; ++k)
-						if (H->zen[k]>zen) H->zen[k]=zen;
+						if (H->zen[k]<zen) H->zen[k]=zen;
 
 				return;
 		}
 
 		for (k=i; k<=j; ++k)
-				if (H->zen[k]>zen) H->zen[k]=zen;
+				if (H->zen[k]<zen) H->zen[k]=zen;
 }
 
 
@@ -1106,7 +1106,7 @@ int HorizonSet(topogrid *T, int n, enum SampleType stype, int nH, double stepH)
 				t->y = y;
 				Dx = T->dx * (double)x;
 				Dy = T->dy * (double)y;
-				t->d = sqrt(Dx*Dx + Dy*Dy);
+				t->d = 1.0 / sqrt(Dx*Dx + Dy*Dy);
 				// do not add point if Arange returns zero
 				if (Arange(x,y,&a1,&a2,T->A1,T->A2)) ++j;
 				// special case for the RAYS strategy
@@ -1205,10 +1205,10 @@ static void compute_approx_horizon(horizon *H, topogrid *T, double r, int k, int
 				if (m < 0 || m >= T->Nx || n < 0 || n >= T->Ny)
 						continue;
 
-				x = (t->d)/(T->z[m*T->Ny+n]-zoff);
+				x = (t->d)*(T->z[m*T->Ny+n]-zoff);
 
 				// do not compute anything for triangles below the zenith threshold
-				if (x < r) RizeHorizon_i(H, t->i, t->j, x);
+				if (x > r) RizeHorizon_i(H, t->i, t->j, x);
 		}
 }
 
@@ -1253,7 +1253,7 @@ void ComputeGridHorizon(horizon *H, topogrid *T, double minzen, double xoff, dou
 // I would set it to 0.5 times the zenith step in the sky. Especially for large topographies it reduces the amount of work considerably as far away triangles are less likely of consequence
 {
 		int k, l;
-		double r = 1/tan(minzen); // compute threshold height over distance ratio
+		double r = tan(minzen); // compute threshold height over distance ratio
 
 		k=(int)round((xoff-T->x1)/T->dx);
 		l=(int)round((yoff-T->y1)/T->dy);
@@ -1261,9 +1261,19 @@ void ComputeGridHorizon(horizon *H, topogrid *T, double minzen, double xoff, dou
 		// ? TODO check is outside the topography
 
 		if (PRECISE == T->horizon_stype) {
-				compute_precise_horizon(H, T, r, k, l, zoff);
+				compute_precise_horizon(H, T, 1.0/r, k, l, zoff);
 				return;
 		}
 
+		int i;
+		for (i=0; i < H->N; ++i)
+				H->zen[i] = 0;
+
 		compute_approx_horizon(H, T, r, k, l, zoff);
+
+		// TODO this is better do via cotangens, which requires
+		// implementing ACTAN. In general, ATAN and ACTAN can be
+		// implemented using vector arithmetic CPU instructions.
+		for (i=0; i < H->N; ++i)
+				H->zen[i] = 1.0/H->zen[i];
 }
