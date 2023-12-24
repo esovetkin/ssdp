@@ -1054,6 +1054,20 @@ static void RaysInterval(enum SampleType t, double *a, double* b)
 }
 
 
+static int hsample_comp(const void *a, const void *b)
+{
+		struct hsample_data* x = (struct hsample_data*) a;
+		struct hsample_data* y = (struct hsample_data*) b;
+
+		if (x->x > y->x) return 1;
+		if (x->x < y->x) return -1;
+		// implies x->x == y->x
+		if (x->y > y->y) return 1;
+		if (x->y < y->y) return -1;
+		return 0;
+}
+
+
 int HorizonSet(topogrid *T, int n, enum SampleType stype, int nH, double stepH)
 {
 		if (T->horizon_sample && n==T->horizon_nsample &&
@@ -1125,6 +1139,8 @@ int HorizonSet(topogrid *T, int n, enum SampleType stype, int nH, double stepH)
 		if (NULL == tmp) goto egen;
 		T->horizon_sample = tmp;
 		T->horizon_nsample_eff = j;
+
+		qsort(T->horizon_sample, T->horizon_nsample_eff, sizeof(*T->horizon_sample), hsample_comp);
 
 		iset_free(seen);
 		genseq_free(sq);
