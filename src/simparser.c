@@ -34,12 +34,6 @@ static int check_simconfig(simulation_config *C, int ok_notopo, int ok_nosky)
 				return -3;
 		}
 
-		if ((!C->topo_init) && (!C->grid_init))
-		{
-				Warning("Warning: no topological data available, omitting horizon\n");
-				InitConfigMaskNoH(C);
-		}
-
 		if (ssdp_error_state) {
 				ssdp_print_error_messages();
 				ssdp_reset_errors();
@@ -49,6 +43,44 @@ static int check_simconfig(simulation_config *C, int ok_notopo, int ok_nosky)
 		return 0;
 }
 
+
+static int poa_total(simulation_config *C, int o, double* out, int chunkid)
+{
+		if (InitLocations(C, chunkid)) return -1;
+		int i;
+
+#pragma omp parallel private(i) shared(C)
+		{
+#pragma omp for schedule(runtime)
+				for (i=0; i < C->Nl_eff; ++i)
+						out[o+C->Nl_o+i] = ssdp_total_poa(
+								C->S, C->o[C->Nl_o+i], &(C->M), C->L+i);
+		}
+
+		return 0;
+}
+
+
+static int poa_unif(simulation_config *C, int o, double* out,
+					int chunkid, double DHI)
+{
+		if (InitLocations(C, chunkid)) return -1;
+		int i;
+
+#pragma omp parallel private(i) shared(C)
+		{
+#pragma omp for schedule(runtime)
+				for (i=0; i < C->Nl_eff; ++i) {
+						out[o+C->Nl_o+i] = ssdp_direct_poa
+								(C->S, C->o[C->Nl_o+i], &(C->M), C->L+i);
+// diffuse part is directly proportional to diffuse horizontal
+						out[o+C->Nl_o+i] = C->L[i].difftrans * DHI;
+
+				}
+		}
+
+		return 0;
+}
 
 /*
 BEGIN_DESCRIPTION
@@ -102,13 +134,10 @@ void SimStatic(char *in)
 						 AT(p,j), AT(T,j), AT(GH,j), AT(DH,j));
 				tsky+=TOC(); TIC();
 
-#pragma omp parallel private(i) shared(C)
-				{
-#pragma omp for schedule(runtime)
-						for (i=0; i < C->Nl; ++i)
-								out.D[j*C->Nl+i]=ssdp_total_poa
-										(C->S, C->o[i], &(C->M), C->L+i);
-				}
+				i = -1;
+				while (NextChunk(C, &i))
+						if (poa_total(C, j*C->Nl, out.D, i))
+								goto esim;
 				ProgressBar((100*(j+1))/N, &pco, ProgressLen, ProgressTics);
 				tpoa+=TOC();
 		}
@@ -126,6 +155,7 @@ void SimStatic(char *in)
 		free(word);
 		return;
 eoutadd:
+esim:
 		free(out.D);
 eout:
 eshapes:
@@ -190,13 +220,11 @@ void SimStaticPos(char *in)
 						(C->S, sun, AT(GH,j), AT(DH,j), AT(doy,j));
 				tsky += TOC(); TIC();
 
-#pragma omp parallel private (i) shared(C)
-				{
-#pragma omp for schedule(runtime)
-						for (i=0; i < C->Nl; ++i)
-								poa.D[j*C->Nl + i] = ssdp_total_poa
-										(C->S, C->o[i], &(C->M), C->L+i);
-				}
+				i = -1;
+				while (NextChunk(C, &i))
+						if (poa_total(C, j*C->Nl, poa.D, i))
+								goto esim;
+
 				ProgressBar((100*(j+1))/N, &pco, ProgressLen, ProgressTics);
 				tpoa+=TOC();
 		}
@@ -213,6 +241,7 @@ void SimStaticPos(char *in)
 		free(word);
 		return;
 epoaadd:
+esim:
 		free(poa.D);
 epoa:
 eshapes:
@@ -283,13 +312,10 @@ void SimStaticInt(char *in)
 		printf("Integrated %d skies in %g s (%g s/sky)\n", t->N, tsky, tsky/((double)t->N));
 
 		TIC();
-#pragma omp parallel private(i) shared(C)
-		{
-#pragma omp for schedule(runtime)
-				for (i=0;i<C->Nl;i++)
-						out.D[i]=ssdp_total_poa
-								(C->S, C->o[i], &(C->M), C->L+i);
-	}
+		i = -1;
+		while (NextChunk(C, &i))
+				if (poa_total(C, 0, out.D, i))
+						goto esim;
 		tpoa=TOC();
 
 		printf("Computed %d POA Irradiances in %g s (%g s/POA)\n", C->Nl, tpoa, tpoa/((double)(C->Nl)));
@@ -302,6 +328,7 @@ void SimStaticInt(char *in)
 		free(word);
 		return;
 eoutadd:
+esim:
 		free(out.D);
 eout:
 eshapes:
@@ -346,22 +373,21 @@ void SimSky(char *in)
 		out.N=C->Nl;
 
 		TIC();
-#pragma omp parallel private(i) shared(C)
-		{
-#pragma omp for schedule(runtime)
-				for (i=0;i<C->Nl;i++)
-						out.D[i]=ssdp_total_poa
-								(C->S, C->o[i], &(C->M), C->L+i);
-		}
+		i = -1;
+		while (NextChunk(C, &i))
+				if (poa_total(C, 0, out.D, i))
+						goto esim;
 		tpoa=TOC();
 
-		printf("Computed %d POA Irradiances in %g s (%g s/POA)\n", C->Nl, tpoa, tpoa/((double)(C->Nl)));
+		printf("Computed %d POA Irradiances in %g s (%g s/POA)\n",
+			   C->Nl, tpoa, tpoa/((double)(C->Nl)));
 		printf("Creating array %s\n",nout);
 		if(AddArray(nout, out)) goto eoutadd;
 
 		free(word);
 		return;
 eoutadd:
+esim:
 		free(out.D);
 eout:
 eargs:
@@ -388,7 +414,7 @@ END_DESCRIPTION
 */
 void SimRoute(char *in)
 {
-		int j, N, pco=0, fp=0, fT=0;
+		int i, j, N, pco=0, fp=0, fT=0;
 		char *word, *nout;
 		simulation_config *C;
 		array *t, *GH, *DH, *p, *T, out;
@@ -412,30 +438,37 @@ void SimRoute(char *in)
 		if (N < 0) goto eshapes;
 		if (N<C->Nl)
 				Warning("Warning: time array contains less points than there are waypoints\n");
-		if (N>C->Nl)
-				Warning("Warning: time array contains more points than there are waypoints\n");
+		if (N>C->Nl) goto eshapes;
 
-		if (NULL==(out.D=malloc(N*sizeof(*out.D)))) goto eout;
-		out.N=N;
+		if (NULL==(out.D=malloc(C->Nl*sizeof(*out.D)))) goto eout;
+		out.N=C->Nl;
 		printf("doing route simulation along %d locations at %d instances\n",C->Nl, N);
 
 		TIC();
-#pragma omp parallel private(j)
-		{
-#pragma omp for schedule(runtime)
-				for (j=0; j < N; ++j) {
-#ifdef OPENMP
-						int thread=omp_get_thread_num();
-#else
-						int thread=0;
-#endif
-						ssdp_make_perez_all_weather_sky_coordinate
-								(C->S+thread, (time_t) AT(t,j),
-								 C->lon, C->lat, C->E,
-								 AT(p,j), AT(T,j), AT(GH,j), AT(DH,j));
+		i = -1;
+		while (NextChunk(C, &i)) {
+				if (InitLocations(C, i)) goto esim;
 
-						out.D[j]=ssdp_total_poa(C->S+thread, C->o[j], &(C->M), C->L+j);
-						ProgressBar((100*(j+1))/N, &pco, ProgressLen, ProgressTics);
+#pragma omp parallel private(j)
+				{
+#pragma omp for schedule(runtime)
+						for (j=0; j < C->Nl_eff; ++j) {
+#ifdef OPENMP
+								int thread=omp_get_thread_num();
+#else
+								int thread=0;
+#endif
+								ssdp_make_perez_all_weather_sky_coordinate
+										(C->S+thread, (time_t) AT(t,C->Nl_o+j),
+										 C->lon, C->lat, C->E,
+										 AT(p,C->Nl_o+j), AT(T,C->Nl_o+j),
+										 AT(GH,C->Nl_o+j), AT(DH,C->Nl_o+j));
+
+								out.D[C->Nl_o+j]=ssdp_total_poa(
+										C->S+thread, C->o[C->Nl_o+j],
+										&(C->M), C->L+j);
+								ProgressBar((100*(C->Nl_o+j+1))/C->Nl_eff, &pco, ProgressLen, ProgressTics);
+						}
 				}
 		}
 		ProgressBar(100, &pco, ProgressLen, ProgressTics);
@@ -451,6 +484,7 @@ void SimRoute(char *in)
 		free(word);
 		return;
 eoutadd:
+esim:
 		free(out.D);
 eout:
 eshapes:
@@ -512,24 +546,21 @@ void SimStaticUniform(char *in)
 
 		for (j=0; j < N; ++j) {
 				TIC();
-				// only update sun position, we do not need to compute the diffuse sky, it is uniform and boring
+				// only update sun position, we do not need to compute
+				// the diffuse sky, it is uniform and boring
 				ssdp_make_skysunonly_coordinate
 						(C->S, (time_t) AT(t,j),
 						 C->lon, C->lat, C->E,
 						 AT(p,j), AT(T,j), AT(GH,j), AT(DH,j));
 				tsky+=TOC(); TIC();
-#pragma omp parallel private(i) shared(C)
-		{
-#pragma omp for schedule(runtime)
-			for (i=0;i < C->Nl; ++i) {
-					out.D[j*C->Nl+i]=ssdp_direct_poa
-							(C->S, C->o[i], &(C->M), C->L+i);
-					out.D[j*C->Nl+i]+=C->L[i].difftrans*DH->D[j]; // diffuse part is directly proportional to diffuse horizontal
-			}
+
+				i = -1;
+				while (NextChunk(C, &i))
+						if (poa_unif(C, j*C->Nl, out.D, i, DH->D[j]))
+								goto esim;
+				ProgressBar((100*(j+1))/N, &pco, ProgressLen, ProgressTics);
+				tpoa+=TOC();
 		}
-		ProgressBar((100*(j+1))/N, &pco, ProgressLen, ProgressTics);
-		tpoa+=TOC();
-	}
 
 		printf("Computed %d skies in %g s (%g s/sky)\n",
 			   N, tsky, tsky/((double)N));
@@ -544,6 +575,7 @@ void SimStaticUniform(char *in)
 		free(word);
 		return;
 eoutadd:
+esim:
 		free(out.D);
 eout:
 eshapes:

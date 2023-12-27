@@ -43,8 +43,8 @@ int FetchOptFloat(const char *in, const char *pat, char *str, double *a);
 int FetchInt(const char *in, const char *pat, char *str, int *a);
 int FetchOptInt(const char *in, const char *pat, char *str, int *a);
 
-void InitConfigMask(simulation_config *C);
-void InitConfigMaskNoH(simulation_config *C);
+int InitLocations(simulation_config *C, int chunkid);
+int NextChunk(simulation_config *C, int *chunkid);
 
 #define AT(arr, i) (arr->D[i % arr->N])
 

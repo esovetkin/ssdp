@@ -22,7 +22,7 @@ typedef struct simulation_config {
 	double *x, *y, *z;		// locations of the module(s)
 	sky_pos *o;				// orientation of the module(s)
 	location *L;			// traced locations
-	int Nl;					// number of locations
+	int Nl, Nl_eff, Nl_o;		// number of locations (and effective number that depends on chunks)
 	struct rtreecache* hcache;	// horizon cache
 	horizon **uH;	// list of pointers to unique horizons, always length Nl
 	int *uHi;	// index uH -> index location, len(uHi) = Nl
@@ -32,6 +32,7 @@ typedef struct simulation_config {
 	int *uSTii; // inverse of uSTi, len(uSTi) = Nl
 	int approx_n; // number of points used in the approximate horizon
 	enum SampleType approx_stype; // approximate horizon sampling type
+	int chunked; // number of locations do process in one chunk. If negative process all locations
 } simulation_config;
 
 typedef struct array {

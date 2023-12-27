@@ -19,6 +19,45 @@
 #include "coordinates.h"
 
 
+static void set_chunk(simulation_config *C, int chunkid)
+{
+		if (C->chunked < 0) {
+				C->Nl_eff = C->Nl;
+				C->Nl_o = 0;
+				return;
+		}
+
+		if (chunkid < 0) {
+				C->Nl_eff = 0;
+				C->Nl_o = 0;
+				return;
+		}
+
+		C->Nl_eff = C->chunked;
+		C->Nl_o = chunkid * C->chunked;
+
+		if (C->Nl_o + C->chunked > C->Nl)
+				C->Nl_eff = C->Nl - C->Nl_o;
+}
+
+
+int NextChunk(simulation_config *C, int *chunkid)
+{
+		++(*chunkid);
+		printf("Processing locations chunk: %d\n", *chunkid);
+
+		if (C->chunked < 0) {
+				if (0 == (*chunkid)) return 1;
+				return 0;
+		}
+
+		if (C->chunked * (*chunkid) >= C->Nl)
+				return 0;
+
+		return 1;
+}
+
+
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation Configuration
@@ -181,25 +220,20 @@ void ConfigAOI(char *in)
 	free(word);
 }
 
+
 void FreeConfigMask(simulation_config *C)
 {
-	int i;
-	if (C->L)
-	{
-		for (i=0;i<C->Nl;i++)
-			ssdp_free_location(&(C->L[i]));
-		free(C->L);
-	}
-	C->L=NULL;
-	if (C->uH) {
-			free(C->uH);
-	}
-	C->uH=NULL;
-	if (C->uHi) {
-			free(C->uHi);
-	}
-	C->uHi=NULL;
+		int i;
+		if (C->L) {
+				for (i=0; i < C->Nl_eff; ++i)
+						ssdp_free_location(&(C->L[i]));
+				free(C->L);
+				C->L=NULL;
+		}
+		if (C->uH) {free(C->uH); C->uH=NULL;}
+		if (C->uHi) {free(C->uHi); C->uHi=NULL;}
 }
+
 
 void FreeConfigLocation(simulation_config *C)
 {
@@ -230,16 +264,16 @@ static int set_uH(simulation_config *C, int i)
 
 		uintptr_t j, k;
 		j = k = (uintptr_t) C->L[i].H;
-		while (NULL != C->uH[j % C->Nl]) {
+		while (NULL != C->uH[j % C->Nl_eff]) {
 				// horizon has been visited
-				if (k == (uintptr_t) C->uH[j % C->Nl])
+				if (k == (uintptr_t) C->uH[j % C->Nl_eff])
 						return 1;
 
 				++j;
 		}
 
-		C->uH[j % C->Nl] = C->L[i].H;
-		C->uHi[j % C->Nl] = i;
+		C->uH[j % C->Nl_eff] = C->L[i].H;
+		C->uHi[j % C->Nl_eff] = i;
 		return 0;
 }
 
@@ -250,42 +284,43 @@ static int set_uST(simulation_config *C, int i, sky_transfer* st)
 
 		uintptr_t j, k;
 		j = k = (uintptr_t) st;
-		while (NULL != C->uST[j % C->Nl]) {
+		while (NULL != C->uST[j % C->Nl_eff]) {
 				// element was visited
-				if (k == (uintptr_t) C->uST[j % C->Nl]) {
-						C->uSTi[i] = j % C->Nl;
+				if (k == (uintptr_t) C->uST[j % C->Nl_eff]) {
+						C->uSTi[i] = j % C->Nl_eff;
 						return 1;
 				}
 
 				++j;
 		}
 
-		C->uST[j % C->Nl] = st;
-		C->uSTi[i] = j % C->Nl;
-		C->uSTii[j % C->Nl] = i;
+		C->uST[j % C->Nl_eff] = st;
+		C->uSTi[i] = j % C->Nl_eff;
+		C->uSTii[j % C->Nl_eff] = i;
 		return 0;
 }
 
 
 static int init_stcache(simulation_config *C)
 {
+		int i, hits=0, uh=0;
+
 		if (C->uST) {free(C->uST); C->uST=NULL;}
 		if (C->uSTi) {free(C->uSTi); C->uSTi=NULL;}
 		if (C->uSTii) {free(C->uSTii); C->uSTii=NULL;}
-		if (NULL==(C->uST=calloc(C->Nl,sizeof(*(C->uST))))) goto euST;
-		if (NULL==(C->uSTi=calloc(C->Nl,sizeof(*(C->uSTi))))) goto euSTi;
-		if (NULL==(C->uSTii=calloc(C->Nl,sizeof(*(C->uSTii))))) goto euSTii;
+		if (NULL==(C->uST=calloc(C->Nl_eff,sizeof(*(C->uST))))) goto euST;
+		if (NULL==(C->uSTi=calloc(C->Nl_eff,sizeof(*(C->uSTi))))) goto euSTi;
+		if (NULL==(C->uSTii=calloc(C->Nl_eff,sizeof(*(C->uSTii))))) goto euSTii;
 
 		TIC();
-		int i, hits=0, uh=0;
 		// assume C->stcache initialised. associate location with the
 		sky_transfer *st;
 		// allocated space for that in the hcache.
-		for (i=0; i < C->Nl; ++i) {
+		for (i=0; i < C->Nl_eff; ++i) {
 				st = ssdp_stcache_get
 						(C->stcache,
-						 fmod(C->o[i].z+2*M_PI, 2*M_PI),
-						 fmod(C->o[i].a+2*M_PI, 2*M_PI), C->albedo);
+						 fmod(C->o[i+C->Nl_o].z+2*M_PI, 2*M_PI),
+						 fmod(C->o[i+C->Nl_o].a+2*M_PI, 2*M_PI), C->albedo);
 				uh += set_uST(C, i, st);
 				if (NULL == st) goto estcache;
 				if (NULL != st->t) ++hits;
@@ -310,22 +345,26 @@ euST:
 
 static int init_hcache(simulation_config *C)
 {
-		FreeConfigMask(C); // make sure we are clear to allocate new memory
-		if (NULL==(C->L=calloc(C->Nl,sizeof(*(C->L))))) goto ecl;
-		if (NULL==(C->uH=calloc(C->Nl,sizeof(*(C->uH))))) goto euH;
-		if (NULL==(C->uHi=calloc(C->Nl,sizeof(*(C->uHi))))) goto euHi;
-
-		TIC();
 		int i, hits=0, uh = 0;
+
+		if (NULL==(C->L=calloc(C->Nl_eff,sizeof(*(C->L))))) goto ecl;
+		if (NULL==(C->uH=calloc(C->Nl_eff,sizeof(*(C->uH))))) goto euH;
+		if (NULL==(C->uHi=calloc(C->Nl_eff,sizeof(*(C->uHi))))) goto euHi;
+		TIC();
 		// assume C->hcache initialised. associate location with the
 		// allocated space for that in the hcache.
-		for (i=0; i < C->Nl; ++i) {
-				C->L[i].H = ssdp_horizoncache_get(C->hcache, C->x[i], C->y[i], C->z[i]);
+		for (i=0; i < C->Nl_eff; ++i) {
+				C->L[i].H = ssdp_horizoncache_get
+						(C->hcache,
+						 C->x[i+C->Nl_o],
+						 C->y[i+C->Nl_o],
+						 C->z[i+C->Nl_o]);
 				uh += set_uH(C, i);
 				if (NULL == C->L[i].H) goto ehcache;
 				if (NULL != C->L[i].H->zen) ++hits;
 		}
-		printf("Checked in locations cache in %g s, hits/duplicates/misses: %d/%d/%d\n", TOC(), hits, uh, C->Nl-hits);
+		printf("Checked in locations cache in %g s, hits/duplicates/misses: %d/%d/%d\n",
+			   TOC(), hits, uh, C->Nl_eff-hits);
 
 		return 0;
 		// the hcache keeps track of allocated horizon. even if we
@@ -346,7 +385,6 @@ ecl:
 static double init_initst(simulation_config *C)
 {
 		int i, pco;
-
 		if (NULL==C->stcache)
 				// xydelta - sky angles, zdelta - albedo
 				if (NULL==(C->stcache=ssdp_rtreecache_init(0.001, 0.001)))
@@ -357,11 +395,11 @@ static double init_initst(simulation_config *C)
 #pragma omp parallel private(i) shared(C)
 		{
 #pragma omp for schedule(runtime)
-				for (i=0; i < C->Nl; ++i) {
+				for (i=0; i < C->Nl_eff; ++i) {
 						ssdp_init_transfer
 								(C->uST[i], C->S, C->albedo,
-								 C->o[C->uSTii[i]], &(C->M));
-						ProgressBar((100*(i+1))/(2*C->Nl), &pco, ProgressLen, ProgressTics);
+								 C->o[C->uSTii[i]+C->Nl_o], &(C->M));
+						ProgressBar((100*(i+1))/(2*C->Nl_eff), &pco, ProgressLen, ProgressTics);
 				}
 		}
 		ProgressBar(50, &pco, ProgressLen, ProgressTics);
@@ -380,21 +418,21 @@ static int init_transfer(simulation_config *C)
 		int i, pco=0;
 
 		if (0 > (dt=init_initst(C))) goto einitst;
-		
+
 		TIC();
 #pragma omp parallel private(i) shared(C)
 		{
 #pragma omp for schedule(runtime)
-				for (i=0; i < C->Nl; ++i) {
+				for (i=0; i < C->Nl_eff; ++i) {
 						ssdp_setup_transfer
 								(&(C->L[i]), C->S, C->uST[C->uSTi[i]]);
-						ProgressBar((100*(i+1+C->Nl))/(2*C->Nl), &pco, ProgressLen, ProgressTics);
+						ProgressBar((100*(i+1+C->Nl_eff))/(2*C->Nl_eff), &pco, ProgressLen, ProgressTics);
 				}
 		}
 		ProgressBar(100, &pco, ProgressLen, ProgressTics);
 		if (ssdp_error_state) goto error;
 		dt+=TOC();
-		printf("Initialised sky transfer in %g s (%e s/locations)\n", dt, dt/((double)C->Nl));
+		printf("Initialised sky transfer in %g s (%e s/locations)\n", dt, dt/((double)C->Nl_eff));
 
 		return 0;
 error:
@@ -403,46 +441,51 @@ einitst:
 }
 
 
-void InitConfigMask(simulation_config *C)
+int InitConfigMask(simulation_config *C, int chunkid)
 {
 		double dt;
 		int i, pco = 0;
+		set_chunk(C, chunkid);
 
-		if (! ((C->sky_init)&&(C->topo_init)&&(C->loc_init))) goto egtl;
+		if (!C->Nl_eff) return 0;
+		if (!((C->sky_init)&&(C->topo_init)&&(C->loc_init))) goto egtl;
 		if (init_hcache(C)) goto einitL;
 
-		printf("Tracing %d locations\n", C->Nl);
+		printf("Tracing %d locations\n", C->Nl_eff);
 		TIC();
 #pragma omp parallel private(i) shared(C)
 		{
 #pragma omp for schedule(runtime)
-				for (i=0; i < C->Nl; ++i) {
+				for (i=0; i < C->Nl_eff; ++i) {
 						ssdp_setup_horizon(C->uH[i], C->S, &(C->T),
-										   C->x[C->uHi[i]],
-										   C->y[C->uHi[i]],
-										   C->z[C->uHi[i]]);
-						ProgressBar((100*(i+1))/C->Nl, &pco, ProgressLen, ProgressTics);
+										   C->x[C->uHi[i]+C->Nl_o],
+										   C->y[C->uHi[i]+C->Nl_o],
+										   C->z[C->uHi[i]+C->Nl_o]);
+						ProgressBar((100*(i+1))/C->Nl_eff, &pco, ProgressLen, ProgressTics);
 				}
 		}
 		ProgressBar(100, &pco, ProgressLen, ProgressTics);
 		dt = TOC();
-		printf("Traced %d horizons in %g s (%e s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));
+		printf("Traced %d horizons in %g s (%e s/horizons)\n", C->Nl_eff, dt, dt/((double)C->Nl_eff));
 
 		if (init_transfer(C)) goto estate;
-		return;
+		return 0;
 estate:
 		FreeConfigMask(C); // make sure we are clear to allocate new memory
 einitL:
 egtl:
-		return;
+		return -1;
 }
 
-void InitConfigGridMask(simulation_config *C)
+
+int InitConfigGridMask(simulation_config *C, int chunkid)
 {
 		double dt;
 		int i, pco=0;
+		set_chunk(C, chunkid);
 
-		if (! ((C->sky_init)&&(C->grid_init)&&(C->loc_init))) goto esgl;
+		if (!C->Nl_eff) return 0;
+		if (!((C->sky_init)&&(C->grid_init)&&(C->loc_init))) goto esgl;
 
 		TIC();
 		i = ssdp_topogrid_approxhorizon
@@ -468,67 +511,71 @@ void InitConfigGridMask(simulation_config *C)
 		if (init_hcache(C)) goto einitL;
 
 		// process all necessary horizons separately
-		printf("Tracing %d locations\n", C->Nl);
+		printf("Tracing %d locations\n", C->Nl_eff);
 		TIC();
 #pragma omp parallel private(i) shared(C)
 		{
 #pragma omp for schedule(runtime)
-				for (i=0; i < C->Nl; ++i) {
+				for (i=0; i < C->Nl_eff; ++i) {
 						ssdp_setup_grid_horizon(
 								C->uH[i], C->S, C->Tx, C->nTx,
-								C->x[C->uHi[i]],
-								C->y[C->uHi[i]],
-								C->z[C->uHi[i]]);
-						ProgressBar((100*(i+1))/C->Nl, &pco, ProgressLen, ProgressTics);
+								C->x[C->uHi[i]+C->Nl_o],
+								C->y[C->uHi[i]+C->Nl_o],
+								C->z[C->uHi[i]+C->Nl_o]);
+						ProgressBar((100*(i+1))/C->Nl_eff, &pco, ProgressLen, ProgressTics);
 				}
 		}
 		ProgressBar(100, &pco, ProgressLen, ProgressTics);
 		dt = TOC();
-		printf("Traced %d horizons in %g s (%e s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));
+		printf("Traced %d horizons in %g s (%e s/horizons)\n", C->Nl_eff, dt, dt/((double)C->Nl_eff));
 
 		if (init_transfer(C)) goto estate;
-		return;
+		return 0;
 estate:
 		FreeConfigMask(C); // make sure we are clear to allocate new memory
 einitL:
 enapprox:
 esgl:
-		return;
+		return -1;
 }
 
-void InitConfigMaskNoH(simulation_config *C) // same as above but without horizon calculation
+
+// same as above but without horizon calculation
+int InitConfigMaskNoH(simulation_config *C, int chunkid)
 {
 		double dt;
 		int i, pco=0;
+		set_chunk(C, chunkid);
 
-		if (! ((C->sky_init)&&(C->loc_init))) goto esl;
+		if (!C->Nl_eff) return 0;
+		if (!((C->sky_init)&&(C->loc_init))) goto esl;
 		if (init_hcache(C)) goto einitL;
 
 		// some horizon needs to be initialised
-		printf("Initialising %d horizons\n", C->Nl);
+		printf("Initialising %d horizons\n", C->Nl_eff);
 		TIC();
 #pragma omp parallel private(i) shared(C)
 		{
 #pragma omp for schedule(runtime)
-				for (i=0; i < C->Nl; ++i) {
+				for (i=0; i < C->Nl_eff; ++i) {
 						ssdp_setup_horizon(C->uH[i], C->S, NULL,
-										   C->x[C->uHi[i]],
-										   C->y[C->uHi[i]],
-										   C->z[C->uHi[i]]);
-						ProgressBar((100*(i+1))/C->Nl, &pco, ProgressLen, ProgressTics);
+										   C->x[C->uHi[i]+C->Nl_o],
+										   C->y[C->uHi[i]+C->Nl_o],
+										   C->z[C->uHi[i]+C->Nl_o]);
+						ProgressBar((100*(i+1))/C->Nl_eff, &pco, ProgressLen, ProgressTics);
 				}
 		}
 		ProgressBar(100, &pco, ProgressLen, ProgressTics);
 		dt = TOC();
-		printf("Initialised %d horizons in %g s (%e s/horizons)\n", C->Nl, dt, dt/((double)C->Nl));
+		printf("Initialised %d horizons in %g s (%e s/horizons)\n", C->Nl_eff, dt, dt/((double)C->Nl_eff));
 
 		if (init_transfer(C)) goto estate;
-		return;
+		return 0;
 estate:
 		FreeConfigMask(C); // make sure we are clear to allocate new memory
 einitL:
 esl:
-		return;
+		return -1;
 }
 
 
@@ -591,6 +638,7 @@ eword:
 		Warning("Error: config_sky failed!\n");
 }
 
+
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation Configuration
@@ -604,64 +652,44 @@ END_DESCRIPTION
 */
 void ConfigTOPO (char *in)
 {
-	simulation_config *C;
-	array *x, *y, *z;
-	char *word;
-	word=malloc((strlen(in)+1)*sizeof(char));
-	
-	if (FetchConfig(in, "C", word, &C))
-	{
-		free(word);
-		return;
-	}
-		
-	if (FetchArray(in, "x", word, &x))
-	{
-		free(word);
-		return;
-	}
-	if (FetchArray(in, "y", word, &y))
-	{
-		free(word);
-		return;
-	}
-	if (FetchArray(in, "z", word, &z))
-	{
-		free(word);
-		return;
-	}
-	free(word);
-	if ((x->N!=y->N)||(x->N!=z->N))
-	{
-		Warning("x- y- and z-arrays must be of equal length\n"); 
-		return;
-	}
-	
-	if (C->topo_init)
-	{
-		ssdp_free_topology(&C->T);
-	}
-	else
+		simulation_config *C;
+		array *x, *y, *z;
+		char *word;
+
+		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
+
+		if (FetchConfig(in, "C", word, &C)) goto eargs;
+		if (FetchArray(in, "x", word, &x)) goto eargs;
+		if (FetchArray(in, "y", word, &y)) goto eargs;
+		if (FetchArray(in, "z", word, &z)) goto eargs;
+
+		if ((x->N!=y->N)||(x->N!=z->N)) {
+				Warning("x- y- and z-arrays must be of equal length\n");
+				goto eargs;
+		}
+
+		if (C->topo_init) ssdp_free_topology(&C->T);
 		C->topo_init=1;
-	printf("Configuring topology with %d points\n", x->N);
-	C->T=ssdp_make_topology(x->D, y->D, z->D, x->N);
-	if (ssdp_error_state)
-	{
-		ssdp_print_error_messages();
+
+		printf("Configuring topology with %d points\n", x->N);
+		C->T=ssdp_make_topology(x->D, y->D, z->D, x->N);
+		if (ssdp_error_state) goto emktopo;
+
+		ssdp_rtreecache_reset(&(C->hcache));
+		if (InitLocations(C, -1)) goto einitloc;
+
+		free(word);
+		return;
+einitloc:
+emktopo:
 		ssdp_free_topology(&C->T);
 		C->topo_init=0;
-		ssdp_reset_errors();
-	}
-	ssdp_rtreecache_reset(&(C->hcache));
-	InitConfigMask(C);
-	if (ssdp_error_state)
-	{
 		ssdp_print_error_messages();
-		ssdp_free_topology(&C->T);
-		C->topo_init=0;
 		ssdp_reset_errors();
-	}
-	return;
+eargs:
+		free(word);
+eword:
+		printf("Error: config_topology failed!\n");
 }
 
 
@@ -728,8 +756,7 @@ static void configadd_topogrid(char *in, int ifconfig)
 		ssdp_min_topogrids(C->Tx, C->nTx);
 		if (ssdp_error_state) goto essdp;
 		if (ssdp_rtreecache_reset(&(C->hcache))) goto essdp;
-		InitConfigGridMask(C);
-		if (ssdp_error_state) goto essdp;
+		if (InitLocations(C, -1)) goto essdp;
 
 		free(word);
 		return;
@@ -806,8 +833,7 @@ static void configadd_topogdal(char *in, int ifconfig)
 		if (ssdp_rtreecache_reset(&(C->hcache))) goto emaketopogdal;
 		printf("Initialised topogrid in %g s\n", TOC());
 
-		InitConfigGridMask(C);
-		if (ssdp_error_state) goto emaketopogdal;
+		if (InitLocations(C, -1)) goto emaketopogdal;
 
 		cvec_free(fns);
 		free(word);
@@ -924,25 +950,61 @@ void ConfigCleanLocations(char *in)
 eargs:
 		free(word);
 eword:
-        Warning("Error: config_cleanlocations failed!\n");
+		Warning("Error: config_cleanlocations failed!\n");
 		return;
 }
+
+
+int InitLocations(simulation_config *C, int chunkid)
+{
+		// case when called for sim_ routines
+		if ((-1 == C->chunked) && (chunkid > -1)) return 0;
+
+		// case when called from config_location, postpone tracing for
+		// later
+		if ((C->chunked > 0) && (-1 == chunkid)) return 0;
+
+		FreeConfigMask(C); // make sure we are clear to allocate new memory
+		int err = 0;
+		if ((!C->topo_init) && (!C->grid_init))
+		{
+				Warning("Warning: no topological data "
+						"available, omitting horizon\n");
+				err |= InitConfigMaskNoH(C, chunkid);
+		}
+
+		if ((!C->grid_init) && (C->topo_init))
+				err |= InitConfigMask(C, chunkid);
+		if (C->grid_init)
+				err |= InitConfigGridMask(C, chunkid);
+
+		if (ssdp_error_state || err) goto elocs;
+		return 0;
+elocs:
+		ssdp_print_error_messages();
+		FreeConfigLocation(C);
+		C->loc_init=0;
+		ssdp_reset_errors();
+
+		return -1;
+}
+
 
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation Configuration
-PARSEFLAG config_locations ConfigLoc "C=<out-config> x=<in-array> y=<in-array> z=<in-array> azimuth=<in-array> zenith=<in-array> [type=<topology/topogrid>] [albedo=<float-value>] [xydelta=<float-value>] [zdelta=<float-value] [approx_n=<int-value>] [approx_type=<str>]"
+PARSEFLAG config_locations ConfigLoc "C=<out-config> x=<in-array> y=<in-array> z=<in-array> azimuth=<in-array> zenith=<in-array> [albedo=<float-value>] [xydelta=<float-value>] [zdelta=<float-value] [approx_n=<int-value>] [approx_type=<str>] [chunked=<int-value>]"
 DESCRIPTION Setup the topography. Load the x, y, and z data of the unstructured topography mesh into the configuration data.
 ARGUMENT x x coordinates
 ARGUMENT y y coordinates
 ARGUMENT z z coordinates
-ARGUMENT type Optional argument to select the unstructured topology mesh or the structured topogrid. Valid values are \"topology\" or \"topogrid\" (default topology unless only a topogrid is defined)
 ARGUMENT azimuth azimuth angle of tilted surface
 ARGUMENT zenith zenith angle of tilted surface
 ARGUMENT albedo optionally provide an albedo value between 0-1
 ARGUMENT xydelta,zdelta the coordinates within xydelta in xy plane and zdelta within z direction are considered the same (default: 0.05)
 ARGUMENT approx_n optional, if positive determine number of raster points used for computing the horizon. For sample points are used polar Sobol 2-d set (s_1, s_2), where pixel location is computed using F^{-1}(s_1)*exp(1i*2*pi*s_2), where F^{-1} is provided inverse cumulative distribution function, see `horizon_sample_dstr` (default: 10000)
 ARGUMENT approx_type type of sampling used. Either "precise", "sobol", "iid", "rays16", "rays32", "rays64", and "rays128" (default: "precise")
+ARGUMENT chunked optional, if positive the locations are processed in chunks of given size. This allows to do simulations with more locations with less memory (default: -1)
 OUTPUT C configuration variable
 END_DESCRIPTION
 */
@@ -951,8 +1013,7 @@ void ConfigLoc(char *in)
 		simulation_config *C;
 		double xydelta, zdelta;
 		array *x, *y, *z, *az, *ze;
-		int N, i, approx_n;
-		char type='t';
+		int N, i, approx_n, chunked=-1;
 		char *word;
 		enum SampleType stype = PRECISE;
 
@@ -964,28 +1025,9 @@ void ConfigLoc(char *in)
 		if (FetchArray(in, "z", word, &z)) goto eargs;
 		if (FetchArray(in, "azimuth", word, &az)) goto eargs;
 		if (FetchArray(in, "zenith", word, &ze)) goto eargs;
-		if (GetOption(in, "type", word)) {
-				if (strncmp(word,"topology",10)==0) {
-						if (C->topo_init==0) {
-								Warning("No topology available\n");
-								goto eargs;
-						}
-				}
-				if (strncmp(word,"topogrid",10)==0) {
-						if (C->grid_init==0) {
-								Warning("No topogrid available\n");
-								goto eargs;
-						}
-						type='g';
-				}
-		}
-		if (C->topo_init==0) {
-				type='g';
-				if (C->grid_init==0)
-						Warning("No topology or topogrid available\n");
-		}
 		if (FetchOptFloat(in, "albedo", word, &(C->albedo))) C->albedo=0.0;
-		if (C->albedo < 0 || C->albedo > 1) Warning("Warning: albedo=%f lies outside [0,1]\n", C->albedo);
+		if (C->albedo < 0 || C->albedo > 1)
+				Warning("Warning: albedo=%f lies outside [0,1]\n", C->albedo);
 		if (FetchOptFloat(in, "xydelta", word, &(xydelta))) xydelta=0.05;
 		if (FetchOptFloat(in, "zdelta", word, &(zdelta))) zdelta=0.05;
 		if (FetchOptInt(in, "approx_n", word, &approx_n)) approx_n = 10000;
@@ -997,8 +1039,10 @@ void ConfigLoc(char *in)
 				else if (strncmp(word,"rays32",10)==0) stype=RAYS32;
 				else if (strncmp(word,"rays64",10)==0) stype=RAYS64;
 				else if (strncmp(word,"rays128",10)==0) stype=RAYS128;
-				else Warning("Warning: unsupported approx_type=%s, continue with precise\n", word);
+				else Warning("Warning: unsupported approx_type=%s, "
+							 "continue with precise\n", word);
 		}
+		if (FetchOptInt(in, "chunked", word, &chunked)) chunked = -1;
 
 		N = check_shapes(5,(array*[]){x,y,z,az,ze});
 
@@ -1027,20 +1071,9 @@ void ConfigLoc(char *in)
 		C->hcache->zdelta = zdelta / 2.0;
 		C->approx_n = approx_n;
 		C->approx_stype = stype;
+		C->chunked = chunked;
 
-		if ((C->topo_init==1)&&(type=='t'))
-				InitConfigMask(C);
-		if ((C->grid_init==1)&&(type=='g'))
-				InitConfigGridMask(C);
-
-		if (ssdp_error_state)
-		{
-				ssdp_print_error_messages();
-				FreeConfigLocation(C);
-				C->loc_init=0;
-				ssdp_reset_errors();
-				goto elocs;
-		}
+		if (InitLocations(C, -1) < 0) goto elocs;
 
 		free(word);
 		return;
@@ -1230,84 +1263,55 @@ END_DESCRIPTION
 */
 void RandTOPO (char *in)
 {
-	simulation_config *C;
-	double dx, dy, dz;
-	int N1, N2;
-	char *word;
-	word=malloc((strlen(in)+1)*sizeof(char));
-	
-	if (FetchConfig(in, "C", word, &C))
-	{
-		free(word);
-		return;
-	}
-		
-	if (FetchFloat(in, "dx", word, &dx))
-	{
-		free(word);
-		return;
-	}
-		
-	if (FetchFloat(in, "dy", word, &dy))
-	{
-		free(word);
-		return;
-	}
-		
-	if (FetchFloat(in, "dz", word, &dz))
-	{
-		free(word);
-		return;
-	}
-		
-	if (FetchInt(in, "N1", word, &N1))
-	{
-		free(word);
-		return;
-	}
-	if (FetchInt(in, "N2", word, &N2))
-	{
-		free(word);
-		return;
-	}
-	free(word);
-	
-	if ((N1<3)||(N2<3))
-	{
-		Warning("N1 and N2 must be larger than 3 in rand_topology\n"); 
-		return;
-	}
-	if ((dx<1e-10)||(dy<1e-10)||(dz<1e-10))
-	{
-		Warning("Please provide valid positive ranges for the random topology\n"); 
-		return;
-	}
-	
-	if (C->topo_init)
-	{
-		ssdp_free_topology(&C->T);
-	}
-	else
+		simulation_config *C;
+		double dx, dy, dz;
+		int N1, N2;
+		char *word;
+
+		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
+
+		if (FetchConfig(in, "C", word, &C)) goto eargs;
+		if (FetchFloat(in, "dx", word, &dx)) goto eargs;
+		if (FetchFloat(in, "dy", word, &dy)) goto eargs;
+		if (FetchFloat(in, "dz", word, &dz)) goto eargs;
+		if (FetchInt(in, "N1", word, &N1)) goto eargs;
+		if (FetchInt(in, "N2", word, &N2)) goto eargs;
+
+		if ((N1<3)||(N2<3)) {
+				Warning("N1 and N2 must be larger than 3 in rand_topology\n");
+				goto eargs;
+		}
+		if ((dx<1e-10)||(dy<1e-10)||(dz<1e-10)) {
+				Warning("Please provide valid positive ranges for the random topology\n");
+				goto eargs;
+		}
+
+		if (C->topo_init) ssdp_free_topology(&C->T);
 		C->topo_init=1;
-	printf("Configuring topology with %d points\n", N2);
-	C->T=ssdp_make_rand_topology(dx, dy, dz, N1, N2);
-	if (ssdp_error_state)
-	{
-		ssdp_print_error_messages();
+
+		printf("Configuring topology with %d points\n", N2);
+		C->T=ssdp_make_rand_topology(dx, dy, dz, N1, N2);
+		if (ssdp_error_state) goto emktopo;
+		if (InitLocations(C, -1) < 0) goto einitloc;
+
+		free(word);
+		return;
+einitloc:
+emktopo:
 		ssdp_free_topology(&C->T);
 		C->topo_init=0;
-		ssdp_reset_errors();
-	}
-	InitConfigMask(C);
-	if (ssdp_error_state)
-	{
-		ssdp_print_error_messages();
-		ssdp_free_topology(&C->T);
-		C->topo_init=0;
-		ssdp_reset_errors();
-	}
-	return;
+		if (ssdp_error_state) {
+				ssdp_print_error_messages();
+				ssdp_reset_errors();
+		}
+eargs:
+		free(word);
+eword:
+		printf("Error: rand_topology failed\n");
+		return;
 }
+
+
 /*
 BEGIN_DESCRIPTION
 SECTION Coordinate System

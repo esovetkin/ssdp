@@ -48,6 +48,8 @@ simulation_config InitConf()
 	C.o=NULL;
 	C.L=NULL;
 	C.Nl=0;
+	C.Nl_eff=0;
+	C.Nl_o=0;
 	C.hcache=NULL;
 	C.uH=NULL;
 	C.uHi=NULL;
@@ -57,6 +59,7 @@ simulation_config InitConf()
 	C.uSTii=NULL;
 	C.approx_n=-1;
 	C.approx_stype=PRECISE;
+	C.chunked=-1;
 	return C;
 }
 void FreeConf(simulation_config *C)
@@ -104,7 +107,7 @@ void FreeConf(simulation_config *C)
 			free(C->o);
 		if (C->L)
 		{
-			for (i=0;i<C->Nl;i++)
+			for (i=0;i<C->Nl_eff;i++)
 				ssdp_free_location(C->L+i);
 			free(C->L);
 			C->L=NULL;
@@ -294,5 +297,3 @@ int RMVar(char *name)
 	Warning("Cannot remove variable %s, variable does not exist\n", name);
 	return 1;
 }
-
-
