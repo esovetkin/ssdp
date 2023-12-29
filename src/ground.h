@@ -18,6 +18,9 @@
 */
 
 //BEGIN_SSDP_EXPORT
+
+#include <stdint.h>
+
 typedef struct topology {
 		double *x, *y, *z;  // 3D coordinates
 		int N;		 		// number of points
@@ -45,28 +48,28 @@ enum SampleType {
 
 
 struct hsample_data {
+		int16_t x, y, i, j;
 		double d;
-		int i, j, x, y;
 };
 
 
 typedef struct topogrid {
 		double *z;  // z coordinate in column-major format
+		struct hsample_data* horizon_sample; // locations where topography for horizon is sampled
+		double x1, y1; // lower left corner
+		double dx, dy; // dx and dy step size
+		enum SampleType horizon_stype; // type of sampling
+		int horizon_nsample_eff; // effective number of horizon sample points
 		int *sort;  // sorted indexing with increasing height
 		double *A1, *A2; // pre computed discrete angles
 		int Na;		// number of discrete angles in A1 and A2 arrays
 		int Nx,Ny;	// number of points
-		double x1, y1; // lower left corner
-		double x2, y2; // upper right corner
-		double dx, dy; // dx and dy step size
-		enum SampleType horizon_stype; // type of sampling
-		struct hsample_data* horizon_sample; // locations where topography for horizon is sampled
 		int horizon_nsample; // number of points horizon sample points
-		int horizon_nsample_eff; // effective number of horizon sample points
+		double x2, y2; // upper right corner
 		double *horizon_dstr; // sampling distribution (ordered quantiles)
 		int horizon_dstrn; // len(horizon_dstr)
-		double *horizon_phid; // azimuth sample distribution
 		int horizon_nphid; // len(horizon_phid)
+		double *horizon_phid; // azimuth sample distribution
 } topogrid;
 //END_SSDP_EXPORT
 

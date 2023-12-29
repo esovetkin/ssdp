@@ -7,9 +7,9 @@ typedef struct sky_transfer {
 } sky_transfer;
 
 typedef struct horizon {
-	int N;
-	double astep;
 	double *zen;
+	float astep;
+	int N;
 } horizon;
 typedef struct skypoly {
 	int N;

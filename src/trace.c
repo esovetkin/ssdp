@@ -63,7 +63,7 @@ void FreeSkyTransfer(sky_transfer *T)
 horizon InitHorizon(int Nz)
 {
 	horizon H;
-	horizon H0={0,0,NULL};
+	horizon H0={NULL,0,0};
 	int i;
 	H.N=6*Nz;
 	H.astep=2*M_PI/((double)H.N);
