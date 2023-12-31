@@ -497,6 +497,52 @@ int ssdp_rtreecache_reset(struct rtreecache** hc)
 }
 
 
+struct xyorder_data {
+		double *x, *y;
+		topogrid *T;
+};
+
+
+int xyorder_comp(const void* a, const void* b, void* data)
+{
+		int i = *((int*)a), j = *((int*)b);
+		double *x = ((struct xyorder_data*)data)->x,
+			   *y = ((struct xyorder_data*)data)->y;
+		topogrid *T = ((struct xyorder_data*)data)->T;
+		int k, l;
+		k = T->Ny * (int)round((x[i] - T->x1)/T->dx) +
+				(int)round((y[i] - T->y1)/T->dy);
+		l = T->Ny * (int)round((x[j] - T->x1)/T->dx) +
+				(int)round((y[j] - T->y1)/T->dy);
+		if (k > l) return 1;
+		if (k < l) return -1;
+		return 0;
+}
+
+
+int* ssdp_init_xyorder(topogrid *T, double *x, double *y, int Nl)
+{
+		int i, *self = malloc(Nl*sizeof(*self));
+		if (NULL==self) goto eself;
+
+		for (i=0; i < Nl; ++i)
+				self[i] = i;
+
+		if (NULL==T) return self;
+		struct xyorder_data data = {
+				.x = x,
+				.y = y,
+				.T = T,
+		};
+
+		qsort_r(self, Nl, sizeof(*self), xyorder_comp, &data);
+
+		return self;
+		free(self);
+eself:
+		return NULL;
+}
+
 int ssdp_write_sky(sky_grid* sky, const char* ofn, const char* dataset)
 {
 		return h5write_sky_grid(sky, ofn, dataset);

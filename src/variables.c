@@ -21,97 +21,112 @@ int Nvar=0;
 // 6.407165038) gotta be somewhere and I happen to be here alot - bp
 #define FZLAT 0.88842489
 #define FZLON 0.11182613
+
+
+static AOI_Model_Data default_AOI()
+{
+		return (AOI_Model_Data) {
+				.M     = AOI_NONE,
+				.ng    = (double) 1.5,
+				.nar   = (double) 1.5,
+				.theta = NULL,
+				.effT  = NULL,
+				.N     = 0,
+		};
+}
+
+
+static void free_AOI_Model_Data(AOI_Model_Data* self)
+{
+		self->M=AOI_NONE;
+		self->ng=(double)1.5;
+		self->nar=(double)1.5;
+		if (self->theta) {
+				free(self->theta);
+				self->theta=NULL;
+		}
+
+		if (self->effT) {
+				free(self->effT);
+				self->effT=NULL;
+		}
+		self->N=0;
+}
+
+
 simulation_config InitConf()
 {
-	simulation_config C;
-	C.M.M=AOI_NONE;
-	C.M.ng=1.5;
-	C.M.nar=1.5;
-	C.M.theta=NULL;
-	C.M.effT=NULL;
-	C.M.N=0;
-	C.sky_init=0;
-	C.S=NULL;
-	C.nS=0;
-	C.Tx=NULL;
-	C.nTx=0;
-	C.topo_init=0;
-	C.grid_init=0;
-	C.albedo=0.0; 
-	C.lon=FZLON;
-	C.lat=FZLAT;
-	C.E=0;
-	C.loc_init=0;
-	C.x=NULL;
-	C.y=NULL;
-	C.z=NULL;
-	C.o=NULL;
-	C.L=NULL;
-	C.Nl=0;
-	C.Nl_eff=0;
-	C.Nl_o=0;
-	C.hcache=NULL;
-	C.uH=NULL;
-	C.uHi=NULL;
-	C.stcache=NULL;
-	C.uST=NULL;
-	C.uSTi=NULL;
-	C.uSTii=NULL;
-	C.approx_n=-1;
-	C.approx_stype=PRECISE;
-	C.chunked=-1;
-	return C;
+		return (simulation_config) {
+				.Nl        = 0,
+				.Nl_eff    = 0,
+				.Nl_o      = 0,
+				.sky_init  = 0,
+				.topo_init = 0,
+				.grid_init = 0,
+				.loc_init  = 0,
+				.nTx       = 0,
+				.nS        = 0,
+				.lon       = FZLON,
+				.lat       = FZLAT,
+				.E         = (double) 0.0,
+				.S         = NULL,
+				.Tx        = NULL,
+				.albedo    = (double) 0.0,
+				.x         = NULL,
+				.y         = NULL,
+				.z         = NULL,
+				.o         = NULL,
+				.xyorder   = NULL,
+				.L         = NULL,
+				.hcache    = NULL,
+				.uH        = NULL,
+				.uHi       = NULL,
+				.stcache   = NULL,
+				.uST       = NULL,
+				.uSTi      = NULL,
+				.uSTii     = NULL,
+				.approx_n  = -1,
+				.approx_stype = PRECISE,
+				.chunked   = -1,
+				.M         = default_AOI(),
+				// .T = not a pointer.
+		};
 }
+
+
 void FreeConf(simulation_config *C)
 {
-	int i;
-	C->M.N=0;
-	C->M.M=AOI_NONE;
-	if (C->M.theta)
-	{
-		free(C->M.theta);
-		C->M.theta=NULL;
-	}
-	if (C->M.effT)
-	{
-		free(C->M.effT);
-		C->M.effT=NULL;
-	}
-	if (C->sky_init)
-	{
-		ssdp_free_sky(C->S, C->nS);
-		C->nS=0;
-		C->sky_init=0;
-	}
-	if (C->topo_init)
-	{
-		ssdp_free_topology(&C->T);
-		C->topo_init=0;
-	}
-	if (C->grid_init)
-	{
-		ssdp_free_topogrid(C->Tx, C->nTx);
-		free(C->Tx); C->Tx=NULL;
-		C->nTx=0;
-		C->grid_init=0;
-	}
-	if (C->loc_init)
-	{
-		if (C->x)
-			free(C->x);
-		if (C->y)
-			free(C->y);
-		if (C->z)
-			free(C->z);
-		if (C->o)
-			free(C->o);
-		if (C->L)
-		{
-			for (i=0;i<C->Nl_eff;i++)
-				ssdp_free_location(C->L+i);
-			free(C->L);
-			C->L=NULL;
+		int i;
+		free_AOI_Model_Data(&(C->M));
+
+		if (C->sky_init) {
+				ssdp_free_sky(C->S, C->nS);
+				C->S=NULL;
+				C->nS=0;
+				C->sky_init=0;
 		}
+		if (C->topo_init)
+		{
+				ssdp_free_topology(&C->T);
+				C->topo_init=0;
+		}
+		if (C->Tx) {
+				ssdp_free_topogrid(C->Tx, C->nTx);
+				free(C->Tx); C->Tx=NULL;
+				C->nTx=0;
+				C->grid_init=0;
+		}
+
+		if (C->x) {free(C->x);C->x=NULL;}
+		if (C->y) {free(C->y);C->y=NULL;}
+		if (C->z) {free(C->z);C->z=NULL;}
+		if (C->o) {free(C->o);C->o=NULL;}
+		if (C->L) {
+				for (i=0;i<C->Nl_eff;i++)
+						ssdp_free_location(C->L+i);
+				free(C->L); C->L=NULL;
+		}
+		if (C->xyorder) {free(C->xyorder); C->xyorder=NULL;}
 		if (C->uH) {free(C->uH); C->uH=NULL;}
 		if (C->uHi) {free(C->uHi); C->uHi=NULL;}
 		if (C->uST) {free(C->uST); C->uST=NULL;}
@@ -119,12 +134,13 @@ void FreeConf(simulation_config *C)
 		if (C->uSTii) {free(C->uSTii); C->uSTii=NULL;}
 		C->Nl=0;
 		C->loc_init=0;
-	}
-	if (C->hcache) ssdp_horizoncache_free(C->hcache);
-	C->hcache = NULL;
-	if (C->stcache) ssdp_stcache_free(C->stcache);
-	C->stcache = NULL;
+
+		if (C->hcache) ssdp_horizoncache_free(C->hcache);
+		C->hcache = NULL;
+		if (C->stcache) ssdp_stcache_free(C->stcache);
+		C->stcache = NULL;
 }
+
 
 void FreeArray(array *a)
 {

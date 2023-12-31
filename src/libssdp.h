@@ -92,6 +92,8 @@ int ssdp_suntimes(time_t t, double lat, double lon, double e, double p, double T
 struct rtreecache* ssdp_rtreecache_init(double xy, double z);
 int ssdp_rtreecache_reset(struct rtreecache** hc);
 
+int* ssdp_init_xyorder(topogrid *T, double *x, double *y, int Nl);
+
 horizon* ssdp_horizoncache_get(struct rtreecache* hc, double x, double y, double z);
 void ssdp_horizoncache_free(struct rtreecache* hc);
 

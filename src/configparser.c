@@ -1063,6 +1063,10 @@ void ConfigLoc(char *in)
 				C->o[i].z=AT(ze,i);
 		}
 		C->loc_init=1;
+		TIC();
+		C->xyorder = ssdp_init_xyorder(C->Tx, C->x, C->y, C->Nl);
+		printf("Sorted xy locations according in %g s\n", TOC());
+		if (NULL==C->xyorder) goto exyorder;
 
 		if (NULL==C->hcache)
 				if (NULL==(C->hcache=ssdp_rtreecache_init(xydelta, zdelta)))
@@ -1079,13 +1083,15 @@ void ConfigLoc(char *in)
 		return;
 elocs:
 ehcache:
-		free(C->o);
+		free(C->xyorder); C->xyorder = NULL;
+exyorder:
+		free(C->o); C->o = NULL;
 eo:
-		free(C->z);
+		free(C->z); C->z = NULL;
 ez:
-		free(C->y);
+		free(C->y); C->y = NULL;
 ey:
-		free(C->x);
+		free(C->x); C->x = NULL;
 ex:
 eargs:
 		free(word);
