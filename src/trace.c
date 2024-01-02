@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 #include <math.h>
 #include "vector.h"
 #include "sky_dome.h"
@@ -36,19 +37,21 @@ sky_transfer InitSkyTransfer(int N, sky_transfer* src)
 	int i;
 	T.N = (src) ? src->N : N;
 	// ERRORFLAG MALLOCFAILSKYTRANS  "Error memory allocation failed in creating a sky-transfer map"
-	if ((T.t=malloc(T.N*sizeof(double)))==NULL)
-	{
+	if (NULL == (T.t=malloc(T.N*sizeof(*T.t)))) {
 		AddErr(MALLOCFAILSKYTRANS);
 		T.N=0;
 		return T;
 	}
 
-	for (i=0;i<N;i++) {
-		T.t[i] = (src) ? src->t[i] : 1.0;
-	}
+	if (src)
+			memcpy(T.t, src->t, N*sizeof(*(src->t)));
+	else
+			for (i=0; i < N; ++i) T.t[i] = (double) 1.0;
+
 	T.g = (src) ? src->g : 0.0;
 	return T;
 }
+
 
 void FreeSkyTransfer(sky_transfer *T)
 {
