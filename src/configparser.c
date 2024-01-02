@@ -467,6 +467,9 @@ int InitConfigMask(simulation_config *C, int chunkid)
 		{
 #pragma omp for schedule(runtime)
 				for (i=0; i < C->uHl*C->Nl_eff; ++i) {
+						if (NULL == C->uH[i]) continue;
+						if (NULL != C->uH[i]->zen) continue;
+
 						ssdp_setup_horizon(C->uH[i], C->S, &(C->T),
 										   C->x[C->uHi[i]+C->Nl_o],
 										   C->y[C->uHi[i]+C->Nl_o],
@@ -527,6 +530,9 @@ int InitConfigGridMask(simulation_config *C, int chunkid)
 		{
 #pragma omp for schedule(runtime)
 				for (i=0; i < C->uHl*C->Nl_eff; ++i) {
+						if (NULL == C->uH[i]) continue;
+						if (NULL != C->uH[i]->zen) continue;
+
 						ssdp_setup_grid_horizon(
 								C->uH[i], C->S, C->Tx, C->nTx,
 								C->x[C->uHi[i]+C->Nl_o],
@@ -568,6 +574,9 @@ int InitConfigMaskNoH(simulation_config *C, int chunkid)
 		{
 #pragma omp for schedule(runtime)
 				for (i=0; i < C->uHl*C->Nl_eff; ++i) {
+						if (NULL == C->uH[i]) continue;
+						if (NULL != C->uH[i]->zen) continue;
+
 						ssdp_setup_horizon(C->uH[i], C->S, NULL,
 										   C->x[C->uHi[i]+C->Nl_o],
 										   C->y[C->uHi[i]+C->Nl_o],
