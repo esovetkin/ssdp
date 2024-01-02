@@ -1377,6 +1377,8 @@ epars:
 eword:
         return;
 }
+
+
 /*
 BEGIN_DESCRIPTION
 SECTION Coordinate System
@@ -1391,52 +1393,83 @@ END_DESCRIPTION
 */
 void ConvertEPSG(char *in)
 {
-        int i;
-        char *word;
-        word=malloc((strlen(in)+1)*sizeof(*word));
-        if (NULL == word) goto eword;
+		int i;
+		char *word;
+		word=malloc((strlen(in)+1)*sizeof(*word));
+		if (NULL == word) goto eword;
 
-        int es, ed;
-        array *x, *y;
-        if (FetchArray(in, "x", word, &x)) goto epars;
-        if (FetchArray(in, "y", word, &y)) goto epars;
-        if (FetchInt(in, "epsg_src", word, &es)) goto epars;
-        if (FetchInt(in, "epsg_dst", word, &ed)) goto epars;
+		int es, ed;
+		array *x, *y;
+		if (FetchArray(in, "x", word, &x)) goto epars;
+		if (FetchArray(in, "y", word, &y)) goto epars;
+		if (FetchInt(in, "epsg_src", word, &es)) goto epars;
+		if (FetchInt(in, "epsg_dst", word, &ed)) goto epars;
 
-        if (x->N != y->N) {
-                Warning("arrays have different lengths!\n"
-                        "\tlen(x) = %d\n"
-                        "\tlen(y) = %d\n",
-                        x->N, y->N);
-                goto epars;
-        }
+		if (x->N != y->N) {
+				Warning("arrays have different lengths!\n"
+						"\tlen(x) = %d\n"
+						"\tlen(y) = %d\n",
+						x->N, y->N);
+				goto epars;
+		}
 
-        struct epsg *pc = epsg_init_epsg(es, ed);
-        if (NULL == pc) {
-                Warning("failed to init epsg context"
-                       "\t epsg_src = %d"
-                       "\t epsg_dst = %d", es, ed);
-                goto epars;
-        }
+		int npc = 1;
+#ifdef OPENMP
+		npc = omp_get_max_threads();
+#endif
 
-        struct point p;
-        printf("Converting coordinates from epsg:%d to epsg:%d\n", es, ed);
-        for (i=0; i<x->N;++i) {
-                p.x = x->D[i];
-                p.y = y->D[i];
-                convert_point(pc,&p,1);
-                x->D[i] = p.x;
-                y->D[i] = p.y;
-        }
+		struct epsg **pc = calloc(npc, sizeof(*pc));
+		if (NULL==pc) goto epc;
+		for (i=0; i < npc; ++i) {
+				pc[i] = epsg_init_epsg(es, ed);
+		}
+		if (npc != i) {
+				Warning("failed to init epsg context"
+						"\t epsg_src = %d"
+						"\t epsg_dst = %d", es, ed);
+				goto eepsginit;
+		}
 
-        free(word);
-        epsg_free(pc);
-        return;
+		printf("Converting coordinates from epsg:%d to epsg:%d\n", es, ed);
+		TIC();
+#pragma omp parallel private(i)
+		{
+				int thread = 0;
+				struct point p;
+
+#pragma omp for schedule(runtime)
+				for (i=0; i<x->N;++i) {
+#ifdef OPENMP
+						thread=omp_get_thread_num();
+#endif
+
+						p.x = x->D[i];
+						p.y = y->D[i];
+						convert_point(pc[thread],&p,1);
+						x->D[i] = p.x;
+						y->D[i] = p.y;
+				}
+		}
+		printf("Converted %d coordinates in %g s\n", x->N, TOC());
+
+		free(word);
+		for (i=0; i < npc; ++i)
+				epsg_free(pc[i]);
+		free(pc);
+		return;
+eepsginit:
+		for (i=0; i < npc; ++i)
+				if (pc[i]) epsg_free(pc[i]);
+		free(pc);
+epc:
 epars:
-        free(word);
+		free(word);
 eword:
-        return;
+		printf("Error: convert_epsg failed!\n");
+		return;
 }
+
+
 /*
 BEGIN_DESCRIPTION
 SECTION Coordinate System
