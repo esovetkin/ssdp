@@ -254,26 +254,34 @@ void FreeConfigLocation(simulation_config *C)
 }
 
 
+static uint64_t hash64(uint64_t x)
+{
+		x = (x ^ (x >> 30)) * UINT64_C(0xbf58476d1ce4e5b9);
+		x = (x ^ (x >> 27)) * UINT64_C(0x94d049bb133111eb);
+		x = x ^ (x >> 31);
+		return x;
+}
+
+
 static int set_uH(simulation_config *C, int i)
 {
-		// basic hashmap. number of entries in hash equals to its
-		// length, so we expect a lot of collisions. however, we do
-		// not need to search in hash, only set an element once. If
-		// collisions become critical, C->uH length can always be
-		// extended, and hashv value can be randomised
+		// basic hashmap. number of entries in hash equals C->uHl to
+		// the total number of locations
 
 		uintptr_t j, k;
 		j = k = (uintptr_t) C->L[i].H;
-		while (NULL != C->uH[j % C->Nl_eff]) {
+		j = (uintptr_t) hash64((uint64_t) j);
+		j = j % (C->uHl*C->Nl_eff);
+		while (NULL != C->uH[j]) {
 				// horizon has been visited
-				if (k == (uintptr_t) C->uH[j % C->Nl_eff])
+				if (k == (uintptr_t) C->uH[j])
 						return 1;
 
-				++j;
+				j = (j + 1) % (C->uHl*C->Nl_eff);
 		}
 
-		C->uH[j % C->Nl_eff] = C->L[i].H;
-		C->uHi[j % C->Nl_eff] = i;
+		C->uH[j] = C->L[i].H;
+		C->uHi[j] = i;
 		return 0;
 }
 
@@ -284,19 +292,21 @@ static int set_uST(simulation_config *C, int i, sky_transfer* st)
 
 		uintptr_t j, k;
 		j = k = (uintptr_t) st;
-		while (NULL != C->uST[j % C->Nl_eff]) {
+		j = (uintptr_t) hash64((uint64_t) j);
+		j = j % (C->uHl*C->Nl_eff);
+		while (NULL != C->uST[j]) {
 				// element was visited
-				if (k == (uintptr_t) C->uST[j % C->Nl_eff]) {
-						C->uSTi[i] = j % C->Nl_eff;
+				if (k == (uintptr_t) C->uST[j]) {
+						C->uSTi[i] = j;
 						return 1;
 				}
 
-				++j;
+				j = (j + 1) % (C->uHl*C->Nl_eff);
 		}
 
-		C->uST[j % C->Nl_eff] = st;
-		C->uSTi[i] = j % C->Nl_eff;
-		C->uSTii[j % C->Nl_eff] = i;
+		C->uST[j] = st;
+		C->uSTi[i] = j;
+		C->uSTii[j] = i;
 		return 0;
 }
 
@@ -308,9 +318,9 @@ static int init_stcache(simulation_config *C)
 		if (C->uST) {free(C->uST); C->uST=NULL;}
 		if (C->uSTi) {free(C->uSTi); C->uSTi=NULL;}
 		if (C->uSTii) {free(C->uSTii); C->uSTii=NULL;}
-		if (NULL==(C->uST=calloc(C->Nl_eff,sizeof(*(C->uST))))) goto euST;
+		if (NULL==(C->uST=calloc(C->uHl*C->Nl_eff,sizeof(*(C->uST))))) goto euST;
 		if (NULL==(C->uSTi=calloc(C->Nl_eff,sizeof(*(C->uSTi))))) goto euSTi;
-		if (NULL==(C->uSTii=calloc(C->Nl_eff,sizeof(*(C->uSTii))))) goto euSTii;
+		if (NULL==(C->uSTii=calloc(C->uHl*C->Nl_eff,sizeof(*(C->uSTii))))) goto euSTii;
 
 		TIC();
 		// assume C->stcache initialised. associate location with the
@@ -348,8 +358,8 @@ static int init_hcache(simulation_config *C)
 		int i, hits=0, uh = 0;
 
 		if (NULL==(C->L=calloc(C->Nl_eff,sizeof(*(C->L))))) goto ecl;
-		if (NULL==(C->uH=calloc(C->Nl_eff,sizeof(*(C->uH))))) goto euH;
-		if (NULL==(C->uHi=calloc(C->Nl_eff,sizeof(*(C->uHi))))) goto euHi;
+		if (NULL==(C->uH=calloc(C->uHl*C->Nl_eff,sizeof(*(C->uH))))) goto euH;
+		if (NULL==(C->uHi=calloc(C->uHl*C->Nl_eff,sizeof(*(C->uHi))))) goto euHi;
 		TIC();
 		// assume C->hcache initialised. associate location with the
 		// allocated space for that in the hcache.
@@ -395,7 +405,7 @@ static double init_initst(simulation_config *C)
 #pragma omp parallel private(i) shared(C)
 		{
 #pragma omp for schedule(runtime)
-				for (i=0; i < C->Nl_eff; ++i) {
+				for (i=0; i < C->uHl*C->Nl_eff; ++i) {
 						ssdp_init_transfer
 								(C->uST[i], C->S, C->albedo,
 								 C->o[C->uSTii[i]+C->Nl_o], &(C->M));
@@ -456,7 +466,7 @@ int InitConfigMask(simulation_config *C, int chunkid)
 #pragma omp parallel private(i) shared(C)
 		{
 #pragma omp for schedule(runtime)
-				for (i=0; i < C->Nl_eff; ++i) {
+				for (i=0; i < C->uHl*C->Nl_eff; ++i) {
 						ssdp_setup_horizon(C->uH[i], C->S, &(C->T),
 										   C->x[C->uHi[i]+C->Nl_o],
 										   C->y[C->uHi[i]+C->Nl_o],
@@ -516,7 +526,7 @@ int InitConfigGridMask(simulation_config *C, int chunkid)
 #pragma omp parallel private(i) shared(C)
 		{
 #pragma omp for schedule(runtime)
-				for (i=0; i < C->Nl_eff; ++i) {
+				for (i=0; i < C->uHl*C->Nl_eff; ++i) {
 						ssdp_setup_grid_horizon(
 								C->uH[i], C->S, C->Tx, C->nTx,
 								C->x[C->uHi[i]+C->Nl_o],
@@ -557,7 +567,7 @@ int InitConfigMaskNoH(simulation_config *C, int chunkid)
 #pragma omp parallel private(i) shared(C)
 		{
 #pragma omp for schedule(runtime)
-				for (i=0; i < C->Nl_eff; ++i) {
+				for (i=0; i < C->uHl*C->Nl_eff; ++i) {
 						ssdp_setup_horizon(C->uH[i], C->S, NULL,
 										   C->x[C->uHi[i]+C->Nl_o],
 										   C->y[C->uHi[i]+C->Nl_o],

@@ -81,6 +81,7 @@ simulation_config InitConf()
 				.hcache    = NULL,
 				.uH        = NULL,
 				.uHi       = NULL,
+				.uHl       = 2,
 				.stcache   = NULL,
 				.uST       = NULL,
 				.uSTi      = NULL,

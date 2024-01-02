@@ -60,6 +60,9 @@ typedef struct simulation_config {
 		int *uSTi;
 		int *uSTii;
 
+// len(uH) = uHl * len(L), len(uST, uSTii) = uHl * len(L)
+		int uHl;
+
 // number of points used in the approximate horizon
 		int approx_n;
 
