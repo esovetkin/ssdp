@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include "iset.h"
 
 #ifdef RUNTEST
@@ -23,18 +24,27 @@ static int* reallocate(struct iset* self)
 		if (self->n < self->n_max) return self->values;
 
 		int i, n = 2*self->N;
-		int *tmp = realloc(self->values, n*sizeof(*tmp));
+		int *tmp = malloc(n*sizeof(*tmp));
 		if (NULL == tmp) goto erealloc;
-
-		for (i=self->N-1; i < n; ++i)
-				tmp[i] = -1;
+		memset(tmp, -1, n*sizeof(*tmp));
 
 #ifdef RUNTEST
 		++REALLOCATE;
-		for (i=self->N-1; i < n; ++i)
-				assert(-1 == tmp[i%n]);
+		for (i=0; i < n; ++i)
+				assert(-1 == tmp[i]);
 #endif
 
+		for (i=0; i < self->N; ++i) {
+				if (-1 == self->values[i]) continue;
+
+				const unsigned int key = self->values[i];
+				unsigned int k = hash(key);
+				while (-1 != tmp[k % n]) ++k;
+				tmp[k % n] = (int) key;
+		}
+
+		free(self->values);
+		self->values=tmp;
 		self->N = n;
 		self->n_max = 3*n/4;
 
@@ -131,10 +141,11 @@ void test(int n, int k)
 		for (i=0; i < set->N; ++i)
 				assert(-1 == set->values[i % set->N]);
 
-		for (i=0; i < k; ++i) {
+		for (i=0; i < k; ++i)
 				assert(0==iset_insert(set, (unsigned int) i));
+
+		for (i=0; i < k; ++i)
 				assert(iset_isin(set, (unsigned int) i));
-		}
 
 		assert(k == set->n);
 
