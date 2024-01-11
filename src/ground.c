@@ -33,7 +33,7 @@
 #include "config.h"
 #include "fatan2.h"
 #include "epsg.h"
-#include "iset.h"
+#include "hashmap.h"
 #include "edt.h"
 #include "minfill.h"
 #include "topogdal.h"
@@ -717,8 +717,8 @@ int FillMissingTopoGrid(topogrid *T, double na, int maxwalk)
 int AddHeightTopoGrid(topogrid *T, double *x, double *y, double *z, int n, int nz)
 {
 		int i, ix, iy, iz, t;
-		struct iset *set;
-		if (NULL==(set=iset_init(2*n))) goto eset;
+		struct hashmap *set;
+		if (NULL==(set=hashmap_init(2*n))) goto eset;
 
 		for (i=0; i < n; ++i) {
 				ix = IndexGridX(x[i], T, &t);
@@ -732,16 +732,16 @@ int AddHeightTopoGrid(topogrid *T, double *x, double *y, double *z, int n, int n
 				iz = INDEX(ix, iy, T->Ny);
 
 				// do not alter height at already altered pixels
-				if (iset_isin(set, (unsigned int) iz)) continue;
+				if (hashmap_isin(set, &iz, sizeof(iz))) continue;
 
 				T->z[iz] += z[i % nz];
-				if (iset_insert(set, (unsigned int) iz)) goto einsert;
+				if (hashmap_insert(set, &iz, sizeof(iz), NULL)) goto einsert;
 		}
 
-		iset_free(set);
+		hashmap_free(set, NULL);
 		return 0;
 einsert:
-		iset_free(set);
+		hashmap_free(set, NULL);
 eset:
 		return -1;
 }
@@ -1083,7 +1083,7 @@ int HorizonSet(topogrid *T, int n, enum SampleType stype, int nH, double stepH)
 				T->horizon_sample=NULL;
 		}
 
-		int j, i, x, y, k, ifrays = 0;
+		int j, i, x, y, ifrays = 0;
 		double p[2], Dx, Dy, a1, a2;
 		if (RAYS16 == T->horizon_stype ||
 			RAYS32 == T->horizon_stype ||
@@ -1100,7 +1100,7 @@ int HorizonSet(topogrid *T, int n, enum SampleType stype, int nH, double stepH)
 		T->horizon_sample=malloc(sq->ns*sizeof(*(T->horizon_sample)));
 		if (NULL == T->horizon_sample) goto ehorizon_sample;
 
-		struct iset *seen = iset_init(2*sq->ns);
+		struct hashmap *seen = hashmap_init(2*sq->ns);
 		if (NULL==seen) goto eseen;
 
 		struct hsample_data *t;
@@ -1109,11 +1109,10 @@ int HorizonSet(topogrid *T, int n, enum SampleType stype, int nH, double stepH)
 
 				x = (int) (p[0]/T->dx);
 				y = (int) (p[1]/T->dy);
-				k = x*(2*T->Ny-1) + y;
 
-				if (iset_isin(seen, (unsigned int) k))
+				if (hashmap_isin(seen, (int[2]){x,y}, sizeof(x)+sizeof(y)))
 						continue;
-				if (iset_insert(seen, (unsigned int) k)) goto egen;
+				if (hashmap_insert(seen, (int[2]){x,y}, sizeof(x)+sizeof(y), NULL)) goto egen;
 
 				t = T->horizon_sample + j;
 				t->x = x;
@@ -1131,7 +1130,7 @@ int HorizonSet(topogrid *T, int n, enum SampleType stype, int nH, double stepH)
 				if (t->j < 0) t->j += nH;
 				t->i %= nH;
 				t->j %= nH;
-				if (t->i > t->j) {k=t->i; t->i=t->j; t->j=k;}
+				if (t->i > t->j) {const int k=t->i; t->i=t->j; t->j=k;}
 		}
 
 		// reallocate horizon sample to have smaller size j
@@ -1142,13 +1141,13 @@ int HorizonSet(topogrid *T, int n, enum SampleType stype, int nH, double stepH)
 
 		qsort(T->horizon_sample, T->horizon_nsample_eff, sizeof(*T->horizon_sample), hsample_comp);
 
-		iset_free(seen);
+		hashmap_free(seen, NULL);
 		genseq_free(sq);
 		return T->horizon_nsample_eff;
 egen:
 		T->horizon_nsample = 0;
 		T->horizon_nsample_eff = 0;
-		iset_free(seen);
+		hashmap_free(seen, NULL);
 eseen:
 ehorizon_sample:
 		genseq_free(sq);

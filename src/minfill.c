@@ -101,7 +101,7 @@ struct minfill* minfill_init(double *z, int nx, int ny, double missing_value)
 		self->maxwalk = -1;
 		self->direction = -1;
 
-		if (NULL==(self->visited=iset_init(nx*ny / 2))) goto evisited;
+		if (NULL==(self->visited=hashmap_init(nx*ny / 2))) goto evisited;
 		if (NULL==(self->queue=queue_init(nx*ny / 10))) goto equeue;
 		if (NULL==(self->component=queue_init(nx*ny / 10))) goto ecomponent;
 
@@ -111,7 +111,7 @@ struct minfill* minfill_init(double *z, int nx, int ny, double missing_value)
 ecomponent:
 		queue_free(self->queue);
 equeue:
-		iset_free(self->visited);
+		hashmap_free(self->visited, NULL);
 evisited:
 		free(self);
 eself:
@@ -122,7 +122,7 @@ eself:
 void minfill_free(struct minfill* self)
 {
 		if (NULL==self) return;
-		iset_free(self->visited);
+		hashmap_free(self->visited, NULL);
 		queue_free(self->queue);
 		queue_free(self->component);
 		free(self);
@@ -188,8 +188,8 @@ static int walk(struct minfill* self, int q)
 		while (!queue_isempty(self->queue)) {
 				x = queue_popleft(self->queue);
 
-				if (iset_isin(self->visited, x.i)) continue;
-				iset_insert(self->visited, x.i);
+				if (hashmap_isin(self->visited, &x.i, sizeof(x.i))) continue;
+				hashmap_insert(self->visited, &x.i, sizeof(x.i), NULL);
 
 				if (queue_append(self->component, (struct ipair){x.i, 0}))
 						goto eappend;
@@ -201,7 +201,7 @@ static int walk(struct minfill* self, int q)
 				neighbours(x.i, self->n, self->nx, self->ny);
 				for (i=0; i < 9; ++i) {
 						if (self->n[i] < 0) break;
-						if (iset_isin(self->visited, self->n[i])) continue;
+						if (hashmap_isin(self->visited, &self->n[i], sizeof(self->n[i]))) continue;
 
 						if (self->z[self->n[i]] >= self->missing_value) {
 								update_v(self, &v, self->z[self->n[i]]);

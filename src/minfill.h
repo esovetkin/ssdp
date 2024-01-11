@@ -1,7 +1,7 @@
 #ifndef _MINFILL_H
 #define _MINFILL_H
 
-#include "iset.h"
+#include "hashmap.h"
 
 struct queue;
 
@@ -32,7 +32,7 @@ struct minfill {
 		double missing_value;
 		int maxwalk;
 		int direction;
-		struct iset *visited;
+		struct hashmap *visited;
 		struct queue *queue;
 		struct queue *component;
 		int n[9];
