@@ -1,4 +1,4 @@
-bin_PROGRAMS = ssdptest_edt ssdptest_minfill ssdptest_epsg ssdptest_coords ssdptest_topogdal ssdptest_pngout ssdptest_h5io ssdptest_iset ssdptest_rtree ssdptest_sobolseq ssdptest_lcg
+bin_PROGRAMS = ssdptest_edt ssdptest_minfill ssdptest_epsg ssdptest_coords ssdptest_topogdal ssdptest_pngout ssdptest_h5io ssdptest_iset ssdptest_hashmap ssdptest_rtree ssdptest_sobolseq ssdptest_lcg
 
 ssdptest_edt_SOURCES = $(top_builddir)/src/edt.c
 ssdptest_edt_CFLAGS = -DRUNTEST
@@ -22,6 +22,9 @@ ssdptest_h5io_LDFLAGS = $(HDF5_LIBS) $(HDF5_LDFLAGS)
 ssdptest_iset_SOURCES = $(top_builddir)/src/iset.c
 ssdptest_iset_CFLAGS = -DRUNTEST
 
+ssdptest_hashmap_SOURCES = $(top_builddir)/src/hashmap.c $(top_builddir)/src/murmurhash3.c
+ssdptest_hashmap_CFLAGS = -DRUNTEST
+
 ssdptest_rtree_SOURCES = $(top_builddir)/src/rtree.c
 ssdptest_rtree_CFLAGS = -DRUNTEST
 
@@ -39,10 +42,11 @@ ssdptest_topogdal_SOURCES = $(top_builddir)/src/topogdal.c $(top_builddir)/src/e
 ssdptest_topogdal_CFLAGS = -fopenmp -DRUNTEST $(GDAL_CFLAGS)
 ssdptest_topogdal_LDADD = libedt.la libepsg.la libcoordinates.la -lproj $(GDAL_LDFLAGS)
 
-noinst_LTLIBRARIES = libcoordinates.la libepsg.la libedt.la libiset.la
+noinst_LTLIBRARIES = libcoordinates.la libepsg.la libedt.la libiset.la libhashmap.la
 libcoordinates_la_SOURCES = $(top_builddir)/src/coordinates.c
 libepsg_la_SOURCES = $(top_builddir)/src/epsg.c
 libedt_la_SOURCES = $(top_builddir)/src/edt.c
 libiset_la_SOURCES = $(top_builddir)/src/iset.c
+libhashmap_la_SOURCES = $(top_builddir)/src/hashmap.c $(top_builddir)/src/murmurhash3.c
 
-TESTS=ssdptest_edt ssdptest_minfill ssdptest_epsg ssdptest_coords ssdptest_topogdal ssdptest_pngout ssdptest_h5io ssdptest_iset ssdptest_rtree ssdptest_sobolseq ssdptest_lcg
+TESTS=ssdptest_edt ssdptest_minfill ssdptest_epsg ssdptest_coords ssdptest_topogdal ssdptest_pngout ssdptest_h5io ssdptest_iset ssdptest_hashmap ssdptest_rtree ssdptest_sobolseq ssdptest_lcg
