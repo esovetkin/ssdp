@@ -1,8 +1,24 @@
 #ifndef _HASHMAP_H
 #define _HASHMAP_H
 
-struct hash_v;
-struct hashmap;
+
+#include <stdint.h>
+
+
+struct hash_v {
+		uint64_t a,b;
+};
+
+
+struct hashmap {
+		struct hash_v* keys;
+		void **values;
+		int N;
+		int cap;
+
+		// number of entries that triggers reallocate
+		int n_realloc;
+};
 
 
 /** init hashmap

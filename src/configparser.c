@@ -230,8 +230,10 @@ void FreeConfigMask(simulation_config *C)
 				free(C->L);
 				C->L=NULL;
 		}
-		if (C->uH) {free(C->uH); C->uH=NULL;}
-		if (C->uHi) {free(C->uHi); C->uHi=NULL;}
+		if (C->l_hcache) {
+				hashmap_free(C->l_hcache, free);
+				C->l_hcache=NULL;
+		}
 }
 
 
@@ -254,101 +256,54 @@ void FreeConfigLocation(simulation_config *C)
 }
 
 
-static uint64_t hash64(uint64_t x)
-{
-		x = (x ^ (x >> 30)) * UINT64_C(0xbf58476d1ce4e5b9);
-		x = (x ^ (x >> 27)) * UINT64_C(0x94d049bb133111eb);
-		x = x ^ (x >> 31);
-		return x;
-}
-
-
-static int set_uH(simulation_config *C, int i)
-{
-		// basic hashmap. number of entries in hash equals C->uHl to
-		// the total number of locations
-
-		uintptr_t j, k;
-		j = k = (uintptr_t) C->L[i].H;
-		j = (uintptr_t) hash64((uint64_t) j);
-		j = j % (C->uHl*C->Nl_eff);
-		while (NULL != C->uH[j]) {
-				// horizon has been visited
-				if (k == (uintptr_t) C->uH[j])
-						return 1;
-
-				j = (j + 1) % (C->uHl*C->Nl_eff);
-		}
-
-		C->uH[j] = C->L[i].H;
-		C->uHi[j] = i;
-		return 0;
-}
-
-
-static int set_uST(simulation_config *C, int i, sky_transfer* st)
-{
-		// TODO: remove code duplicate with set_uH?
-
-		uintptr_t j, k;
-		j = k = (uintptr_t) st;
-		j = (uintptr_t) hash64((uint64_t) j);
-		j = j % (C->uHl*C->Nl_eff);
-		while (NULL != C->uST[j]) {
-				// element was visited
-				if (k == (uintptr_t) C->uST[j]) {
-						C->uSTi[i] = j;
-						return 1;
-				}
-
-				j = (j + 1) % (C->uHl*C->Nl_eff);
-		}
-
-		C->uST[j] = st;
-		C->uSTi[i] = j;
-		C->uSTii[j] = i;
-		return 0;
-}
-
-
 static int init_stcache(simulation_config *C)
 {
 		int i, hits=0, uh=0;
 
-		if (C->uST) {free(C->uST); C->uST=NULL;}
-		if (C->uSTi) {free(C->uSTi); C->uSTi=NULL;}
-		if (C->uSTii) {free(C->uSTii); C->uSTii=NULL;}
-		if (NULL==(C->uST=calloc(C->uHl*C->Nl_eff,sizeof(*(C->uST))))) goto euST;
-		if (NULL==(C->uSTi=calloc(C->Nl_eff,sizeof(*(C->uSTi))))) goto euSTi;
-		if (NULL==(C->uSTii=calloc(C->uHl*C->Nl_eff,sizeof(*(C->uSTii))))) goto euSTii;
+		if (C->l_stcache) {hashmap_free(C->l_stcache, free); C->l_stcache=NULL;}
+		if (C->l_st) {free(C->l_st); C->l_st=NULL;}
+		if (NULL==(C->l_stcache=hashmap_init(2*C->Nl_eff))) goto el_stcache;
+		if (NULL==(C->l_st=calloc(C->Nl_eff, sizeof(*C->l_st)))) goto el_st;
 
 		TIC();
 		// assume C->stcache initialised. associate location with the
 		sky_transfer *st;
+		uintptr_t k;
+		struct l_stcache_data *lst;
+
 		// allocated space for that in the hcache.
 		for (i=0; i < C->Nl_eff; ++i) {
 				st = ssdp_stcache_get
 						(C->stcache,
 						 fmod(C->o[i+C->Nl_o].z+2*M_PI, 2*M_PI),
 						 fmod(C->o[i+C->Nl_o].a+2*M_PI, 2*M_PI), C->albedo);
-				uh += set_uST(C, i, st);
 				if (NULL == st) goto estcache;
 				if (NULL != st->t) ++hits;
+				C->l_st[i] = st;
+
+				k = (uintptr_t) st;
+				if (hashmap_isin(C->l_stcache, &k, sizeof(k))) {
+						++uh;
+						continue;
+				}
+
+				if (NULL == (lst=malloc(sizeof(*lst)))) goto estcache;
+				*lst = (struct l_stcache_data){.ST=st,.Li=i};
+
+				if (hashmap_insert(C->l_stcache, &k, sizeof(k), lst)) goto estcache;
 		}
 		printf("Checked in sky transfer cache in %g s, hits/duplicates/missed: %d/%d/%d\n", TOC(), hits, uh, C->Nl-hits);
 
 		return 0;
+estcache:
 		// the stcache keeps track of allocated horizon. even if we
 		// fail and end up here, just need to cleanup the
-		// C->uST. ssdp_stcache_free at some point will cleanup
+		// C->l_st. ssdp_stcache_free at some point will cleanup
 		// everything.
-estcache:
-		free(C->uSTii); C->uSTii = NULL;
-euSTii:
-		free(C->uSTi); C->uSTi = NULL;
-euSTi:
-		free(C->uST); C->uST = NULL;
-euST:
+		free(C->l_st); C->l_st = NULL;
+el_st:
+		hashmap_free(C->l_stcache, free); C->l_stcache=NULL;
+el_stcache:
 		return -1;
 }
 
@@ -358,20 +313,34 @@ static int init_hcache(simulation_config *C)
 		int i, hits=0, uh = 0;
 
 		if (NULL==(C->L=calloc(C->Nl_eff,sizeof(*(C->L))))) goto ecl;
-		if (NULL==(C->uH=calloc(C->uHl*C->Nl_eff,sizeof(*(C->uH))))) goto euH;
-		if (NULL==(C->uHi=calloc(C->uHl*C->Nl_eff,sizeof(*(C->uHi))))) goto euHi;
+		if (NULL==(C->l_hcache=hashmap_init(2*C->Nl_eff))) goto el_hcache;
+
+		horizon *H;
+		uintptr_t k;
+		struct l_hcache_data *lh;
+
 		TIC();
 		// assume C->hcache initialised. associate location with the
 		// allocated space for that in the hcache.
 		for (i=0; i < C->Nl_eff; ++i) {
-				C->L[i].H = ssdp_horizoncache_get
-						(C->hcache,
-						 C->x[i+C->Nl_o],
-						 C->y[i+C->Nl_o],
-						 C->z[i+C->Nl_o]);
-				uh += set_uH(C, i);
-				if (NULL == C->L[i].H) goto ehcache;
-				if (NULL != C->L[i].H->zen) ++hits;
+				H = ssdp_horizoncache_get(C->hcache,
+										  C->x[i+C->Nl_o],
+										  C->y[i+C->Nl_o],
+										  C->z[i+C->Nl_o]);
+				if (NULL == H) goto ehcache;
+				if (NULL != H->zen) ++hits;
+				C->L[i].H = H;
+
+				k = (uintptr_t) H;
+				if (hashmap_isin(C->l_hcache, &k, sizeof(k))) {
+						++uh;
+						continue;
+				}
+
+				if (NULL == (lh=malloc(sizeof(*lh)))) goto ehcache;
+				*lh = (struct l_hcache_data){.H=H,.Li=i};
+
+				if (hashmap_insert(C->l_hcache, &k, sizeof(k), lh)) goto ehcache;
 		}
 		printf("Checked in locations cache in %g s, hits/duplicates/misses: %d/%d/%d\n",
 			   TOC(), hits, uh, C->Nl_eff-hits);
@@ -382,10 +351,9 @@ static int init_hcache(simulation_config *C)
 		// C->L. ssdp_horizoncache_free at some point will cleanup
 		// everything.
 ehcache:
-		free(C->uHi); C->uHi = NULL;
-euHi:
-		free(C->uH); C->uH = NULL;
-euH:
+		hashmap_free(C->l_hcache, free);
+		C->l_hcache = NULL;
+el_hcache:
 		free(C->L); C->L = NULL;
 ecl:
 		return -1;
@@ -405,11 +373,15 @@ static double init_initst(simulation_config *C)
 #pragma omp parallel private(i) shared(C)
 		{
 #pragma omp for schedule(runtime)
-				for (i=0; i < C->uHl*C->Nl_eff; ++i) {
+				for (i=0; i < C->l_stcache->cap; ++i) {
+						struct l_stcache_data *lst = (struct l_stcache_data*) C->l_stcache->values[i];
+						if (NULL == lst) continue;
+						if (NULL != lst->ST->t)  continue;
+
 						ssdp_init_transfer
-								(C->uST[i], C->S, C->albedo,
-								 C->o[C->uSTii[i]+C->Nl_o], &(C->M));
-						ProgressBar((100*(i+1))/(2*C->Nl_eff), &pco, ProgressLen, ProgressTics);
+								(lst->ST, C->S, C->albedo,
+								 C->o[lst->Li+C->Nl_o], &(C->M));
+						ProgressBar((100*(i+1))/C->l_stcache->cap, &pco, ProgressLen, ProgressTics);
 				}
 		}
 		ProgressBar(50, &pco, ProgressLen, ProgressTics);
@@ -435,7 +407,7 @@ static int init_transfer(simulation_config *C)
 #pragma omp for schedule(runtime)
 				for (i=0; i < C->Nl_eff; ++i) {
 						ssdp_setup_transfer
-								(&(C->L[i]), C->S, C->uST[C->uSTi[i]]);
+								(&(C->L[i]), C->S, C->l_st[i]);
 						ProgressBar((100*(i+1+C->Nl_eff))/(2*C->Nl_eff), &pco, ProgressLen, ProgressTics);
 				}
 		}
@@ -466,15 +438,16 @@ int InitConfigMask(simulation_config *C, int chunkid)
 #pragma omp parallel private(i) shared(C)
 		{
 #pragma omp for schedule(runtime)
-				for (i=0; i < C->uHl*C->Nl_eff; ++i) {
-						if (NULL == C->uH[i]) continue;
-						if (NULL != C->uH[i]->zen) continue;
+				for (i=0; i < C->l_hcache->cap; ++i) {
+						struct l_hcache_data *lh = (struct l_hcache_data*) C->l_hcache->values[i];
+						if (NULL == lh) continue;
+						if (NULL != lh->H->zen) continue;
 
-						ssdp_setup_horizon(C->uH[i], C->S, &(C->T),
-										   C->x[C->uHi[i]+C->Nl_o],
-										   C->y[C->uHi[i]+C->Nl_o],
-										   C->z[C->uHi[i]+C->Nl_o]);
-						ProgressBar((100*(i+1))/C->Nl_eff, &pco, ProgressLen, ProgressTics);
+						ssdp_setup_horizon(lh->H, C->S, &(C->T),
+										   C->x[lh->Li + C->Nl_o],
+										   C->y[lh->Li + C->Nl_o],
+										   C->z[lh->Li + C->Nl_o]);
+						ProgressBar((100*(i+1))/C->l_hcache->cap, &pco, ProgressLen, ProgressTics);
 				}
 		}
 		ProgressBar(100, &pco, ProgressLen, ProgressTics);
@@ -529,16 +502,17 @@ int InitConfigGridMask(simulation_config *C, int chunkid)
 #pragma omp parallel private(i) shared(C)
 		{
 #pragma omp for schedule(runtime)
-				for (i=0; i < C->uHl*C->Nl_eff; ++i) {
-						if (NULL == C->uH[i]) continue;
-						if (NULL != C->uH[i]->zen) continue;
+				for (i=0; i < C->l_hcache->cap; ++i) {
+						struct l_hcache_data *lh = (struct l_hcache_data *) C->l_hcache->values[i];
+						if (NULL == lh) continue;
+						if (NULL != lh->H->zen) continue;
 
 						ssdp_setup_grid_horizon(
-								C->uH[i], C->S, C->Tx, C->nTx,
-								C->x[C->uHi[i]+C->Nl_o],
-								C->y[C->uHi[i]+C->Nl_o],
-								C->z[C->uHi[i]+C->Nl_o]);
-						ProgressBar((100*(i+1))/C->Nl_eff, &pco, ProgressLen, ProgressTics);
+								lh->H, C->S, C->Tx, C->nTx,
+								C->x[lh->Li + C->Nl_o],
+								C->y[lh->Li + C->Nl_o],
+								C->z[lh->Li + C->Nl_o]);
+						ProgressBar((100*(i+1))/C->l_hcache->cap, &pco, ProgressLen, ProgressTics);
 				}
 		}
 		ProgressBar(100, &pco, ProgressLen, ProgressTics);
@@ -573,15 +547,16 @@ int InitConfigMaskNoH(simulation_config *C, int chunkid)
 #pragma omp parallel private(i) shared(C)
 		{
 #pragma omp for schedule(runtime)
-				for (i=0; i < C->uHl*C->Nl_eff; ++i) {
-						if (NULL == C->uH[i]) continue;
-						if (NULL != C->uH[i]->zen) continue;
+				for (i=0; i < C->l_hcache->cap; ++i) {
+						struct l_hcache_data *lh = (struct l_hcache_data *) C->l_hcache->values[i];
+						if (NULL == lh) continue;
+						if (NULL != lh->H->zen) continue;
 
-						ssdp_setup_horizon(C->uH[i], C->S, NULL,
-										   C->x[C->uHi[i]+C->Nl_o],
-										   C->y[C->uHi[i]+C->Nl_o],
-										   C->z[C->uHi[i]+C->Nl_o]);
-						ProgressBar((100*(i+1))/C->Nl_eff, &pco, ProgressLen, ProgressTics);
+						ssdp_setup_horizon(lh->H, C->S, NULL,
+										   C->x[lh->Li + C->Nl_o],
+										   C->y[lh->Li + C->Nl_o],
+										   C->z[lh->Li + C->Nl_o]);
+						ProgressBar((100*(i+1))/C->l_hcache->cap, &pco, ProgressLen, ProgressTics);
 				}
 		}
 		ProgressBar(100, &pco, ProgressLen, ProgressTics);

@@ -1,3 +1,20 @@
+#include "hashmap.h"
+
+
+// data stored in C->l_hcache
+struct l_hcache_data {
+		horizon *H;
+		int Li;
+};
+
+
+// data stored in C->l_stcache
+struct l_stcache_data {
+		sky_transfer *ST;
+		int Li;
+};
+
+
 /*      POA_ABS     absolurte height and orientation
  *      POA_ZREL    height is relative to surface level
  *      POA_SURFREL height and orientation relative to surface level
@@ -48,20 +65,17 @@ typedef struct simulation_config {
 
 // horizon cache
 		struct rtreecache* hcache;
-		horizon **uH;	// list of pointers to unique horizons, always length Nl
-		int *uHi;	// index uH -> index location, len(uHi) = Nl
+		// contains current chunk of locations horizon data. keys are
+		// memory addresses of the already computed horizon (stored in
+		// hcache)
+		struct hashmap *l_hcache;
 
 // stcache: initial sky transfer cache for each location the initial
-// sky is copied. uST is list of pointers to unique sky transfers,
-// always length Nl. uSTi is the index uST -> index location,
-// len(uSTi) = NluSTii is the inverse of uSTi, len(uSTii) = Nl
+// sky is copied.
 		struct rtreecache* stcache;
-		sky_transfer **uST;
-		int *uSTi;
-		int *uSTii;
-
-// len(uH) = uHl * len(L), len(uST, uSTii) = uHl * len(L)
-		int uHl;
+		struct hashmap *l_stcache;
+		// just pointers for the current locations chunk
+		sky_transfer **l_st;
 
 // number of points used in the approximate horizon
 		int approx_n;

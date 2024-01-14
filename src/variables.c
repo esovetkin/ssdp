@@ -79,13 +79,10 @@ simulation_config InitConf()
 				.xyorder   = NULL,
 				.L         = NULL,
 				.hcache    = NULL,
-				.uH        = NULL,
-				.uHi       = NULL,
-				.uHl       = 2,
+				.l_hcache  = NULL,
 				.stcache   = NULL,
-				.uST       = NULL,
-				.uSTi      = NULL,
-				.uSTii     = NULL,
+				.l_stcache = NULL,
+				.l_st      = NULL,
 				.approx_n  = -1,
 				.approx_stype = PRECISE,
 				.chunked   = -1,
@@ -128,18 +125,26 @@ void FreeConf(simulation_config *C)
 				free(C->L); C->L=NULL;
 		}
 		if (C->xyorder) {free(C->xyorder); C->xyorder=NULL;}
-		if (C->uH) {free(C->uH); C->uH=NULL;}
-		if (C->uHi) {free(C->uHi); C->uHi=NULL;}
-		if (C->uST) {free(C->uST); C->uST=NULL;}
-		if (C->uSTi) {free(C->uSTi); C->uSTi=NULL;}
-		if (C->uSTii) {free(C->uSTii); C->uSTii=NULL;}
 		C->Nl=0;
 		C->loc_init=0;
 
-		if (C->hcache) ssdp_horizoncache_free(C->hcache);
-		C->hcache = NULL;
-		if (C->stcache) ssdp_stcache_free(C->stcache);
-		C->stcache = NULL;
+		if (C->hcache) {
+				ssdp_horizoncache_free(C->hcache);
+				C->hcache = NULL;
+		}
+		if (C->l_hcache) {
+				hashmap_free(C->l_hcache, free);
+				C->l_hcache = NULL;
+		}
+		if (C->stcache) {
+				ssdp_stcache_free(C->stcache);
+				C->stcache = NULL;
+		}
+		if (C->l_stcache) {
+				hashmap_free(C->l_stcache, free);
+				C->l_stcache = NULL;
+		}
+		if (C->l_st) {free(C->l_st); C->l_st = NULL;}
 }
 
 

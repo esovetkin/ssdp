@@ -1,4 +1,3 @@
-#include <stdint.h>
 #include <stdlib.h>
 #include "hashmap.h"
 #include "murmurhash3.h"
@@ -9,22 +8,6 @@
 int COLLISIONS = 0;
 int REALLOCATE = 0;
 #endif
-
-
-struct hash_v {
-		uint64_t a,b;
-};
-
-
-struct hashmap {
-		struct hash_v* keys;
-		void **values;
-		int N;
-		int cap;
-
-		// number of entries that triggers reallocate
-		int n_realloc;
-};
 
 
 static struct hash_v hash(const void * key, int len)
@@ -244,12 +227,6 @@ void test_s()
 }
 
 
-void test_data_free(void *data)
-{
-		free(data);
-}
-
-
 void test_data(int N)
 {
 		struct hashmap* map;
@@ -269,7 +246,7 @@ void test_data(int N)
 				assert((i*i == x[1]));
 		}
 
-		hashmap_free(map, test_data_free);
+		hashmap_free(map, free);
 }
 
 
