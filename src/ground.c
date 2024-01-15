@@ -718,7 +718,7 @@ int AddHeightTopoGrid(topogrid *T, double *x, double *y, double *z, int n, int n
 {
 		int i, ix, iy, iz, t;
 		struct hashmap *set;
-		if (NULL==(set=hashmap_init(2*n))) goto eset;
+		if (NULL==(set=hashmap_init(n))) goto eset;
 
 		for (i=0; i < n; ++i) {
 				ix = IndexGridX(x[i], T, &t);
@@ -1100,7 +1100,7 @@ int HorizonSet(topogrid *T, int n, enum SampleType stype, int nH, double stepH)
 		T->horizon_sample=malloc(sq->ns*sizeof(*(T->horizon_sample)));
 		if (NULL == T->horizon_sample) goto ehorizon_sample;
 
-		struct hashmap *seen = hashmap_init(2*sq->ns);
+		struct hashmap *seen = hashmap_init(sq->ns);
 		if (NULL==seen) goto eseen;
 
 		struct hsample_data *t;

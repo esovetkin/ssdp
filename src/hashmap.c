@@ -76,11 +76,12 @@ struct hashmap* hashmap_init(int cap)
 		struct hashmap* self = malloc(sizeof(*self));
 		if (NULL==self) goto eself;
 
-		if (NULL==(self->keys=calloc(cap,sizeof(*self->keys)))) goto ekeys;
 		self->values = NULL;
-		self->cap = cap;
+		self->cap = (cap > 3) ? (4*cap)/3 : 3;
 		self->N=0;
-		self->n_realloc = 3*self->cap/4;
+		self->n_realloc = (cap > 3) ? (cap+1) : 2;
+
+		if (NULL==(self->keys=calloc(self->cap,sizeof(*self->keys)))) goto ekeys;
 
 		return self;
 		free(self->keys); self->keys=NULL;

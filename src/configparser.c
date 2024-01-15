@@ -262,7 +262,7 @@ static int init_stcache(simulation_config *C)
 
 		if (C->l_stcache) {hashmap_free(C->l_stcache, free); C->l_stcache=NULL;}
 		if (C->l_st) {free(C->l_st); C->l_st=NULL;}
-		if (NULL==(C->l_stcache=hashmap_init(2*C->Nl_eff))) goto el_stcache;
+		if (NULL==(C->l_stcache=hashmap_init(C->Nl_eff))) goto el_stcache;
 		if (NULL==(C->l_st=calloc(C->Nl_eff, sizeof(*C->l_st)))) goto el_st;
 
 		TIC();
@@ -313,7 +313,7 @@ static int init_hcache(simulation_config *C)
 		int i, hits=0, uh = 0;
 
 		if (NULL==(C->L=calloc(C->Nl_eff,sizeof(*(C->L))))) goto ecl;
-		if (NULL==(C->l_hcache=hashmap_init(2*C->Nl_eff))) goto el_hcache;
+		if (NULL==(C->l_hcache=hashmap_init(C->Nl_eff))) goto el_hcache;
 
 		horizon *H;
 		uintptr_t k;
