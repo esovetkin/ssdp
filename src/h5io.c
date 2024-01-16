@@ -164,6 +164,22 @@ edsp:
 }
 
 
+int h5io_comment(struct h5io* self, const char *cmmnt)
+{
+		hid_t dst;
+
+		dst = H5Dopen(self->file, self->dataset, H5P_DEFAULT);
+		if (H5I_INVALID_HID == dst) goto edst;
+		H5Oset_comment(dst, cmmnt);
+
+		H5Dclose(dst);
+		return 0;
+		H5Dclose(dst);
+edst:
+		return -1;
+}
+
+
 int h5_datasetisin(hid_t file, const char* dst)
 {
         // I want to avoid any additional error messages from
@@ -519,13 +535,14 @@ void time_write(int narr, int arrlen, int chunkarr,
 		io->chunkarr = chunkarr;
 
 		tic = (double)clock();
-		assert(0 == h5io_write(io, (void**)data, "float64", arrlen, narr));
+		assert((0 == h5io_write(io, (void**)data, "float64", arrlen, narr)));
 		tic = (double)(clock()-tic)/CLOCKS_PER_SEC;
 		printf("%7s\t%7d\t%10d\t%8d\t%8d\t%7d\t%12.0f\t%12.2f\n",
 			   dtype, narr, arrlen, chunkarr,
 			   compression, cachemb,
 			   100 / tic,
 			   fnmb("test.h5"));
+		assert((0 == h5io_comment(io, "time_write")));
 
 		test_data_free((void**)data, narr);
 		h5io_free(io);

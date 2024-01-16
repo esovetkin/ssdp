@@ -461,6 +461,10 @@ void WriteH5(char *in)
 
         TIC();
         if (h5io_write(io, (void**)data, "float64", arrlen, narr)) goto ewrite;
+        char cmmnt[1024];
+        strncpy(cmmnt, "SSDP data: write_h5 ", 1024-1);
+        strncat(cmmnt, in, 1024-1);
+        h5io_comment(io, cmmnt);
         printf("Wrote %s in %g s\n", io->dataset, TOC());
 
         h5io_free(io);

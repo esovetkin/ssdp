@@ -63,6 +63,12 @@ int h5io_isin(struct h5io* self);
 hid_t h5io_fopen(const char *fn);
 int h5_datasetisin(hid_t file, const char* dst);
 
+/** Set comment to the currently selected dataset.
+
+	Return non-zero if failed.
+
+ */
+int h5io_comment(struct h5io* self, const char *cmmnt);
 
 /** Check that size of double/int you provide have the same sizes of
  * dtype string. Return non-zero for non-equal sizes. For instance,

@@ -559,6 +559,7 @@ int h5write_sky_grid(sky_grid* data, const char* ofn, const char *dataset)
 
 		dst = H5Dcreate(file, dataset, t_sky_grid, dsp, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 		if (H5I_INVALID_HID == dst) goto edst;
+		H5Oset_comment(dst, "SSDP data: write_sky");
 
 		if (0>H5Dwrite(dst, t_sky_grid, H5S_ALL, H5S_ALL,	H5P_DEFAULT, data)) goto ewrite;
 
