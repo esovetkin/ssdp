@@ -21,8 +21,8 @@ static hid_t float16(void);
 static hid_t chunks(int, int, int);
 static hid_t cache(int,int);
 static hid_t str2dtype(const char*);
-static int read_arr(hid_t, hid_t, double**, int, int);
-static int write_arr(hid_t, hid_t, double*, int, int);
+static int read_arr(hid_t, hid_t, void**, hid_t, int, int);
+static int write_arr(hid_t, hid_t, void*, hid_t, int, int);
 
 
 struct h5io *h5io_init(const char *fn)
@@ -57,101 +57,110 @@ void h5io_free(struct h5io* self)
 
 void h5io_setdataset(struct h5io* self, const char* dataset)
 {
-        strncpy(self->dataset, dataset, 1024);
-        self->dataset[1023] = '\0';
+        strncpy(self->dataset, dataset, H5IO_LNAME-1);
+        self->dataset[H5IO_LNAME-1] = '\0';
 }
 
 
 void h5io_setdtype(struct h5io* self, const char* dtype)
 {
-        strncpy(self->dtype, dtype, 1024);
-        self->dtype[1023] = '\0';
+        strncpy(self->dtype, dtype, H5IO_LNAME-1);
+        self->dtype[H5IO_LNAME-1] = '\0';
 }
 
 
-int h5io_read(struct h5io* self, double ***data, int* arrlen, int narr)
+int h5io_read(struct h5io* self, void ***data, const char* dtype_s, int* arrlen, int narr)
 {
-        int i;
-        hid_t dst, dsp;
-        hsize_t dim[2], mdim[2];
+		int i;
+		hid_t dst, dsp, dtype;
+		hsize_t dim[2], mdim[2];
 
-        dst = H5Dopen(self->file, self->dataset, H5P_DEFAULT);
-        if (H5I_INVALID_HID == dst) goto edst;
-        if (H5I_INVALID_HID == (dsp=H5Dget_space(dst))) goto edsp;
-        if (H5Sget_simple_extent_dims(dsp, dim, mdim) < 0) goto edim;
-        if ((int)dim[0] < narr) {
-                printf("Error: not enough arrays available in the chosen file!\n");
-                goto enarr;
-        }
+		dst = H5Dopen(self->file, self->dataset, H5P_DEFAULT);
+		if (H5I_INVALID_HID == dst) goto edst;
+		if (H5I_INVALID_HID == (dsp=H5Dget_space(dst))) goto edsp;
+		if (H5I_INVALID_HID == (dtype=str2dtype(dtype_s))) goto edtype;
+		if (H5Sget_simple_extent_dims(dsp, dim, mdim) < 0) goto edim;
+		if ((int)dim[0] < narr) {
+				printf("Error: not enough arrays available in the chosen file!\n");
+				goto enarr;
+		}
 
-        *arrlen = dim[1];
-        if (NULL == (*data=malloc(narr*sizeof(**data)))) goto edata;
+		*arrlen = dim[1];
+		if (NULL == (*data=calloc(narr,sizeof(**data)))) goto edata;
 
-        for (i=0; i < narr; ++i)
-                if (read_arr(dsp, dst, &((*data)[i]), *arrlen, i)) goto erow;
+		for (i=0; i < narr; ++i)
+				if (read_arr(dsp, dst, (*data)+i, dtype, *arrlen, i)) goto erow;
 
-        H5Sclose(dsp);
-        H5Dclose(dst);
-        return 0;
+		H5Sclose(dsp);
+		H5Tclose(dtype);
+		H5Dclose(dst);
+		return 0;
 erow:
-        for (int j=0; j < i; ++j)
-                free((*data)[j]);
-        free(*data);
+		// calloc, hence just free all
+		for (int j=0; j < narr; ++j)
+				free((*data) + j);
+		free(*data);
 edata:
 enarr:
 edim:
-        H5Sclose(dsp);
+		H5Tclose(dtype);
+edtype:
+		H5Sclose(dsp);
 edsp:
-        H5Dclose(dst);
+		H5Dclose(dst);
 edst:
-        return -1;
+		return -1;
 }
 
 
-int h5io_write(struct h5io* self, double **data, int arrlen, int narr)
+int h5io_write(struct h5io* self, void **data, const char *data_t_s, int arrlen, int narr)
 {
-        int i;
-        hid_t dsp, gcp, dtype, dcp, dap, dst;
+		int i;
+		hid_t dsp, gcp, dtype, data_t, dcp, dap, dst;
 
-        dsp = H5Screate_simple(2, (hsize_t []){narr, arrlen}, NULL);
-        if (H5I_INVALID_HID == dsp) goto edsp;
-        if (H5I_INVALID_HID == (gcp=subgroups())) goto egcp;
-        if (H5I_INVALID_HID == (dtype=str2dtype(self->dtype))) goto edtype;
+		dsp = H5Screate_simple(2, (hsize_t []){narr, arrlen}, NULL);
+		if (H5I_INVALID_HID == dsp) goto edsp;
+		if (H5I_INVALID_HID == (gcp=subgroups())) goto egcp;
+		if (H5I_INVALID_HID == (dtype=str2dtype(self->dtype))) goto edtype;
+		if (H5I_INVALID_HID == (data_t=str2dtype(data_t_s))) goto edata_t;
 
-        self->chunkarr = self->chunkarr > narr ? narr : self->chunkarr;
-        dcp = chunks(self->chunkarr, arrlen, self->compression);
-        if (H5I_INVALID_HID == dcp) goto edcp;
-        if (H5I_INVALID_HID == (dap=cache(self->cacheslots,
-                                          self->cachemb))) goto edap;
+		self->chunkarr = self->chunkarr > narr ? narr : self->chunkarr;
+		dcp = chunks(self->chunkarr, arrlen, self->compression);
+		if (H5I_INVALID_HID == dcp) goto edcp;
+		if (H5I_INVALID_HID == (dap=cache(self->cacheslots,
+										  self->cachemb))) goto edap;
 
-        dst = H5Dcreate(self->file, self->dataset, dtype, dsp, gcp, dcp, dap);
-        if (H5I_INVALID_HID == dst) goto edst;
+		dst = H5Dcreate(self->file, self->dataset, dtype, dsp, gcp, dcp, dap);
+		if (H5I_INVALID_HID == dst) goto edst;
 
-        for (i=0; i < narr; ++i)
-                if (write_arr(dsp, dst, data[i], arrlen, i))
-                        goto ewrite;
+		for (i=0; i < narr; ++i)
+				if (write_arr(dsp, dst, data[i], data_t, arrlen, i))
+						goto ewrite;
 
-        H5Dclose(dst);
-        H5Pclose(dap);
-        H5Pclose(dcp);
-        H5Tclose(dtype);
-        H5Pclose(gcp);
-        H5Sclose(dsp);
-        return 0;
+		H5Dclose(dst);
+		H5Pclose(dap);
+		H5Pclose(dcp);
+		H5Tclose(data_t);
+		H5Tclose(dtype);
+		H5Pclose(gcp);
+		H5Sclose(dsp);
+		return 0;
 ewrite:
-        H5Dclose(dst);
+		H5Dclose(dst);
 edst:
-        H5Pclose(dap);
+		H5Pclose(dap);
 edap:
-        H5Pclose(dcp);
+		H5Pclose(dcp);
 edcp:
-        H5Tclose(dtype);
+		H5Tclose(data_t);
+edata_t:
+		H5Tclose(dtype);
 edtype:
-        H5Pclose(gcp);
+		H5Pclose(gcp);
 egcp:
-        H5Sclose(dsp);
+		H5Sclose(dsp);
 edsp:
-        return -1;
+		return -1;
 }
 
 
@@ -193,6 +202,20 @@ ex:
 }
 
 
+int h5io_checksize(size_t s, const char* dtype_s)
+{
+		hid_t dtype;
+		if (H5I_INVALID_HID == (dtype=str2dtype(dtype_s))) goto edtype;
+
+		if (s == H5Tget_size(dtype))
+				return 0;
+
+		H5Tclose(dtype);
+		return 1;
+edtype:
+		return -1;
+}
+
 int h5io_isin(struct h5io* self)
 {
 		return h5_datasetisin(self->file, self->dataset);
@@ -201,340 +224,403 @@ int h5io_isin(struct h5io* self)
 
 hid_t h5io_fopen(const char *fn)
 {
-        if (0 == access(fn, F_OK))
-                return H5Fopen(fn, H5F_ACC_RDWR, H5P_DEFAULT);
+		if (0 == access(fn, F_OK))
+				return H5Fopen(fn, H5F_ACC_RDWR, H5P_DEFAULT);
 
-        return H5Fcreate(fn, H5F_ACC_EXCL, H5P_DEFAULT, H5P_DEFAULT);
+		return H5Fcreate(fn, H5F_ACC_EXCL, H5P_DEFAULT, H5P_DEFAULT);
 }
 
 
 static hid_t subgroups(void)
 {
-        hid_t x;
-        if (H5I_INVALID_HID == (x = H5Pcreate(H5P_LINK_CREATE))) goto ecreate;
-        if (H5Pset_create_intermediate_group(x, 1) < 0) goto egroup;
+		hid_t x;
+		if (H5I_INVALID_HID == (x = H5Pcreate(H5P_LINK_CREATE))) goto ecreate;
+		if (H5Pset_create_intermediate_group(x, 1) < 0) goto egroup;
 
-        return x;
+		return x;
 egroup:
-        H5Pclose(x);
+		H5Pclose(x);
 ecreate:
-        return H5I_INVALID_HID;
+		return H5I_INVALID_HID;
 }
 
 
 static hid_t float16(void)
 {
-        hid_t x = H5Tcopy(H5T_NATIVE_FLOAT);
-        if (H5Tset_fields(x, 15, 10, 5, 0, 10) < 0) goto err;
-        if (H5Tset_size(x, 2) < 0) goto err;
-        if (H5Tset_ebias(x, 15) < 0) goto err;
+		hid_t x = H5Tcopy(H5T_NATIVE_FLOAT);
+		if (H5Tset_fields(x, 15, 10, 5, 0, 10) < 0) goto err;
+		if (H5Tset_size(x, 2) < 0) goto err;
+		if (H5Tset_ebias(x, 15) < 0) goto err;
 
-        return x;
+		return x;
 err:
-        H5Tclose(x);
-        return H5I_INVALID_HID;
+		H5Tclose(x);
+		return H5I_INVALID_HID;
 }
 
 
 static hid_t chunks(int narr, int arrlen, int level)
 {
-        if (narr <= 0)
-                return H5P_DEFAULT;
+		if (narr <= 0)
+				return H5P_DEFAULT;
 
-        hid_t x = H5Pcreate(H5P_DATASET_CREATE);
-        if (H5Pset_chunk(x, 2, (hsize_t []){narr, arrlen}) < 0) goto err;
+		hid_t x = H5Pcreate(H5P_DATASET_CREATE);
+		if (H5Pset_chunk(x, 2, (hsize_t []){narr, arrlen}) < 0) goto err;
 
-        level = level < 0 ? 0 : level > 9 ? 9 : level;
-        if (H5Pset_deflate(x, level) < 0) goto err;
+		level = level < 0 ? 0 : level > 9 ? 9 : level;
+		if (H5Pset_deflate(x, level) < 0) goto err;
 
-        return x;
+		return x;
 err:
-        H5Pclose(x);
-        return H5I_INVALID_HID;
+		H5Pclose(x);
+		return H5I_INVALID_HID;
 }
 
 
 static hid_t cache(int cacheslots, int cachemb)
 {
-        // ? see: https://docs.hdfgroup.org/hdf5/v1_14/group___d_a_p_l.html#ga104d00442c31714ee073dee518f661f1
-        hid_t x = H5Pcreate(H5P_DATASET_ACCESS);
-        if (H5Pset_chunk_cache(x,cacheslots, cachemb*1024*1024,
-                               H5D_CHUNK_CACHE_W0_DEFAULT) < 0) goto err;
-        return x;
+		// ? see: https://docs.hdfgroup.org/hdf5/v1_14/group___d_a_p_l.html#ga104d00442c31714ee073dee518f661f1
+		hid_t x = H5Pcreate(H5P_DATASET_ACCESS);
+		if (H5Pset_chunk_cache(x,cacheslots, cachemb*1024*1024,
+							   H5D_CHUNK_CACHE_W0_DEFAULT) < 0) goto err;
+		return x;
 err:
-        H5Pclose(x);
-        return H5I_INVALID_HID;
+		H5Pclose(x);
+		return H5I_INVALID_HID;
 }
 
 
 static hid_t str2dtype(const char *name)
 {
-        if (0 == strcmp(name, "float64"))
-                return H5Tcopy(H5T_NATIVE_DOUBLE);
-        else if (0 == strcmp(name, "float32"))
-                return H5Tcopy(H5T_NATIVE_FLOAT);
-        else if (0 == strcmp(name, "float16"))
-                return float16();
-        else if (0 == strcmp(name, "int16"))
-                return H5Tcopy(H5T_NATIVE_SHORT);
-        else if (0 == strcmp(name, "uint16"))
-                return H5Tcopy(H5T_NATIVE_USHORT);
-        else if (0 == strcmp(name, "int32"))
-                return H5Tcopy(H5T_NATIVE_INT);
-        else if (0 == strcmp(name, "uint32"))
-                return H5Tcopy(H5T_NATIVE_UINT);
-        else if (0 == strcmp(name, "int64"))
-                return H5Tcopy(H5T_NATIVE_LLONG);
-        else if (0 == strcmp(name, "uint64"))
-                return H5Tcopy(H5T_NATIVE_ULLONG);
-        else
-                printf("Error: unknown data type=%s\n", name);
+		if (0 == strcmp(name, "float64"))
+				return H5Tcopy(H5T_NATIVE_DOUBLE);
+		else if (0 == strcmp(name, "float32"))
+				return H5Tcopy(H5T_NATIVE_FLOAT);
+		else if (0 == strcmp(name, "float16"))
+				return float16();
+		else if (0 == strcmp(name, "int16"))
+				return H5Tcopy(H5T_NATIVE_SHORT);
+		else if (0 == strcmp(name, "uint16"))
+				return H5Tcopy(H5T_NATIVE_USHORT);
+		else if (0 == strcmp(name, "int32"))
+				return H5Tcopy(H5T_NATIVE_INT);
+		else if (0 == strcmp(name, "uint32"))
+				return H5Tcopy(H5T_NATIVE_UINT);
+		else if (0 == strcmp(name, "int64"))
+				return H5Tcopy(H5T_NATIVE_LLONG);
+		else if (0 == strcmp(name, "uint64"))
+				return H5Tcopy(H5T_NATIVE_ULLONG);
+		else
+				printf("Error: unknown data type=%s\n", name);
 
-        return H5I_INVALID_HID;
+		return H5I_INVALID_HID;
 }
 
 
-static int read_arr(hid_t dsp, hid_t dst, double** data, int nrow, int icol)
+static int read_arr(hid_t dsp, hid_t dst, void** data, hid_t data_t, int nrow, int icol)
 {
-        herr_t status;
-        hid_t hs = H5Screate_simple(2, (hsize_t []){1, nrow}, NULL);
-        if (H5I_INVALID_HID == hs) goto ehs;
+		herr_t status;
+		hid_t hs = H5Screate_simple(2, (hsize_t []){1, nrow}, NULL);
+		if (H5I_INVALID_HID == hs) goto ehs;
 
-        status = H5Sselect_hyperslab(dsp, H5S_SELECT_SET,
-                                     (hsize_t []){icol, 0}, NULL,
-                                     (hsize_t []){1, nrow}, NULL);
-        if (status < 0) goto err;
+		status = H5Sselect_hyperslab(dsp, H5S_SELECT_SET,
+									 (hsize_t []){icol, 0}, NULL,
+									 (hsize_t []){1, nrow}, NULL);
+		if (status < 0) goto err;
 
-        if (NULL == (*data=malloc(nrow*sizeof(**data)))) goto edata;
+		if (NULL == (*data=malloc(nrow*H5Tget_size(data_t)))) goto edata;
 
-        status = H5Dread(dst, H5T_NATIVE_DOUBLE, hs, dsp, H5P_DEFAULT, *data);
-        if (status < 0) goto eread;
+		status = H5Dread(dst, data_t, hs, dsp, H5P_DEFAULT, *data);
+		if (status < 0) goto eread;
 
-        status = H5Sselect_none(dsp);
-        if (status < 0) goto eread;
+		status = H5Sselect_none(dsp);
+		if (status < 0) goto eread;
 
-        H5Sclose(hs);
-        return 0;
+		H5Sclose(hs);
+		return 0;
 eread:
-        free(*data);
+		free(*data);
 edata:
 err:
-        H5Sclose(hs);
+		H5Sclose(hs);
 ehs:
-        return -1;
+		return -1;
 }
 
 
-static int write_arr(hid_t dsp, hid_t dst, double* data, int nrow, int icol)
+static int write_arr(hid_t dsp, hid_t dst, void* data, hid_t data_t, int nrow, int icol)
 {
-        herr_t status;
-        hid_t hs = H5Screate_simple(2, (hsize_t []){1, nrow}, NULL);
-        if (H5I_INVALID_HID == hs) goto ehs;
+		herr_t status;
+		hid_t hs = H5Screate_simple(2, (hsize_t []){1, nrow}, NULL);
+		if (H5I_INVALID_HID == hs) goto ehs;
 
-        status = H5Sselect_hyperslab(dsp, H5S_SELECT_SET,
-                                     (hsize_t []){icol, 0}, NULL,
-                                     (hsize_t []){1, nrow}, NULL);
-        if (status < 0) goto err;
+		status = H5Sselect_hyperslab(dsp, H5S_SELECT_SET,
+									 (hsize_t []){icol, 0}, NULL,
+									 (hsize_t []){1, nrow}, NULL);
+		if (status < 0) goto err;
 
-        status = H5Dwrite(dst, H5T_NATIVE_DOUBLE, hs, dsp, H5P_DEFAULT, data);
-        if (status < 0) goto err;
+		status = H5Dwrite(dst, data_t, hs, dsp, H5P_DEFAULT, data);
+		if (status < 0) goto err;
 
-        status = H5Sselect_none(dsp);
-        if (status < 0) goto err;
+		status = H5Sselect_none(dsp);
+		if (status < 0) goto err;
 
-        H5Sclose(hs);
-        return 0;
+		H5Sclose(hs);
+		return 0;
 err:
-        H5Sclose(hs);
+		H5Sclose(hs);
 ehs:
-        return -1;
+		return -1;
 }
 
 
 #ifdef RUNTEST
 
 #include <stdio.h>
+#include <stdint.h>
 #include <assert.h>
 #include <time.h>
 #include <math.h>
 #include <sys/stat.h>
 
+#define TESTLARGEINT 0xF000000000000000
 
 double fnmb(const char *fn)
 {
-        struct stat st;
-        stat(fn, &st);
-        return (double) st.st_size / 1000000;
+		struct stat st;
+		stat(fn, &st);
+		return (double) st.st_size / 1000000;
 }
 
 
 double** test_data_init(int ncol, int nrow)
 {
-        int i, j;
-        double **data;
-        assert((data=malloc(ncol*sizeof(*data))));
+		int i, j;
+		double **data;
+		assert((data=malloc(ncol*sizeof(*data))));
 
-        for (i=0; i<ncol; ++i) {
-                assert((data[i] = malloc(nrow*sizeof(*(data[i])))));
+		for (i=0; i<ncol; ++i) {
+				assert((data[i] = malloc(nrow*sizeof(*(data[i])))));
 
-                for (j=0; j<nrow; ++j)
-                        data[i][j] = (double)(i*j);
-        }
+				for (j=0; j<nrow; ++j)
+						data[i][j] = (double)(i*j);
+		}
 
-        return data;
+		return data;
 }
 
 
-void test_data_free(double** data, int ncol)
+uint64_t** test_data_init_int(int ncol, int nrow)
 {
-        int i;
-        for (i=0; i<ncol; ++i)
-                free(data[i]);
-        free(data);
+		uint64_t i, j;
+		uint64_t **data;
+		assert((data=malloc(ncol*sizeof(*data))));
+
+		for (i=0; i<(uint64_t)ncol; ++i) {
+				assert((data[i] = malloc(nrow*sizeof(*(data[i])))));
+
+				for (j=0; j<(uint64_t)nrow; ++j)
+						data[i][j] = (uint64_t)(TESTLARGEINT + (i*j));
+		}
+
+		return data;
+}
+
+
+void test_data_free(void** data, int ncol)
+{
+		int i;
+		for (i=0; i<ncol; ++i)
+				free(data[i]);
+		free(data);
 }
 
 
 void test_write(int ncol, int nrow, const char* fn, const char *dt)
 {
-        struct h5io* io = h5io_init(fn);
-        assert(io);
-        h5io_setdataset(io, "data/test");
-        h5io_setdtype(io, dt);
-        double** data = test_data_init(ncol, nrow);
-        assert(data);
-        assert(0 == h5io_write(io, data, nrow, ncol));
-        test_data_free(data, ncol);
-        h5io_free(io);
+		struct h5io* io = h5io_init(fn);
+		assert(io);
+		h5io_setdataset(io, "data/test");
+		h5io_setdtype(io, dt);
+		double** data = test_data_init(ncol, nrow);
+		assert(0 == h5io_write(io, (void**)data, "float64", nrow, ncol));
+		test_data_free((void**)data, ncol);
+		h5io_free(io);
+}
+
+
+void test_write_int(int ncol, int nrow, const char* fn, const char *dt)
+{
+		struct h5io* io = h5io_init(fn);
+		assert(io);
+		h5io_setdataset(io, "data/test");
+		h5io_setdtype(io, dt);
+		uint64_t** data = test_data_init_int(ncol, nrow);
+		assert(0 == h5io_write(io, (void**)data, "uint64", nrow, ncol));
+		test_data_free((void**)data, ncol);
+		h5io_free(io);
 }
 
 
 void test_read(int ncol, int nrow, const char* fn)
 {
-        struct h5io* io = h5io_init(fn);
-        assert(io);
-        h5io_setdataset(io,"data/test");
-        int n,i,j;
-        double **data;
-        assert(0 == h5io_read(io, &data, &n, ncol));
-        assert(data);
-        assert(n == nrow);
+		struct h5io* io = h5io_init(fn);
+		assert(io);
+		h5io_setdataset(io,"data/test");
+		int n,i,j;
+		double **data;
+		assert(0 == h5io_read(io, (void***)(&data), "float64", &n, ncol));
+		assert(data);
+		assert(n == nrow);
 
-        for (i=0; i < ncol; ++i)
-                for (j=0; j < nrow; ++j)
-                        assert(fabs((double)i*j - data[i][j]) < 1e-8);
+		for (i=0; i < ncol; ++i)
+				for (j=0; j < nrow; ++j)
+						assert(fabs((double)i*j - data[i][j]) < 1e-8);
 
-        test_data_free(data, ncol);
-        h5io_free(io);
+		test_data_free((void**)data, ncol);
+		h5io_free(io);
+}
+
+
+void test_read_int(int ncol, int nrow, const char* fn)
+{
+		struct h5io* io = h5io_init(fn);
+		assert(io);
+		h5io_setdataset(io,"data/test");
+		int n;
+		uint64_t i,j;
+		uint64_t **data;
+		assert(0 == h5io_read(io, (void***)(&data), "uint64", &n, ncol));
+		assert(data);
+		assert(n == nrow);
+
+		for (i=0; i < (uint64_t) ncol; ++i)
+				for (j=0; j < (uint64_t) nrow; ++j)
+						assert((TESTLARGEINT == data[i][j]-i*j));
+
+		test_data_free((void**)data, ncol);
+		h5io_free(io);
 }
 
 
 void time_write(int narr, int arrlen, int chunkarr,
-                int compression, int cachemb,
-                const char* dtype)
+				int compression, int cachemb,
+				const char* dtype)
 {
-        double tic;
-        double** data = test_data_init(narr, arrlen);
-        assert(data);
+		double tic;
+		double** data = test_data_init(narr, arrlen);
+		assert(data);
 
-        struct h5io* io = h5io_init("test.h5");
-        assert(io);
+		struct h5io* io = h5io_init("test.h5");
+		assert(io);
 
-        io->compression = compression;
-        io->cachemb = cachemb;
-        io->chunkarr = chunkarr;
-        h5io_setdtype(io, dtype);
+		io->compression = compression;
+		io->cachemb = cachemb;
+		io->chunkarr = chunkarr;
 
-        tic = (double)clock();
-        assert(0 == h5io_write(io, data, arrlen, narr));
-        tic = (double)(clock()-tic)/CLOCKS_PER_SEC;
-        printf("%7s\t%7d\t%10d\t%8d\t%8d\t%7d\t%12.0f\t%12.2f\n",
-               dtype, narr, arrlen, chunkarr,
-               compression, cachemb,
-               100 / tic,
-               fnmb("test.h5"));
+		tic = (double)clock();
+		assert(0 == h5io_write(io, (void**)data, "float64", arrlen, narr));
+		tic = (double)(clock()-tic)/CLOCKS_PER_SEC;
+		printf("%7s\t%7d\t%10d\t%8d\t%8d\t%7d\t%12.0f\t%12.2f\n",
+			   dtype, narr, arrlen, chunkarr,
+			   compression, cachemb,
+			   100 / tic,
+			   fnmb("test.h5"));
 
-        test_data_free(data, narr);
-        h5io_free(io);
-        assert(0 == remove("test.h5"));
+		test_data_free((void**)data, narr);
+		h5io_free(io);
+		assert(0 == remove("test.h5"));
 }
 
 
 void test_timing()
 {
-        printf("%7s\t%7s\t%10s\t%8s\t%8s\t%7s\t%12s%16s\n",
-               "dtype", "narr", "arrlen", "chunkarr",
-               "ziplevel", "cachemb", "speed (MB/s)",
-               "filesize (MB)");
-        time_write(100, 125000,  0, 0, 16, "float64");
-        time_write(100, 125000,  1, 0, 16, "float64");
-        time_write(100, 125000,  3, 0, 16, "float64");
-        time_write(100, 125000, 10, 0, 16, "float64");
-        time_write(100, 125000, 50, 0,256, "float64");
-        time_write(100, 125000, 50, 1,256, "float64");
-        time_write(100, 125000,  1, 1, 16, "float64");
-        time_write(1, 12500000,  0, 0, 16, "float64");
-        time_write(1, 12500000,  1, 1, 16, "float64");
-        time_write(1, 25000000,  1, 1, 16, "float32");
-        time_write(1, 50000000,  1, 1,256, "float16");
-        time_write(1, 50000000,  1, 0,256, "float16");
-        time_write(1, 50000000,  1, 0,256, "int16");
-        time_write(1, 50000000,  1, 1,256, "int16");
-        time_write(1, 50000000,  1, 5,256, "int16");
-        time_write(1, 50000000,  1, 9,256, "int16");
-        time_write(1, 12500000,  1, 0,256, "int64");
-        time_write(1, 12500000,  1, 1,256, "int64");
-        time_write(1, 12500000,  1, 5,256, "int64");
-        time_write(1, 12500000,  1, 9,256, "int64");
+		printf("%7s\t%7s\t%10s\t%8s\t%8s\t%7s\t%12s%16s\n",
+			   "dtype", "narr", "arrlen", "chunkarr",
+			   "ziplevel", "cachemb", "speed (MB/s)",
+			   "filesize (MB)");
+		time_write(100, 125000,  0, 0, 16, "float64");
+		time_write(100, 125000,  1, 0, 16, "float64");
+		time_write(100, 125000,  3, 0, 16, "float64");
+		time_write(100, 125000, 10, 0, 16, "float64");
+		time_write(100, 125000, 50, 0,256, "float64");
+		time_write(100, 125000, 50, 1,256, "float64");
+		time_write(100, 125000,  1, 1, 16, "float64");
+		time_write(1, 12500000,  0, 0, 16, "float64");
+		time_write(1, 12500000,  1, 1, 16, "float64");
+		time_write(1, 25000000,  1, 1, 16, "float32");
+		time_write(1, 50000000,  1, 1,256, "float16");
+		time_write(1, 50000000,  1, 0,256, "float16");
+		time_write(1, 50000000,  1, 0,256, "int16");
+		time_write(1, 50000000,  1, 1,256, "int16");
+		time_write(1, 50000000,  1, 5,256, "int16");
+		time_write(1, 50000000,  1, 9,256, "int16");
+		time_write(1, 12500000,  1, 0,256, "int64");
+		time_write(1, 12500000,  1, 1,256, "int64");
+		time_write(1, 12500000,  1, 5,256, "int64");
+		time_write(1, 12500000,  1, 9,256, "int64");
 }
 
 
 int test_isin(const char* fn, const char *name)
 {
-        struct h5io* io = h5io_init(fn);
-        assert(io);
-        h5io_setdataset(io, name);
-        int res = h5io_isin(io);
-        h5io_free(io);
-        return res;
+		struct h5io* io = h5io_init(fn);
+		assert(io);
+		h5io_setdataset(io, name);
+		int res = h5io_isin(io);
+		h5io_free(io);
+		return res;
 }
 
 
 void test0(const char* dtype)
 {
-        test_write(10, 20, "test.h5", dtype);
-        for (int i=1; i<10; ++i)
-                test_read(i, 20, "test.h5");
-        assert(0 == remove("test.h5"));
+		test_write(10, 20, "test.h5", dtype);
+		for (int i=1; i<10; ++i)
+				test_read(i, 20, "test.h5");
+		assert(0 == remove("test.h5"));
 }
 
 void test1()
 {
-        test_write(10, 20, "test.h5", "float64");
-        assert(0 == test_isin("test.h5","/x/x"));
-        assert(0 == test_isin("test.h5","asdata/float32"));
-        assert(0 == test_isin("test.h5","xdata/afloat32"));
-        assert(1 == test_isin("test.h5","//"));
-        assert(1 == test_isin("test.h5","///"));
-        assert(1 == test_isin("test.h5","data"));
-        assert(1 == test_isin("test.h5","data/test"));
-        assert(0 == remove("test.h5"));
+		test_write(10, 20, "test.h5", "float64");
+		assert(0 == test_isin("test.h5","/x/x"));
+		assert(0 == test_isin("test.h5","asdata/float32"));
+		assert(0 == test_isin("test.h5","xdata/afloat32"));
+		assert(1 == test_isin("test.h5","//"));
+		assert(1 == test_isin("test.h5","///"));
+		assert(1 == test_isin("test.h5","data"));
+		assert(1 == test_isin("test.h5","data/test"));
+		assert(0 == remove("test.h5"));
 }
 
 #define UNUSED(x) (void)(x)
 int main(int argc, char** argv)
 {
-        UNUSED(argv);
-        printf("testing h5io ...\n");
+		UNUSED(argv);
+		printf("testing h5io ...\n");
 
-        test0("float32");
-        test0("float16");
-        test0("int16");
-        test1();
+		assert((0 == h5io_checksize(sizeof(double), "float64")));
+		assert((0 == h5io_checksize(sizeof(float), "float32")));
+		assert((0 == h5io_checksize(sizeof(int), "int32")));
 
-        if (argc > 1)
-                test_timing();
+		test0("float64");
+		test0("float32");
+		test0("float16");
+		test0("int16");
+		test1();
 
-        printf("PASSED\n");
+		int i;
+		for (i=0; i < 100; ++i) {
+				test_write_int(10, 20, "test.h5", "uint64");
+				test_read_int(10, 20, "test.h5");
+				assert(0 == remove("test.h5"));
+		}
+
+		if (argc > 1)
+				test_timing();
+
+		printf("PASSED\n");
 }
 
 #endif

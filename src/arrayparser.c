@@ -438,6 +438,10 @@ void WriteH5(char *in)
         printf("Writing to %s\n", word);
         struct h5io* io = h5io_init(word);
         if (NULL == io) goto eio;
+        if (h5io_checksize(sizeof(double), "float64")) {
+                Warning("Error: sizeof(double) != float64!\n");
+                goto echecksize;
+        }
 
         if (getarrays(in, &data, &arrlen, &narr)) goto edata;
         if (!GetOption(in, "dataset", word)) snprintf(word, strlen(in), "data");
@@ -456,7 +460,7 @@ void WriteH5(char *in)
         if (FetchOptInt(in, "cacheslots", word, &io->cacheslots)) io->cacheslots = 12421;
 
         TIC();
-        if (h5io_write(io, data, arrlen, narr)) goto ewrite;
+        if (h5io_write(io, (void**)data, "float64", arrlen, narr)) goto ewrite;
         printf("Wrote %s in %g s\n", io->dataset, TOC());
 
         h5io_free(io);
@@ -467,6 +471,7 @@ ewrite:
 eexist:
         free(data);
 edata:
+echecksize:
         h5io_free(io);
 eio:
 efile:
@@ -501,13 +506,18 @@ void ReadH5(char *in)
 
         struct h5io* io = h5io_init(word);
         if (NULL == io) goto eio;
+        if (h5io_checksize(sizeof(double), "float64")) {
+                Warning("Error: sizeof(double) != float64!\n");
+                goto echecksize;
+        }
+
 
         if (!GetOption(in, "dataset", word)) snprintf(word, strlen(in), "data");
         h5io_setdataset(io, word);
         if (getnames(in, &names, &narr)) goto enames;
 
         TIC();
-        if (h5io_read(io, &data, &arrlen, narr)) goto eread;
+        if (h5io_read(io, (void***)(&data), "float64", &arrlen, narr)) goto eread;
         printf("Read %s in %g s\n", io->dataset, TOC());
 
         for (i=0; i < narr; ++i)
@@ -529,6 +539,7 @@ eadd:
         free(data);
         free(names);
 enames:
+echecksize:
         h5io_free(io);
 eio:
 efile:
