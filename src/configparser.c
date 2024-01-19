@@ -430,7 +430,6 @@ int InitConfigMask(simulation_config *C, int chunkid)
 		set_chunk(C, chunkid);
 
 		if (!C->Nl_eff) return 0;
-		if (!((C->sky_init)&&(C->topo_init)&&(C->loc_init))) goto egtl;
 		if (init_hcache(C)) goto einitL;
 
 		printf("Tracing %d locations\n", C->Nl_eff);
@@ -459,7 +458,6 @@ int InitConfigMask(simulation_config *C, int chunkid)
 estate:
 		FreeConfigMask(C); // make sure we are clear to allocate new memory
 einitL:
-egtl:
 		return -1;
 }
 
@@ -471,10 +469,6 @@ int InitConfigGridMask(simulation_config *C, int chunkid)
 		set_chunk(C, chunkid);
 
 		if (!C->Nl_eff) return 0;
-		if (!((C->sky_init)&&(C->grid_init)&&(C->loc_init))) {
-				printf("Error: no sky configured!\n");
-				goto esgl;
-		}
 
 		TIC();
 		i = ssdp_topogrid_approxhorizon
@@ -528,7 +522,6 @@ estate:
 		FreeConfigMask(C); // make sure we are clear to allocate new memory
 einitL:
 enapprox:
-esgl:
 		return -1;
 }
 
@@ -541,7 +534,6 @@ int InitConfigMaskNoH(simulation_config *C, int chunkid)
 		set_chunk(C, chunkid);
 
 		if (!C->Nl_eff) return 0;
-		if (!((C->sky_init)&&(C->loc_init))) goto esl;
 		if (init_hcache(C)) goto einitL;
 
 		// some horizon needs to be initialised
@@ -571,7 +563,6 @@ int InitConfigMaskNoH(simulation_config *C, int chunkid)
 estate:
 		FreeConfigMask(C); // make sure we are clear to allocate new memory
 einitL:
-esl:
 		return -1;
 }
 
@@ -1025,6 +1016,11 @@ int InitLocations(simulation_config *C, int chunkid)
 		// later
 		if ((C->chunked > 0) && (-1 == chunkid)) return 0;
 
+		if (C->loc_init && !C->sky_init) {
+				printf("Error: no sky configured!\n");
+				goto enosky;
+		}
+
 		FreeConfigMask(C); // make sure we are clear to allocate new memory
 		int err = 0;
 		if ((!C->topo_init) && (!C->grid_init))
@@ -1046,7 +1042,7 @@ elocs:
 		FreeConfigLocation(C);
 		C->loc_init=0;
 		ssdp_reset_errors();
-
+enosky:
 		return -1;
 }
 
