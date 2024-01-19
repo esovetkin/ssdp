@@ -471,7 +471,10 @@ int InitConfigGridMask(simulation_config *C, int chunkid)
 		set_chunk(C, chunkid);
 
 		if (!C->Nl_eff) return 0;
-		if (!((C->sky_init)&&(C->grid_init)&&(C->loc_init))) goto esgl;
+		if (!((C->sky_init)&&(C->grid_init)&&(C->loc_init))) {
+				printf("Error: no sky configured!\n");
+				goto esgl;
+		}
 
 		TIC();
 		i = ssdp_topogrid_approxhorizon
@@ -630,6 +633,70 @@ eargs:
 		free(word);
 eword:
 		Warning("Error: config_sky failed!\n");
+}
+
+
+/*
+BEGIN_DESCRIPTION
+SECTION Simulation
+PARSEFLAG read_sky ReadSky "C=<config_file> file=<in-string> [dataset=<in-string>]"
+DESCRIPTION load sky from a h5 file to the configuration file
+ARGUMENT C Simulation config variable
+ARGUMENT file name of the output file
+ARGUMENT dataset optional name of dataset (default "skydata")
+OUTPUT file the sky is save uncompressed in a structured h5file
+END_DESCRIPTION
+*/
+void ReadSky(char *in)
+{
+		char *fn, *word, *dst;
+		simulation_config *C;
+
+		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
+		if (NULL==(fn=malloc((strlen(in)+1)*sizeof(*fn)))) goto efn;
+		if (NULL==(dst=malloc((strlen(in)+1)*sizeof(*dst)))) goto edst;
+
+		if (FetchConfig(in, "C", word, &C)) goto eargs;
+		if (!GetArg(in, "file", fn)) goto eargs;
+		if (!GetOption(in, "dataset", dst)) snprintf(dst, strlen(in), "skydata");
+
+		// locations and horizon are no longer valid with the new sky
+		ssdp_rtreecache_reset(&(C->hcache));
+		ssdp_rtreecache_reset(&(C->stcache));
+		FreeConfigLocation(C);
+		printf("Cleared configured locations, new sky renders them invalid\n");
+
+		if (!C->sky_init) {
+#ifdef OPENMP
+				C->nS = omp_get_max_threads();
+#else
+				C->nS = 1;
+#endif
+				C->S=ssdp_init_sky(1, C->nS);
+				C->sky_init=1;
+		}
+
+		// read sky for each thread
+		if (ssdp_read_sky(C->S, C->nS, fn, dst)) {
+				printf("Error: failed to read %s to %s\n", dst, fn);
+				goto ewrite;
+		}
+		printf("Read sky from %s::%s\n", fn, dst);
+
+		free(dst);
+		free(fn);
+		free(word);
+		return;
+ewrite:
+eargs:
+		free(dst);
+edst:
+		free(fn);
+efn:
+		free(word);
+eword:
+		printf("Error: read_sky failed!\n");
+		return;
 }
 
 
@@ -992,8 +1059,8 @@ DESCRIPTION Setup the topography. Load the x, y, and z data of the unstructured 
 ARGUMENT x x coordinates
 ARGUMENT y y coordinates
 ARGUMENT z z coordinates
-ARGUMENT azimuth azimuth angle of tilted surface
-ARGUMENT zenith zenith angle of tilted surface
+ARGUMENT azimuth azimuth angle of tilted surface (in radians)
+ARGUMENT zenith zenith angle of tilted surface (in radians)
 ARGUMENT albedo optionally provide an albedo value between 0-1
 ARGUMENT xydelta,zdelta the coordinates within xydelta in xy plane and zdelta within z direction are considered the same (default: 0.05)
 ARGUMENT approx_n optional, if positive determine number of raster points used for computing the horizon. For sample points are used polar Sobol 2-d set (s_1, s_2), where pixel location is computed using F^{-1}(s_1)*exp(1i*2*pi*s_2), where F^{-1} is provided inverse cumulative distribution function, see `horizon_sample_dstr` (default: 10000)
