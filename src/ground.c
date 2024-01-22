@@ -1110,6 +1110,8 @@ int HorizonSet(topogrid *T, int n, enum SampleType stype, int nH, double stepH)
 				x = (int) (p[0]/T->dx);
 				y = (int) (p[1]/T->dy);
 
+				if ((abs(x)>=T->Nx) || (abs(y)>=T->Ny))
+						continue;
 				if (hashmap_isin(seen, (int[2]){x,y}, sizeof(x)+sizeof(y)))
 						continue;
 				if (hashmap_insert(seen, (int[2]){x,y}, sizeof(x)+sizeof(y), NULL)) goto egen;
