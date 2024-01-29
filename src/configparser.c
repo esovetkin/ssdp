@@ -1591,7 +1591,6 @@ END_DESCRIPTION
 void PlaceBody(char *in)
 {
 		int i, j, epsg;
-		double *x, *y;
 		char *word, *nox, *noy, *noz, *noazi, *nozen;
 		array *lat, *lon, *beta, *ix, *iy, *iz, *iazi, *izen;
 		array ox, oy, oz, oazi, ozen;
@@ -1643,10 +1642,20 @@ void PlaceBody(char *in)
 		if (FetchOptInt(in, "epsg", word, &epsg))
 				epsg = determine_utm(lat->D[0], lon->D[0]);
 
-		struct epsg *pc = epsg_init_epsg(epsg, 4326);
-		if (NULL == pc) {
+		int npc = 1;
+#ifdef OPENMP
+		npc = omp_get_max_threads();
+#endif
+
+		struct epsg **pc = calloc(npc, sizeof(*pc));
+		if (NULL == pc) goto epc;
+		for (i=0; i < npc; ++i)
+				if (NULL == (pc[i]=epsg_init_epsg(epsg, 4326)))
+						break;
+		if (npc != i) {
 				Warning("Error: failed to init epsg context"
-						"\t epsg = %d", epsg);
+						"\t epsg_src = %d"
+						"\t epsg_dst = %d", epsg, 4326);
 				goto eepsg;
 		}
 
@@ -1659,21 +1668,32 @@ void PlaceBody(char *in)
 				goto eozen;
 		ox.N = oy.N = oz.N = oazi.N = ozen.N = lat->N*ix->N;
 
-		for (i=0; i<lat->N; ++i) {
-				x = array_copy_at(ix, ix->N, ox.D, i * ix->N);
-				y = array_copy_at(iy, ix->N, oy.D, i * ix->N);
-				if (iz)
-						array_copy_at(iz, ix->N, oz.D, i * ix->N);
-				if (iazi)
-						array_copy_at(iazi, ix->N, oazi.D, i * ix->N);
-				if (izen)
-						array_copy_at(izen, ix->N, ozen.D, i * ix->N);
+		TIC();
+#pragma omp parallel private(i)
+		{
+				int thread = 0;
 
-				for (j=0; iazi && j < ix->N; ++j)
-						oazi.D[i*ix->N + j] += beta->D[i%beta->N];
+#pragma omp for schedule(runtime)
+				for (i=0; i<lat->N; ++i) {
+#ifdef OPENMP
+						thread=omp_get_thread_num();
+#endif
 
-				placetemplate(pc, lat->D[i], lon->D[i],
-							  deg2rad(beta->D[i%beta->N]), x, y, ix->N);
+						double *x = array_copy_at(ix, ix->N, ox.D, i * ix->N);
+						double *y = array_copy_at(iy, ix->N, oy.D, i * ix->N);
+						if (iz)
+								array_copy_at(iz, ix->N, oz.D, i * ix->N);
+						if (iazi)
+								array_copy_at(iazi, ix->N, oazi.D, i * ix->N);
+						if (izen)
+								array_copy_at(izen, ix->N, ozen.D, i * ix->N);
+
+						for (j=0; iazi && j < ix->N; ++j)
+								oazi.D[i*ix->N + j] += beta->D[i%beta->N];
+
+						placetemplate(pc[thread], lat->D[i], lon->D[i],
+									  deg2rad(beta->D[i%beta->N]), x, y, ix->N);
+				}
 		}
 
 		if (izen && AddArray(nozen, ozen)) {free(nozen); nozen=NULL; free(ozen.D); ozen.D=NULL;}
@@ -1682,7 +1702,10 @@ void PlaceBody(char *in)
 		if (AddArray(noy, oy)) {free(noy); noy=NULL; free(oy.D); oy.D=NULL;}
 		if (AddArray(nox, ox)) {free(nox); nox=NULL; free(ox.D); ox.D=NULL;}
 
-		epsg_free(pc);
+		printf("place_body timing: %g s\n", TOC());
+		for (i=0; i < npc; ++i)
+				epsg_free(pc[i]);
+		free(pc);
 		free(word);
 		return;
 		free(ozen.D); ozen.D=NULL;
@@ -1695,8 +1718,11 @@ eoz:
 eoy:
 		free(ox.D); ox.D=NULL;
 eox:
-		epsg_free(pc);
 eepsg:
+		for (i=0; i < npc; ++i)
+				if (pc[i]) epsg_free(pc[i]);
+		free(pc);
+epc:
 eopars:
 		free(nozen);
 enozen:
