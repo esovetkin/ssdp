@@ -1458,11 +1458,11 @@ void ConvertEPSG(char *in)
 
 		struct epsg **pc = calloc(npc, sizeof(*pc));
 		if (NULL==pc) goto epc;
-		for (i=0; i < npc; ++i) {
-				pc[i] = epsg_init_epsg(es, ed);
-		}
+		for (i=0; i < npc; ++i)
+				if (NULL == (pc[i] = epsg_init_epsg(es, ed)))
+						break;
 		if (npc != i) {
-				Warning("failed to init epsg context"
+				Warning("Error: failed to init epsg context"
 						"\t epsg_src = %d"
 						"\t epsg_dst = %d", es, ed);
 				goto eepsginit;
