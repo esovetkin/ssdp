@@ -390,41 +390,73 @@ static void process_raster(double *z, struct gdaldata *gd,
 
 double* topogrid_from_gdal(struct gdaldata *gd, struct coordinates *locs)
 {
-		double *z;
-		int i, err = 0;
-		if (NULL == (z=malloc(locs->np*sizeof(*z)))) goto z_emalloc;
-		// init z with the missing value
-		for (i=0; i < locs->np; ++i) z[i] = gd->na_value;
+		double **z;
+		int k, i, err = 0, npc = 1;
+#ifdef OPENMP
+		npc = omp_get_max_threads();
+#endif
+
+		if (NULL == (z=calloc(npc, sizeof(*z)))) goto ez;
+		for (i=0; i < npc; ++i) {
+				if (NULL == (z[i]=malloc(locs->np*sizeof(**z)))) goto z_emalloc;
+				// init z with the missing value
+				for (k=0; k < locs->np; ++k)
+						z[i][k] = gd->na_value;
+		}
 
 #pragma omp parallel private(i) shared(locs, gd, z)
 		{
+				int thread = 0;
+
 #pragma omp for schedule(runtime)
 				for (i=0; i < gd->nds; ++i) {
+#ifdef OPENMP
+						thread=omp_get_thread_num();
+#endif
+
 						struct raster *rd = raster_init(gd, i, &locs->br);
 						if (NULL == rd) {err |= 1; continue;}
-#pragma omp critical
-						{
-								process_raster(z, gd, rd, i, locs);
-						}
+						process_raster(z[thread], gd, rd, i, locs);
 						raster_free(rd);
 				}
 		}
 
 		if (err) goto eprocess_raster;
 
+		// reduce max from several threads
+		for (i=1; i < npc; ++i) {
+#pragma omp parallel private(k) shared(z, i)
+				{
+#pragma omp for schedule(runtime)
+						for (k=0; k < locs->np; ++k)
+								if (z[i][k] > z[0][k])
+										z[0][k] = z[i][k];
+				}
+				free(z[i]); z[i] = NULL;
+		}
+
 		// fill the missing values
-		struct edt *dt = edt_init(z, locs->np, locs->nx, locs->ny,
+		struct edt *dt = edt_init(z[0], locs->np, locs->nx, locs->ny,
 								  gd->na_value);
 		if (NULL == dt) goto eedt_init;
 		edt_compute(dt);
 		edt_fill(dt);
 		edt_free(dt);
 
-		return z;
+		double *res = z[0];
+		// free all except 0
+		free(z); z = NULL;
+		return res;
 eedt_init:
 eprocess_raster:
-		free(z);
 z_emalloc:
+		for (i=0; i < npc; ++i) {
+				if (z[i]) {
+						free(z[i]); z[i]=NULL;
+				}
+		}
+		free(z);
+ez:
 		return NULL;
 }
 
