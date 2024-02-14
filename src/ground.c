@@ -1019,7 +1019,13 @@ void ComputeHorizon(horizon *H, topology *T, double minzen, double xoff, double 
 
 horizon MakeHorizon(sky_grid *sky, topology *T, double xoff, double yoff, double zoff)
 {
-	horizon H={NULL,0,0};
+	horizon H = {
+			.zen    = NULL,
+			.astep  = 0.0,
+			.minz   = 0.0,
+			.maxz   = M_PI/2.0,
+			.N      = 0
+	};
 	H=InitHorizon(sky->Nz);
 	if (ssdp_error_state)
 		return H;

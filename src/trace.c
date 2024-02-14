@@ -66,10 +66,18 @@ void FreeSkyTransfer(sky_transfer *T)
 horizon InitHorizon(int Nz)
 {
 	horizon H;
-	horizon H0={NULL,0,0};
+	horizon H0={
+			.zen    = NULL,
+			.astep  = 0.0,
+			.minz   = 0.0,
+			.maxz   = M_PI/2.0,
+			.N      = 0
+	};
 	int i;
 	H.N=6*Nz;
 	H.astep=2*M_PI/((double)H.N);
+	H.minz=0.0;
+	H.maxz=M_PI/2.0;
 	// ERRORFLAG MALLOCFAILHORIZON  "Error memory allocation failed horizon initialization"
 	H.zen=malloc(H.N*sizeof(double));
 	if (H.zen==NULL)
@@ -81,12 +89,24 @@ horizon InitHorizon(int Nz)
 		H.zen[i]=INFINITY; // initialized at infinity, AtanHorizon must be called once after initializing
 	return H;
 }
+
+
 void AtanHorizon(horizon *H)
 {
-	int i;
-	for (i=0;i<H->N;i++)
-		H->zen[i]=ATAN(H->zen[i]);
+		int i;
+		double min = M_PI/2.0, max = 0.0;
+		for (i=0; i < H->N; ++i) {
+				H->zen[i]=ATAN(H->zen[i]);
+
+				if (min > H->zen[i]) min = H->zen[i];
+				if (max < H->zen[i]) max = H->zen[i];
+		}
+
+		H->minz = min;
+		H->maxz = max;
 }
+
+
 void FreeHorizon(horizon *H)
 {
 	if (H->zen)

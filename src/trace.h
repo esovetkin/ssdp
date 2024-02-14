@@ -7,9 +7,9 @@ typedef struct sky_transfer {
 } sky_transfer;
 
 typedef struct horizon {
-	double *zen;
-	float astep;
-	int N;
+		double *zen;
+		float astep, minz, maxz;
+		int N;
 } horizon;
 typedef struct skypoly {
 	int N;
@@ -26,7 +26,7 @@ struct rtreecache {
 void FreeSkyTransfer(sky_transfer *T);
 sky_transfer InitSkyTransfer(int Nz, sky_transfer *T);
 horizon InitHorizon(int Nz);
-void AtanHorizon(horizon *H);
+void AtanHorizon(horizon *H); // also sets minz, maxz
 void FreeHorizon(horizon *H);
 int BelowHorizon(const horizon *H, sky_pos p);
 
