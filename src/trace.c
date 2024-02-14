@@ -129,17 +129,6 @@ void TransTrans(const sky_transfer *a, const sky_transfer *b, sky_transfer *c)
 		c->t[i]=a->t[i]*b->t[i];
 }
 
-double MinZentith(const horizon *H)
-{
-	int i;
-	double min;
-	min=H->zen[0];
-	for (i=1;i<H->N;i++)
-		if (min>H->zen[i])
-			min=H->zen[i];
-	return min;
-}
-
 int BelowHorizon(const horizon *H, sky_pos p)
 {
 	int i,j;
@@ -161,25 +150,29 @@ int BelowHorizon(const horizon *H, sky_pos p)
 }
 
 
-void HorizTrans(const sky_grid *sky, const horizon *a, const sky_transfer *b, sky_transfer *c)
+void HorizTrans(const sky_grid *sky, const horizon *a, sky_transfer *c)
 {
-	int i;
-	double minz;
-	if ((b->N!=c->N)||(b->N!=sky->N))
-	{
-		AddErr(TRANSFERSIZEMISMATCH );
-		return;
-	}
-	
-	minz=MinZentith(a);	
-	for (i=0;i<b->N;i++)
-	{
-		c->t[i]=b->t[i];
-		if (sky->P[i].p.z>=minz)
-			if (BelowHorizon(a, sky->P[i].p))
-				c->t[i]=0.0;		
-	}
+		int i, imin, imax;
+
+		ZenithRange(sky, a->minz, a->maxz, &imin, &imax);
+
+		// here I assume that sky patches are sorted by:
+		//
+		//        zenith, azimuth (increasing, first zenith)
+		//
+		// everything below max is below the horizon for all azi
+		//
+		// assumption: sizeof(double) zero bytes is 0 in double
+		if (imax < c->N)
+				memset(c->t+imax, 0, (c->N-imax)*sizeof(*c->t));
+
+		// only call BelowHorizon for patches with zenith angle
+		// inside the interval [minz, maxz]
+		for (i=imin+1; i < imax; ++i)
+				if (BelowHorizon(a, sky->P[i].p))
+						c->t[i]=0.0;
 }
+
 
 struct rtreecache* rtreecache_init(double xydelta, double zdelta)
 {

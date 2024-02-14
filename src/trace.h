@@ -31,7 +31,7 @@ void FreeHorizon(horizon *H);
 int BelowHorizon(const horizon *H, sky_pos p);
 
 void TransTrans(const sky_transfer *a, const sky_transfer *b, sky_transfer *c);
-void HorizTrans(const sky_grid *sky, const horizon *a, const sky_transfer *b, sky_transfer *c);
+void HorizTrans(const sky_grid *sky, const horizon *a, sky_transfer *c);
 
 /** initialise rtree
 

@@ -214,7 +214,7 @@ static int transfer_sky(location *l, sky_grid *sky, sky_transfer *initsky)
 
 		l->T=InitSkyTransfer(sky->N, initsky);
 
-		HorizTrans(sky, l->H, &(l->T), &(l->T));
+		HorizTrans(sky, l->H, &(l->T));
 		if (ssdp_error_state) {
 				Print(WARNING, "ERROR: Horizon does not match the sky\n");
 				goto error;
