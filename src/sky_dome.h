@@ -71,5 +71,10 @@ int NZN(int n);	// inverse of above, i.e. give it a index and it returns the lev
  * solid angle : ~ A/d^2 = (pi * 1391400 ^2 / 4) / 149597870.7^2 = 6.7942739713694071218e-05
  * Note that the actual distance sun-earth varies about 3% so the result is not to be taken as accurate
  */
+
+
+// Compute sky patch indices for a given zenith interval
+void ZenithRange(const sky_grid *sky, double minz, double maxz, int* imin, int *imax);
+
 #define SUNSR 6.794e-5
 #endif

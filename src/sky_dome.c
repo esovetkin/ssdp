@@ -464,6 +464,27 @@ void free_sky_grid(sky_grid *sky)
 }
 
 
+void ZenithRange(const sky_grid *sky, double minz, double maxz,
+				 int* imin, int *imax)
+{
+		// here it is guaranteed that all patches
+		//
+		// for i >= imax => patch[i].z > maxz
+		// for i <= imin => patch[i].z < minz
+
+		minz *= 2*((double)sky->Nz + 0.5) / M_PI;
+		maxz *= 2*((double)sky->Nz + 0.5) / M_PI;
+
+		*imin = NNZ((int)floor(minz)) - 1;
+		*imax = NNZ((int)ceil(maxz) - 1);
+
+		if (*imin < 0) *imin = -1;
+		if (*imax < 0) *imax = 0;
+		if (*imax >= sky->N) *imax = sky->N;
+		if (*imin >= sky->N) *imin = sky->N;
+}
+
+
 hid_t h5t_hexpatch()
 {
 		hid_t t_nl, t_pl, t_res, t_sky_pos;
@@ -627,3 +648,70 @@ edataset:
 efile:
 		return -1;
 }
+
+
+#ifdef RUNTEST
+
+#include <signal.h>
+#include <assert.h>
+
+/** comment #include <assert.h> and use this one for gdb
+
+void assert(int v)
+{
+		if (v)
+				return;
+
+		raise(SIGTRAP);
+}
+*/
+
+static void test_range(sky_grid* sky, double min, double max, int imin, int imax)
+{
+		int i;
+		assert(imin < imax);
+		assert(imin >= -1);
+		assert(imax <= sky->N);
+
+		for (i=0; i <= imin; ++i)
+				assert((sky->P[i].p.z < min));
+		assert(sky->P[i].p.z >= min);
+
+		for (i=imax; i < sky->N; ++i)
+				assert((sky->P[i].p.z > max));
+		assert(sky->P[imax-1].p.z <= max);
+}
+
+
+static void test_zenithrange(int Nz, int nzens, int nx)
+{
+		double dx = 1.0 / ((double) nzens + 1);
+		int i, imin, imax;
+		sky_grid sky = InitSky(Nz);
+
+		for (i=1; i < nzens; ++i) {
+				double x = ((double)i) * dx;
+				ZenithRange(&sky, x, x + nx*dx, &imin, &imax);
+				test_range(&sky, x, x+nx*dx, imin, imax);
+		}
+
+		free_sky_grid(&sky);
+}
+
+
+int main(void)
+{
+		signal(SIGTRAP, SIG_IGN);
+
+		printf("testing sky_dome ...\n");
+		test_zenithrange(21, 10, 0);
+		test_zenithrange(21, 10, 1);
+		test_zenithrange(21, 10, 2);
+		test_zenithrange(21, 100, 2);
+		test_zenithrange(21, 100, 20);
+		test_zenithrange(21, 10, 10);
+
+		printf("PASSED\n");
+}
+
+#endif
