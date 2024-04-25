@@ -450,10 +450,10 @@ int InitConfigMask(simulation_config *C, int chunkid)
 				}
 		}
 		ProgressBar(100, &pco, ProgressLen, ProgressTics);
+		if (ssdp_error_state) goto estate;
 		dt = TOC();
 		printf("Traced %d horizons in %g s (%e s/horizons)\n", C->Nl_eff, dt, dt/((double)C->Nl_eff));
-
-		if (init_transfer(C)) goto estate;
+		
 		return 0;
 estate:
 		FreeConfigMask(C); // make sure we are clear to allocate new memory
@@ -513,10 +513,10 @@ int InitConfigGridMask(simulation_config *C, int chunkid)
 				}
 		}
 		ProgressBar(100, &pco, ProgressLen, ProgressTics);
+		if (ssdp_error_state) goto estate;
 		dt = TOC();
 		printf("Traced %d horizons in %g s (%e s/horizons)\n", C->Nl_eff, dt, dt/((double)C->Nl_eff));
 
-		if (init_transfer(C)) goto estate;
 		return 0;
 estate:
 		FreeConfigMask(C); // make sure we are clear to allocate new memory
@@ -555,10 +555,10 @@ int InitConfigMaskNoH(simulation_config *C, int chunkid)
 				}
 		}
 		ProgressBar(100, &pco, ProgressLen, ProgressTics);
+		if (ssdp_error_state) goto estate;
 		dt = TOC();
 		printf("Initialised %d horizons in %g s (%e s/horizons)\n", C->Nl_eff, dt, dt/((double)C->Nl_eff));
 
-		if (init_transfer(C)) goto estate;
 		return 0;
 estate:
 		FreeConfigMask(C); // make sure we are clear to allocate new memory
@@ -728,7 +728,7 @@ void ConfigTOPO (char *in)
 		if (ssdp_error_state) goto emktopo;
 
 		ssdp_rtreecache_reset(&(C->hcache));
-		if (InitLocations(C, -1)) goto einitloc;
+		if (InitLocations(C, -1, 1)) goto einitloc;
 
 		free(word);
 		return;
@@ -808,7 +808,7 @@ static void configadd_topogrid(char *in, int ifconfig)
 		ssdp_min_topogrids(C->Tx, C->nTx);
 		if (ssdp_error_state) goto essdp;
 		if (ssdp_rtreecache_reset(&(C->hcache))) goto essdp;
-		if (InitLocations(C, -1)) goto essdp;
+		if (InitLocations(C, -1, 1)) goto essdp;
 
 		free(word);
 		return;
@@ -885,7 +885,7 @@ static void configadd_topogdal(char *in, int ifconfig)
 		if (ssdp_rtreecache_reset(&(C->hcache))) goto emaketopogdal;
 		printf("Initialised topogrid in %g s\n", TOC());
 
-		if (InitLocations(C, -1)) goto emaketopogdal;
+		if (InitLocations(C, -1, 1)) goto emaketopogdal;
 
 		cvec_free(fns);
 		free(word);
@@ -1007,7 +1007,7 @@ eword:
 }
 
 
-int InitLocations(simulation_config *C, int chunkid)
+int InitLocations(simulation_config *C, int chunkid, int iftransfer)
 {
 		// case when called for sim_ routines
 		if ((-1 == C->chunked) && (chunkid > -1)) return 0;
@@ -1035,9 +1035,11 @@ int InitLocations(simulation_config *C, int chunkid)
 		if (C->grid_init)
 				err |= InitConfigGridMask(C, chunkid);
 
+		if (C->loc_init && iftransfer && init_transfer(C)) goto etransfer;
 		if (ssdp_error_state || err) goto elocs;
 		return 0;
 elocs:
+etransfer:
 		ssdp_print_error_messages();
 		FreeConfigLocation(C);
 		C->loc_init=0;
@@ -1134,7 +1136,7 @@ void ConfigLoc(char *in)
 		C->approx_stype = stype;
 		C->chunked = chunked;
 
-		if (InitLocations(C, -1) < 0) goto elocs;
+		if (InitLocations(C, -1, 1) < 0) goto elocs;
 
 		free(word);
 		return;
@@ -1355,7 +1357,7 @@ void RandTOPO (char *in)
 		printf("Configuring topology with %d points\n", N2);
 		C->T=ssdp_make_rand_topology(dx, dy, dz, N1, N2);
 		if (ssdp_error_state) goto emktopo;
-		if (InitLocations(C, -1) < 0) goto einitloc;
+		if (InitLocations(C, -1, 1) < 0) goto einitloc;
 
 		free(word);
 		return;

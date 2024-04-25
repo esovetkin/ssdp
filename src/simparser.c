@@ -14,6 +14,7 @@
 #include "variables.h"
 #include "parser.h"
 #include "parserutil.h"
+#include "h5io.h"
 
 
 static int check_simconfig(simulation_config *C, int ok_notopo, int ok_nosky)
@@ -46,7 +47,7 @@ static int check_simconfig(simulation_config *C, int ok_notopo, int ok_nosky)
 
 static int poa_total(simulation_config *C, int o, double* out, int chunkid)
 {
-		if (InitLocations(C, chunkid)) return -1;
+		if (InitLocations(C, chunkid, 1)) return -1;
 		int i;
 
 #pragma omp parallel private(i) shared(C)
@@ -64,7 +65,7 @@ static int poa_total(simulation_config *C, int o, double* out, int chunkid)
 static int poa_unif(simulation_config *C, int o, double* out,
 					int chunkid, double DHI)
 {
-		if (InitLocations(C, chunkid)) return -1;
+		if (InitLocations(C, chunkid, 1)) return -1;
 		int i;
 
 #pragma omp parallel private(i) shared(C)
@@ -447,7 +448,7 @@ void SimRoute(char *in)
 		TIC();
 		i = -1;
 		while (NextChunk(C, &i)) {
-				if (InitLocations(C, i)) goto esim;
+				if (InitLocations(C, i, 1)) goto esim;
 
 #pragma omp parallel private(j)
 				{
@@ -1023,3 +1024,84 @@ eword:
 		return;
 }
 
+
+/*
+BEGIN_DESCRIPTION
+SECTION Simulation Configuration
+PARSEFLAG write_horizon WriteHoriz "C=<in-config> file=<file-str> [dataset=<str>] [gzip=<int-value>] [chunksize=<int-value>] [cachemb=<int-value>] [cacheslots=<int-value>]"
+DESCRIPTION Write computed horizon for provided locations to a HDF5 file. For each location horizon is stored as one array (see write_h5), setting chunksize might be beneficial for compression ratios.
+ARGUMENT C simulation configuration with configured locations
+ARGUMENT file name of the output file
+ARGUMENT dataset optional name of dataset (default "horizon")
+ARGUMENT gzip level of compression to use (default "0")
+ARGUMENT chunksize optional number of horizons kept in one chunk (default "10000"). If 0 the array is written contigiously and no compression can be used.
+ARGUMENT cachemb,cacheslots optional size of h5 cache (default: cachemb=64, cacheslots=12421).
+OUTPUT file output filename
+END_DESCRIPTION
+*/
+void WriteHoriz(char *in)
+{
+		double **data = NULL;
+		int i = 0, chunkid = 0, narr = 0, arrlen = 0;
+		char *word = NULL;
+		simulation_config *C = NULL;
+
+		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
+		if (FetchConfig(in, "C", word, &C)) goto eC;
+
+		if (NULL == (data=malloc(C->Nl*sizeof(*data)))) goto edata;
+		narr = C->Nl;
+
+		chunkid = -1;
+		while (NextChunk(C, &chunkid)) {
+				if (InitLocations(C, chunkid, 0)) goto einitlocs;
+				if (!arrlen) arrlen = C->L->H->N;
+
+				for (i=0; i < C->Nl_eff; ++i)
+						data[C->Nl_o + i] = (C->L + i)->H->zen;
+		}
+
+		if (!GetArg(in, "file", word)) goto eargs;
+		printf("Writing horizons to %s\n", word);
+		struct h5io* io = h5io_init(word);
+		if (NULL == io) goto eio;
+
+		if (!GetOption(in, "dataset", word)) snprintf(word, strlen(in), "horizon");
+		h5io_setdataset(io, word);
+		if (h5io_isin(io)) {
+				Warning("Error: dataset %s exists!\n", io->dataset);
+				goto eexist;
+		}
+
+		h5io_setdtype(io, "float64");
+		if (FetchOptInt(in, "gzip", word, &io->compression)) io->compression = 0;
+		if (FetchOptInt(in, "chunksize", word, &io->chunkarr)) io->chunkarr = 10000;
+		if (FetchOptInt(in, "cachemb", word, &io->cachemb)) io->cachemb = 64;
+		if (FetchOptInt(in, "cacheslots", word, &io->cacheslots)) io->cacheslots = 12421;
+
+		TIC();
+		if (h5io_write(io, (void**)data, "float64", arrlen, narr)) goto ewrite;
+		char cmmnt[1024];
+		strncpy(cmmnt, "SSDP data: write_horizon ", 1024-1);
+		strncat(cmmnt, in, 1024-1);
+		h5io_comment(io, cmmnt);
+		printf("Wrote %s in %g s\n", io->dataset, TOC());
+
+		h5io_free(io);
+		free(data);
+		free(word);
+		return;
+ewrite:
+eexist:
+		h5io_free(io);
+eio:
+eargs:
+einitlocs:
+		free(data);
+edata:
+eC:
+		free(word);
+eword:
+		Warning("write_horizon: failed!\n");
+		return;
+}
