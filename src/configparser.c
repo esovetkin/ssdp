@@ -1162,6 +1162,49 @@ eword:
 /*
 BEGIN_DESCRIPTION
 SECTION Simulation Configuration
+PARSEFLAG set_earth_correction EarthCorrection "C=<in-config> [curvature]=<int-value> [rasterid=<int-value>]"
+ARGUMENT earth_curvature optional, if non-zero earth curvature correction factor is applied during horizon computation (default: 0)
+ARGUMENT rasterid optional id of the raster, where the distribution is set (default: 0)
+OUTPUT C earth_correction flag is set on the corresponding topogrid
+END_DESCRIPTION
+*/
+void EarthCorrection(char *in)
+{
+		int r = 0, ec = 0;
+		char *word;
+		simulation_config *C;
+
+		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
+		if (FetchConfig(in, "C", word, &C)) goto eargs;
+		if (FetchOptInt(in, "rasterid", word, &r)) r=0;
+		if (FetchOptInt(in, "curvature", word, &ec)) ec=0;
+
+		if (C->grid_init==0) {
+				Warning("ERROR: simulation config does not contain a topogrid\n");
+				goto eargs;
+		}
+		if (r >= C->nTx) {
+				Warning("ERROR: only %d topogrids configured\n", C->nTx);
+				goto eargs;
+
+		}
+
+		if (ssdp_topogrid_approxlaw(C->Tx+r,NULL,0,NULL,0,ec)) goto esetlaw;
+
+		free(word);
+		return;
+esetlaw:
+eargs:
+		free(word);
+eword:
+		Warning("Error: set_earth_correction failed!\n");
+
+}
+
+
+/*
+BEGIN_DESCRIPTION
+SECTION Simulation Configuration
 PARSEFLAG horizon_sample_distr HorizonSampleDistr "C=<in-config> [q=<float-array>] [phi=<float-array>] [rasterid=<int-value>]"
 DESCRIPTION Set the radial distribution for the approximate horizon sampling. The distribution is set using an array q of quantiles. The distribution can be set per raster. Can only be used with topogrid topogrpaphies.
 ARGUMENT C simulation configuration with topogrid
@@ -1214,9 +1257,9 @@ void HorizonSampleDistr(char *in)
 						}
 
 		TIC();
-		if (q && !phi && ssdp_topogrid_approxlaw(C->Tx+r, q->D, q->N, NULL, 0)) goto esetlaw;
-		if (!q && phi && ssdp_topogrid_approxlaw(C->Tx+r, NULL, 0, phi->D, phi->N)) goto esetlaw;
-		if (q && phi && ssdp_topogrid_approxlaw(C->Tx+r, q->D, q->N, phi->D, phi->N)) goto esetlaw;
+		if (q && !phi && ssdp_topogrid_approxlaw(C->Tx+r, q->D, q->N, NULL, 0, C->Tx[r].if_curvature)) goto esetlaw;
+		if (!q && phi && ssdp_topogrid_approxlaw(C->Tx+r, NULL, 0, phi->D, phi->N, C->Tx[r].if_curvature)) goto esetlaw;
+		if (q && phi && ssdp_topogrid_approxlaw(C->Tx+r, q->D, q->N, phi->D, phi->N, C->Tx[r].if_curvature)) goto esetlaw;
 		printf("Sampled new horizon sample in %g s\n", TOC());
 		ssdp_rtreecache_reset(&(C->hcache));
 		printf("Reset horizon cache, since there new sampling distribution\n");

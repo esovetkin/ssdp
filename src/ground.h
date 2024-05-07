@@ -49,7 +49,7 @@ enum SampleType {
 
 struct hsample_data {
 		int16_t x, y, i, j;
-		double d;
+		double d, cc;
 };
 
 
@@ -65,6 +65,7 @@ typedef struct topogrid {
 		int Na;		// number of discrete angles in A1 and A2 arrays
 		int Nx,Ny;	// number of points
 		int horizon_nsample; // number of points horizon sample points
+		int if_curvature; // if correct for Earth curvature
 		double x2, y2; // upper right corner
 		double *horizon_dstr; // sampling distribution (ordered quantiles)
 		int horizon_dstrn; // len(horizon_dstr)

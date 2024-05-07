@@ -289,11 +289,15 @@ esobol:
 }
 
 
-int ssdp_topogrid_approxlaw(topogrid *T, double *q, int nq, double *phi, int nphi)
+int ssdp_topogrid_approxlaw(topogrid *T, double *q, int nq, double *phi, int nphi, int if_curvature)
 {
 		int r = 0;
-		if (q) r |= HorizonSetDstr(T, q, nq);
-		if (phi) r |= HorizonSetPhi(T, phi, nphi);
+		if (q)
+				r |= HorizonSetDstr(T, q, nq);
+		if (phi)
+				r |= HorizonSetPhi(T, phi, nphi);
+		if (if_curvature != T->if_curvature)
+				T->if_curvature = if_curvature;
 
 		// this will reset horizon_sample
 		if (!r && T->horizon_sample) {

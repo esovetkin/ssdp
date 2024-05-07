@@ -172,9 +172,12 @@ static topogrid default_topogrid()
 				.horizon_dstrn       = 0,
 				.horizon_phid        = NULL,
 				.horizon_nphid       = 0,
+				.if_curvature        = 0,
 		};
 }
 
+
+const double INV_DOUBLE_EARTH = 1. / (2.*6378137.0);
 
 // sort triangle list by height
 int tcomp(const void *a, const void *b)
@@ -1128,6 +1131,7 @@ int HorizonSet(topogrid *T, int n, enum SampleType stype, int nH, double stepH)
 				Dx = T->dx * (double)x;
 				Dy = T->dy * (double)y;
 				t->d = 1.0 / sqrt(Dx*Dx + Dy*Dy);
+				t->cc = T->if_curvature ? INV_DOUBLE_EARTH*(Dx*Dx + Dy*Dy) : 0.0;
 				// do not add point if Arange returns zero
 				if (Arange(x,y,&a1,&a2,T->A1,T->A2)) ++j;
 				// special case for the RAYS strategy
@@ -1228,7 +1232,7 @@ static void compute_approx_horizon(horizon *H, topogrid *T, double r, int k, int
 				if (m < 0 || m >= T->Nx || n < 0 || n >= T->Ny)
 						continue;
 
-				x = (t->d)*(T->z[m*T->Ny+n]-zoff);
+				x = (t->d)*(T->z[m*T->Ny+n] - zoff - t->cc);
 
 				// do not compute anything for triangles below the zenith threshold
 				if (x > r) RizeHorizon_i(H, t->i, t->j, x);
@@ -1239,7 +1243,7 @@ static void compute_approx_horizon(horizon *H, topogrid *T, double r, int k, int
 static void compute_precise_horizon(horizon *H, topogrid *T, double r, int k, int l, double zoff)
 {
 		int i, m, n;
-		double d, Dx, Dy, a1, a2;
+		double d, dsq, Dx, Dy, a1, a2;
 
 		i=T->Nx*T->Ny-1;
 		while (i>=0) {
@@ -1256,10 +1260,11 @@ static void compute_precise_horizon(horizon *H, topogrid *T, double r, int k, in
 
 				Dx=T->dx*(double)m;
 				Dy=T->dy*(double)n;
-				d=sqrt(Dx*Dx+Dy*Dy);
+				dsq = Dx*Dx+Dy*Dy;
+				d=sqrt(dsq);
 
 				// do not compute anything for triangles below the zenith threshold
-				if (r*(T->z[T->sort[i]]-zoff) > d)
+				if (r*(T->z[T->sort[i]] - zoff - (T->if_curvature ? INV_DOUBLE_EARTH*dsq : 0)) > d)
 						// compute azimuthal range
 						if (Arange(m, n, &a1, &a2, T->A1, T->A2))
 								// for now store the ratio, do atan2's on the horizon array at the end
