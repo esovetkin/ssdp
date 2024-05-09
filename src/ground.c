@@ -45,6 +45,7 @@
 struct genseq {
 		enum SampleType st;
 		int ns;
+		int sqrt_ns;
 		double *rd;
 		int nrd;
 		double *phid;
@@ -52,29 +53,44 @@ struct genseq {
 		int sampleid;
 		struct sobolseq* sobol;
 		struct lcg* iid;
+		double dx, dy;
 };
 
 
 struct genseq* genseq_init(enum SampleType st, int ns, double *rd, int nrd,
-						   double *phid, int nphid)
+						   double *phid, int nphid, double dx, double dy)
 {
 		struct genseq* self = malloc(sizeof(*self));
 		if (NULL == self) goto eself;
 
 		self->st = st;
 		self->ns = ns;
+		self->sqrt_ns = 1;
 		self->rd  = rd;
 		self->nrd = nrd;
 		self->phid  = phid;
 		self->nphid = nphid;
 		self->sampleid = 0;
+		self->dx = dx;
+		self->dy = dy;
 		if (NULL == (self->sobol = sobolseq_init(2))) goto esobol;
 		if (NULL == (self->iid = lcg_init(time(0)))) goto eiid;
 
-		if (RAYS16 == st) self->ns = 16*self->nrd;
-		if (RAYS32 == st) self->ns = 32*self->nrd;
-		if (RAYS64 == st) self->ns = 64*self->nrd;
-		if (RAYS128 == st) self->ns = 128*self->nrd;
+		switch (st) {
+		case DISK:
+				self->sqrt_ns = (int) 4*ceil(self->rd[self->nrd-1] / (self->dx < self->dy ? self->dx : self->dy));
+				self->ns = self->sqrt_ns * self->sqrt_ns;
+				break;
+		case RAYS16:
+		case RAYS32:
+		case RAYS64:
+		case RAYS128:
+		case RAYS256:
+				self->ns = st*self->nrd;
+				break;
+		default:
+				break;
+		}
 
 		return self;
 		lcg_free(self->iid);
@@ -108,14 +124,20 @@ int genseq_gen(struct genseq *self, double *res)
 				p[0] = lcg_unif(self->iid, 0);
 				p[1] = lcg_unif(self->iid, 0);
 				break;
+		case DISK:
+				res[0] = self->dx * (self->sampleid % self->sqrt_ns) - self->rd[self->nrd-1];
+				res[1] = self->dy * (self->sampleid / self->sqrt_ns) - self->rd[self->nrd-1];
+				++self->sampleid;
+				return 0;
 		case RAYS16:
 		case RAYS32:
 		case RAYS64:
 		case RAYS128:
+		case RAYS256:
 				p[0] = ((double)(self->sampleid % self->st))
-						/ ((double) self->st);
+						/ ((double) self->st) - self->dx*1e-8;
 				p[1] = ((double)(self->sampleid / self->st))
-						/ ((double) self->nrd);
+						/ ((double) self->nrd) - self->dx*1e-8;
 				++self->sampleid;
 				break;
 		default:
@@ -1040,10 +1062,6 @@ horizon MakeHorizon(sky_grid *sky, topology *T, double xoff, double yoff, double
 
 static void RaysInterval(enum SampleType t, double *a, double* b)
 {
-		if (RAYS16 != t && RAYS32 != t &&
-			RAYS64 != t && RAYS128 != t)
-				return;
-
 		double dpi = 2*M_PI;
 		*a = fmod(*a + dpi, dpi);
 		*b = fmod(*b + dpi, dpi);
@@ -1092,18 +1110,14 @@ int HorizonSet(topogrid *T, int n, enum SampleType stype, int nH, double stepH)
 				T->horizon_sample=NULL;
 		}
 
-		int j, i, x, y, ifrays = 0;
+		int j, i, x, y;
 		double p[2], Dx, Dy, a1, a2;
-		if (RAYS16 == T->horizon_stype ||
-			RAYS32 == T->horizon_stype ||
-			RAYS64 == T->horizon_stype ||
-			RAYS128 == T->horizon_stype)
-				ifrays = 1;
 
 		struct genseq *sq = genseq_init
 				(T->horizon_stype, T->horizon_nsample,
 				 T->horizon_dstr, T->horizon_dstrn,
-				 T->horizon_phid, T->horizon_nphid);
+				 T->horizon_phid, T->horizon_nphid,
+				 T->dx, T->dy);
 		if (NULL==sq) goto esq;
 
 		T->horizon_sample=malloc(sq->ns*sizeof(*(T->horizon_sample)));
@@ -1113,11 +1127,16 @@ int HorizonSet(topogrid *T, int n, enum SampleType stype, int nH, double stepH)
 		if (NULL==seen) goto eseen;
 
 		struct hsample_data *t;
+		double rsq = T->horizon_dstr[T->horizon_dstrn-1]; rsq *= rsq;
 		for (j=i=0; i < sq->ns; ++i) {
 				if (genseq_gen(sq, p)) goto egen;
 
-				x = (int) (p[0]/T->dx);
-				y = (int) (p[1]/T->dy);
+				if (DISK == T->horizon_stype &&
+					p[0]*p[0] + p[1]*p[1] > rsq)
+						continue;
+
+				x = (int) floor(p[0]/T->dx);
+				y = (int) floor(p[1]/T->dy);
 
 				if ((abs(x)>=T->Nx) || (abs(y)>=T->Ny))
 						continue;
@@ -1134,8 +1153,19 @@ int HorizonSet(topogrid *T, int n, enum SampleType stype, int nH, double stepH)
 				t->cc = T->if_curvature ? INV_DOUBLE_EARTH*(Dx*Dx + Dy*Dy) : 0.0;
 				// do not add point if Arange returns zero
 				if (Arange(x,y,&a1,&a2,T->A1,T->A2)) ++j;
+
 				// special case for the RAYS strategy
-				if (ifrays) RaysInterval(T->horizon_stype, &a1, &a2);
+				switch (T->horizon_stype) {
+				case RAYS16:
+				case RAYS32:
+				case RAYS64:
+				case RAYS128:
+				case RAYS256:
+						RaysInterval(T->horizon_stype, &a1, &a2);
+				default:
+						break;
+				}
+				
 				t->i = (int)round(a1/stepH);
 				t->j = (int)round(a2/stepH);
 				if (t->i < 0) t->i += nH;

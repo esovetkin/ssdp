@@ -1062,7 +1062,7 @@ ARGUMENT zenith zenith angle of tilted surface (in radians)
 ARGUMENT albedo optionally provide an albedo value between 0-1
 ARGUMENT xydelta,zdelta the coordinates within xydelta in xy plane and zdelta within z direction are considered the same (default: 0.05)
 ARGUMENT approx_n optional, if positive determine number of raster points used for computing the horizon. For sample points are used polar Sobol 2-d set (s_1, s_2), where pixel location is computed using F^{-1}(s_1)*exp(1i*2*pi*s_2), where F^{-1} is provided inverse cumulative distribution function, see `horizon_sample_dstr` (default: 10000)
-ARGUMENT approx_type type of sampling used. Either "precise", "sobol", "iid", "rays16", "rays32", "rays64", and "rays128" (default: "precise")
+ARGUMENT approx_type type of sampling used. Either "precise", "sobol", "iid", "disk" and "rays{16,32,64,128,256}" (default: "precise")
 ARGUMENT chunked optional, if positive the locations are processed in chunks of given size. This allows to do simulations with more locations with less memory (default: -1)
 OUTPUT C configuration variable
 END_DESCRIPTION
@@ -1094,10 +1094,12 @@ void ConfigLoc(char *in)
 				if (strncmp(word,"precise",10)==0) stype=PRECISE;
 				else if (strncmp(word,"sobol",10)==0) stype=SOBOL;
 				else if (strncmp(word,"iid",10)==0) stype=IID;
+				else if (strncmp(word,"disk",10)==0) stype=DISK;
 				else if (strncmp(word,"rays16",10)==0) stype=RAYS16;
 				else if (strncmp(word,"rays32",10)==0) stype=RAYS32;
 				else if (strncmp(word,"rays64",10)==0) stype=RAYS64;
 				else if (strncmp(word,"rays128",10)==0) stype=RAYS128;
+				else if (strncmp(word,"rays256",10)==0) stype=RAYS256;
 				else Warning("Warning: unsupported approx_type=%s, "
 							 "continue with precise\n", word);
 		}

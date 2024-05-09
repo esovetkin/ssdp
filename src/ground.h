@@ -37,6 +37,7 @@ enum SampleType {
 				     // available topography pixels
 		SOBOL   = 1, // Sobol low-discrepancy sequence (quasi MC)
 		IID     = 2, // draw iid random varaibles (MC)
+		DISK    = 3, // all pixels within radius
 		/** use fixed number of rays and measure horizon along the
 		 * centreline
 		 */
@@ -44,6 +45,7 @@ enum SampleType {
 		RAYS32  = 32,
 		RAYS64  = 64,
 		RAYS128 = 128,
+		RAYS256 = 256,
 };
 
 
