@@ -44,7 +44,6 @@ static void set_chunk(simulation_config *C, int chunkid)
 int NextChunk(simulation_config *C, int *chunkid)
 {
 		++(*chunkid);
-		printf("Processing locations chunk: %d\n", *chunkid);
 
 		if (C->chunked < 0) {
 				if (0 == (*chunkid)) return 1;
@@ -54,6 +53,7 @@ int NextChunk(simulation_config *C, int *chunkid)
 		if (C->chunked * (*chunkid) >= C->Nl)
 				return 0;
 
+		printf("Processing locations chunk: %d\n", *chunkid);
 		return 1;
 }
 
