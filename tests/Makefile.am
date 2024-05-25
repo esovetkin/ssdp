@@ -1,3 +1,5 @@
+AUTOMAKE_OPTIONS = subdir-objects
+
 bin_PROGRAMS = ssdptest_edt ssdptest_minfill ssdptest_epsg ssdptest_coords ssdptest_topogdal ssdptest_pngout ssdptest_h5io ssdptest_hashmap ssdptest_rtree ssdptest_sobolseq ssdptest_lcg ssdptest_skydome
 
 ssdptest_edt_SOURCES = $(top_builddir)/src/edt.c
