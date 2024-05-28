@@ -7,7 +7,7 @@ AM_CFLAGS = -Wall
 lib_LTLIBRARIES = libssdp.la
 libssdp_la_SOURCES = sky_dome.c sky_model.c pv-aoi.c project.c trace.c vector.c ground.c print.c libssdp.c shull.c delaunay.c ll.c error.c sunpos.c freespa/freespa.c filterimage/filter.c filterimage/floatimage.c fatan2.c coordinates.c epsg.c edt.c minfill.c topogdal.c pngout.c h5io.c hashmap.c murmurhash3.c rtree.c sobolseq.c lcg.c sky_dome.h sky_model.h pv-aoi.h project.h trace.h vector.h ground.h print.h libssdp.h shull.h delaunay.h ll.h error.h sunpos.h fatan2.h winunistd.h coordinates.h epsg.h edt.h minfill.h topogdal.h pngout.h h5io.h hashmap.h murmurhash3.h rtree.h sobolseq.h soboldata.h lcg.h libssdp.map
 CLEANFILES = errorflags.h errormessages.h parsedef.h libssdp_structs.h
-libssdp_la_LDFLAGS = -lm -lproj -lpng $(LAPACK_LIBS) $(BLAS_LIBS) $(FFTW_LIBS) $(GDAL_LDFLAGS) -Wl,--version-script=${srcdir}/libssdp.map -no-undefined -version-number $(LIBVERSION)
+libssdp_la_LDFLAGS = -lm -lpng $(LAPACK_LIBS) $(BLAS_LIBS) $(FFTW_LIBS) $(GDAL_LDFLAGS) $(GDAL_DEP_LDFLAGS) -Wl,--version-script=${srcdir}/libssdp.map -no-undefined -version-number $(LIBVERSION)
 include_HEADERS = libssdp.h libssdp_structs.h
 if OPENMP
 libssdp_la_CFLAGS = -fopenmp $(AM_CFLAGS) $(GDAL_CFLAGS) $(HDF5_CPPFLAGS) -DLL_CIRCULAR -D_GNU_SOURCE -D'ERRORSTATE=ssdp_error_state'
@@ -31,9 +31,9 @@ nodist_libssdp_la_SOURCES = errorflags.h errormessages.h libssdp_structs.h
 bin_PROGRAMS = ssdp
 ssdp_SOURCES = lio.c variables.c parser.c configparser.c arrayparser.c topoparser.c simparser.c readlineshell.c util.c epsg.c coordinates.c pngout.c h5io.c hashmap.c murmurhash3.c rtree.c sobolseq.c lcg.c ssdp.c lio.h variables.h parser.h parserutil.h readlineshell.h util.h winunistd.h epsg.h coordinates.h gen_parserflags.sh gen_errorflags.sh collect_datastructs.sh gen_ssdpdoc.sh
 if OPENMP
-ssdp_LDFLAGS= -lreadline -fopenmp -lm -lproj -lpng $(LAPACK_LIBS) $(BLAS_LIBS) $(FFTW_LIBS) $(HDF5_LIBS) $(GDAL_LDFLAGS) $(HDF5_LDFLAGS)
+ssdp_LDFLAGS= -lreadline -fopenmp -lm -lpng $(LAPACK_LIBS) $(BLAS_LIBS) $(FFTW_LIBS) $(HDF5_LIBS) $(GDAL_LDFLAGS) $(GDAL_DEP_LDFLAGS) $(HDF5_LDFLAGS)
 else
-ssdp_LDFLAGS= -lreadline -lm -lproj -lpng $(LAPACK_LIBS) $(BLAS_LIBS) $(FFTW_LIBS) $(HDF5_LIBS) $(GDAL_LDFLAGS) $(HDF5_LDFLAGS)
+ssdp_LDFLAGS= -lreadline -lm -lpng $(LAPACK_LIBS) $(BLAS_LIBS) $(FFTW_LIBS) $(HDF5_LIBS) $(GDAL_LDFLAGS) $(GDAL_DEP_LDFLAGS) $(HDF5_LDFLAGS)
 endif
 ssdp_CFLAGS = $(AM_CFLAGS) $(GDAL_CFLAGS) $(HDF5_CPPFLAGS) -DOPENMP -fopenmp -D'ERRORSTATE=ssdp_error_state'
 ssdp_LDADD = libssdp.la

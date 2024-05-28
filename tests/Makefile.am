@@ -11,7 +11,7 @@ ssdptest_minfill_LDADD = libhashmap.la
 
 ssdptest_epsg_SOURCES =  $(top_builddir)/src/epsg.c
 ssdptest_epsg_CFLAGS = -DRUNTEST
-ssdptest_epsg_LDADD = libcoordinates.la -lproj
+ssdptest_epsg_LDADD = libcoordinates.la $(GDAL_DEP_LDFLAGS)
 
 ssdptest_pngout_SOURCES = $(top_builddir)/src/pngout.c
 ssdptest_pngout_CFLAGS = -DRUNTEST
@@ -35,11 +35,11 @@ ssdptest_lcg_CFLAGS = -fopenmp -DRUNTEST
 
 ssdptest_coords_SOURCES = $(top_builddir)/src/coordinates.c
 ssdptest_coords_CFLAGS = -DRUNTEST
-ssdptest_coords_LDADD = libepsg.la -lproj
+ssdptest_coords_LDADD = libepsg.la $(GDAL_DEP_LDFLAGS)
 
 ssdptest_topogdal_SOURCES = $(top_builddir)/src/topogdal.c $(top_builddir)/src/error.c
 ssdptest_topogdal_CFLAGS = -fopenmp -DRUNTEST $(GDAL_CFLAGS)
-ssdptest_topogdal_LDADD = libedt.la libepsg.la libcoordinates.la -lproj $(GDAL_LDFLAGS)
+ssdptest_topogdal_LDADD = libedt.la libepsg.la libcoordinates.la $(GDAL_LDFLAGS) $(GDAL_DEP_LDFLAGS)
 
 ssdptest_skydome_SOURCES = $(top_builddir)/src/sky_dome.c $(top_builddir)/src/error.c $(top_builddir)/src/vector.c $(top_builddir)/src/print.c $(top_builddir)/src/fatan2.c
 ssdptest_skydome_CFLAGS = -DRUNTEST $(HDF5_CPPFLAGS)
