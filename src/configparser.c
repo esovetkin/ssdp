@@ -792,6 +792,15 @@ static void configadd_topogrid(char *in, int ifconfig)
 		if (FetchInt(in, "Ny", word, &Ny)) goto eargs;
 		if (FetchArray(in, "z", word, &z)) goto eargs;
 
+		if (x1 >= x2){
+				Warning("x1=%f must be smaller than x2=%f\n",x1,x2);
+				goto eargs;
+		}
+		if (y1 >= y2){
+				Warning("y1=%f must be smaller than y2=%f\n",y1,y2);
+				goto eargs;
+		}
+
 		if (z->N!=Nx*Ny)
 		{
 				Warning("Number of steps in x- and y- directions "
