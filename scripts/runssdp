@@ -1,0 +1,169 @@
+#!/usr/bin/env python3
+
+import argparse
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+
+import pandas as pd
+
+
+def _opts():
+    p = argparse.ArgumentParser(
+        prog = 'runssdp',
+        formatter_class = argparse.RawTextHelpFormatter,
+        description = """run ssdp script
+
+The runssdp replaces all provided variables inside the script, saves
+it as '<--script>_' and runs it. If any variables present in the
+script are not provided in arguments, the script will exit with an
+error. Usage:
+
+        runssdp -s script.ssdp -n 12 ODIR=/name/output STEP=3 ALBEDO=0.4
+
+runssdp replaces duplicates the code between #$loop and #$pool and
+replaces matching variables using the variables provided in
+--variables file.
+
+        runssdp -s scripts -i vars.csv
+""")
+
+    p.add_argument(
+        '--script','-s', type=str, default='script.ssdp',
+        help = """path to the ssdp script
+
+Default: 'script.ssdp'
+        """)
+    p.add_argument(
+        '--ssdppath','-p', type=str, default='ssdp',
+        help = """path to the ssdp executable
+
+Default: 'ssdp'
+        """)
+    p.add_argument(
+        '--ifn','-i', type=str,
+        help = """path to the csv file with variables
+
+The file must contain columns corresponding to the used variables and
+rows are used in #$loop iterations. Any given positional arguments
+replace the columns in the provided table. If file is given but no
+#$loop is used, only the first set of variables is used.
+
+If the file is not given the variables are read from the positional
+arguments.
+        """)
+
+    p.add_argument(
+        '--ncpu', '-n', type=int, default=2,
+        help = """number of cpu to use while calling ssdp
+
+Default: 2
+        """)
+    p.add_argument(
+        '--dryrun', '-d', action = 'store_true',
+        help = """flag to just generate the script and not run it
+        """)
+    p.add_argument(
+        'variables', nargs='*',
+        help = """variables in the format NAME=VALUE
+
+Use ${NAME} variable inside the ssdp script.
+        """)
+
+    return p
+
+
+def _setvars(x, s):
+    for k, v in s.to_dict().items():
+        x = re.sub(f'\$\{{{k}\}}', v, x)
+    return x
+
+
+def _setloop(pre, loop, post, nv):
+    content = _setvars(pre, nv.iloc[0])
+    for _, s in nv.iterrows():
+        content += _setvars(loop, s)
+    content += _setvars(post, nv.iloc[0])
+    return content
+
+
+def _set_keywords(ifn, ofn, nv):
+    with open(ifn, 'r') as f:
+        content = f.read()
+
+    loopre = re.compile(r'(.*)(^#\$loop.*?^#\$pool)(.*)', re.DOTALL|re.MULTILINE)
+    if loopre.match(content):
+        content = loopre.findall(content)
+
+        if len(content) > 1:
+            print("Error: only one #$loop is supported", file=sys.stderr)
+            sys.exit(1)
+
+        content = _setloop(*content[0], nv = nv)
+    else:
+        content = _setvars(content, nv.iloc[0])
+
+    print(f"content of {ofn}:")
+    print(content, file=sys.stdout)
+    with open(ofn, 'w') as f:
+        f.write(content)
+
+
+def _runssdp(cmd):
+    print(f"Running {' '.join(cmd)}", file=sys.stdout)
+    res = subprocess.run(cmd, cwd = '.',
+                         stderr = None,
+                         stdout = None,
+                         env = dict(os.environ))
+    print(f"exit code: {res.returncode}", file=sys.stdout)
+    return res.returncode
+
+
+def _run(args, nv):
+    with tempfile.NamedTemporaryFile(dir='.') as ofn:
+        _set_keywords(args.script, ofn.name, nv)
+
+        if args.dryrun:
+            shutil.copyfile(ofn.name, args.script + '_')
+            return 0
+
+        return _runssdp(['ssdp','-n',str(args.ncpu),'-f',os.path.basename(ofn.name)])
+
+
+def _script_names(fn):
+    with open(fn, 'r') as f:
+        content = f.read()
+
+    return list(set(re.findall(r'\$\{(\S+?)\}', content)))
+
+
+def _vars(namevalue):
+    nv = dict([x.split('=') for x in namevalue])
+    return pd.DataFrame(nv, index=[0])
+
+
+if __name__ == '__main__':
+    args = _opts().parse_args()
+
+    sn = _script_names(args.script)
+
+    if args.ifn:
+        nv = pd.read_csv(args.ifn, engine='python', sep=None, dtype=str)
+
+        if args.variables:
+            nx = _vars(args.variables)
+            for x in nx.columns:
+                nv[x] = nx.iloc[0][x]
+    else:
+        nv = _vars(args.variables)
+
+    missing = list(set(sn) - set(nv.columns))
+    if len(missing):
+        print("Error: {} variables are used in {} but missing in arguments"\
+              .format(', '.join(missing), args.script), file=sys.stderr)
+        sys.exit(1)
+
+    sys.exit(_run(args, nv))
