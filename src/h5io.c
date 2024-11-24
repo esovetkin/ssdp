@@ -25,12 +25,12 @@ static int read_arr(hid_t, hid_t, void**, hid_t, int, int);
 static int write_arr(hid_t, hid_t, void*, hid_t, int, int);
 
 
-struct h5io *h5io_init(const char *fn)
+struct h5io *h5io_init(const char *fn, int readonly)
 {
         struct h5io *self = malloc(sizeof(*self));
         if (NULL == self) goto eself;
 
-        if (H5I_INVALID_HID == (self->file=h5io_fopen(fn))) goto efile;
+        if (H5I_INVALID_HID == (self->file=h5io_fopen(fn, readonly))) goto efile;
 
         h5io_setdataset(self, "data");
         h5io_setdtype(self, "float64");
@@ -238,10 +238,14 @@ int h5io_isin(struct h5io* self)
 }
 
 
-hid_t h5io_fopen(const char *fn)
+hid_t h5io_fopen(const char *fn, int readonly)
 {
-		if (0 == access(fn, F_OK))
-				return H5Fopen(fn, H5F_ACC_RDWR, H5P_DEFAULT);
+		if (0 == access(fn, F_OK)) {
+				if (0 == readonly)
+						return H5Fopen(fn, H5F_ACC_RDWR, H5P_DEFAULT);
+				else
+						return H5Fopen(fn, H5F_ACC_RDONLY, H5P_DEFAULT);
+		}
 
 		return H5Fcreate(fn, H5F_ACC_EXCL, H5P_DEFAULT, H5P_DEFAULT);
 }
@@ -454,7 +458,7 @@ void test_data_free(void** data, int ncol)
 
 void test_write(int ncol, int nrow, const char* fn, const char *dt)
 {
-		struct h5io* io = h5io_init(fn);
+		struct h5io* io = h5io_init(fn, 0);
 		assert(io);
 		h5io_setdataset(io, "data/test");
 		h5io_setdtype(io, dt);
@@ -467,7 +471,7 @@ void test_write(int ncol, int nrow, const char* fn, const char *dt)
 
 void test_write_int(int ncol, int nrow, const char* fn, const char *dt)
 {
-		struct h5io* io = h5io_init(fn);
+		struct h5io* io = h5io_init(fn, 0);
 		assert(io);
 		h5io_setdataset(io, "data/test");
 		h5io_setdtype(io, dt);
@@ -480,7 +484,7 @@ void test_write_int(int ncol, int nrow, const char* fn, const char *dt)
 
 void test_read(int ncol, int nrow, const char* fn)
 {
-		struct h5io* io = h5io_init(fn);
+		struct h5io* io = h5io_init(fn, 1);
 		assert(io);
 		h5io_setdataset(io,"data/test");
 		int n,i,j;
@@ -500,7 +504,7 @@ void test_read(int ncol, int nrow, const char* fn)
 
 void test_read_int(int ncol, int nrow, const char* fn)
 {
-		struct h5io* io = h5io_init(fn);
+		struct h5io* io = h5io_init(fn, 1);
 		assert(io);
 		h5io_setdataset(io,"data/test");
 		int n;
@@ -527,7 +531,7 @@ void time_write(int narr, int arrlen, int chunkarr,
 		double** data = test_data_init(narr, arrlen);
 		assert(data);
 
-		struct h5io* io = h5io_init("test.h5");
+		struct h5io* io = h5io_init("test.h5", 0);
 		assert(io);
 
 		io->compression = compression;
@@ -581,7 +585,7 @@ void test_timing()
 
 int test_isin(const char* fn, const char *name)
 {
-		struct h5io* io = h5io_init(fn);
+		struct h5io* io = h5io_init(fn, 0);
 		assert(io);
 		h5io_setdataset(io, name);
 		int res = h5io_isin(io);

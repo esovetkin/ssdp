@@ -1063,7 +1063,7 @@ void WriteHoriz(char *in)
 
 		if (!GetArg(in, "file", word)) goto eargs;
 		printf("Writing horizons to %s\n", word);
-		struct h5io* io = h5io_init(word);
+		struct h5io* io = h5io_init(word, 0);
 		if (NULL == io) goto eio;
 
 		if (!GetOption(in, "dataset", word)) snprintf(word, strlen(in), "horizon");

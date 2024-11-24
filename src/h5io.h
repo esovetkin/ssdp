@@ -29,7 +29,7 @@ struct h5io {
 		char dataset[H5IO_LNAME];
 };
 
-struct h5io* h5io_init(const char *filename);
+struct h5io* h5io_init(const char *filename, int readonly);
 void h5io_free(struct h5io* self);
 void h5io_setdataset(struct h5io* self, const char *dataset);
 void h5io_setdtype(struct h5io* self, const char* dtype);
@@ -60,7 +60,7 @@ int h5io_write(struct h5io* self, void **data, const char *dtype, int arrlen, in
 */
 int h5io_isin(struct h5io* self);
 
-hid_t h5io_fopen(const char *fn);
+hid_t h5io_fopen(const char *fn, int readonly);
 int h5_datasetisin(hid_t file, const char* dst);
 
 /** Set comment to the currently selected dataset.

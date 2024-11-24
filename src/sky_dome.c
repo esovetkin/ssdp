@@ -570,7 +570,7 @@ int h5write_sky_grid(sky_grid* data, const char* ofn, const char *dataset)
 {
 		hid_t dsp, file, dst, t_sky_grid;
 
-		if (H5I_INVALID_HID == (file=h5io_fopen(ofn))) goto efile;
+		if (H5I_INVALID_HID == (file=h5io_fopen(ofn, 0))) goto efile;
 		if (0 != h5_datasetisin(file, dataset)) goto edataset;
 
 		dsp = H5Screate_simple(1, (hsize_t[]){1}, NULL);

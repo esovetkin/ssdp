@@ -436,7 +436,7 @@ void WriteH5(char *in)
                 goto efile;
         }
         printf("Writing to %s\n", word);
-        struct h5io* io = h5io_init(word);
+        struct h5io* io = h5io_init(word, 0);
         if (NULL == io) goto eio;
         if (h5io_checksize(sizeof(double), "float64")) {
                 Warning("Error: sizeof(double) != float64!\n");
@@ -508,7 +508,7 @@ void ReadH5(char *in)
         }
         printf("Reading from %s\n", word);
 
-        struct h5io* io = h5io_init(word);
+        struct h5io* io = h5io_init(word, 1);
         if (NULL == io) goto eio;
         if (h5io_checksize(sizeof(double), "float64")) {
                 Warning("Error: sizeof(double) != float64!\n");
