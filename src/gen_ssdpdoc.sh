@@ -39,6 +39,9 @@ echo "pass a script file with ssdp commands." >>  $FILE
 echo ".TP" >>  $FILE
 echo ".B -i" >>  $FILE
 echo "start an interactive shell." >>  $FILE
+echo ".TP" >>  $FILE
+echo ".B -n" >>  $FILE
+echo "number of parallel processes to use." >>  $FILE
 echo ".P" >>  $FILE
 echo "There is no requirement regarding the order of the arguments." >>  $FILE
 echo "This means you can pass commands on the commandline before and " >> $FILE
