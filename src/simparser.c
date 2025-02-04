@@ -612,7 +612,6 @@ void SolarPos(char *in)
 {
 		int i, N, fE = 0, fp = 0, fT = 0;
 		char *word, *nazi, *nzen;
-		sky_pos s;
 		array *t, *lon, *lat, *E, *p, *T, azi, zen;
 
 		if (NULL==(word=malloc((strlen(in)+1)*sizeof(*word)))) goto eword;
@@ -645,6 +644,7 @@ void SolarPos(char *in)
 		{
 #pragma omp for schedule(runtime)
 				for (i=0; i<N; ++i) {
+						sky_pos s;
 						s=ssdp_sunpos((time_t)AT(t,i),
 									  deg2rad(AT(lat,i)), deg2rad(AT(lon,i)),
 									  AT(E,i), AT(p,i), AT(T,i));
