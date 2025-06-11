@@ -22,7 +22,7 @@ struct cvec {
 };
 
 struct cvec* cvec_init(int a);
-void cvec_free();
+void cvec_free(struct cvec *self);
 // returns -1 on realloc fails
 int cvec_push(struct cvec*, char *word);
 // returns -1 if failed to read line from fn
