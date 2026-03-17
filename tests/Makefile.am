@@ -1,6 +1,6 @@
 AUTOMAKE_OPTIONS = subdir-objects
 
-bin_PROGRAMS = ssdptest_edt ssdptest_minfill ssdptest_epsg ssdptest_coords ssdptest_topogdal ssdptest_pngout ssdptest_h5io ssdptest_hashmap ssdptest_rtree ssdptest_sobolseq ssdptest_lcg ssdptest_skydome
+bin_PROGRAMS = ssdptest_edt ssdptest_minfill ssdptest_epsg ssdptest_coords ssdptest_topogdal ssdptest_pngout ssdptest_h5io ssdptest_hashmap ssdptest_rtree ssdptest_sobolseq ssdptest_lcg ssdptest_skydome ssdptest_parser
 
 ssdptest_edt_SOURCES = $(top_builddir)/src/edt.c
 ssdptest_edt_CFLAGS = -DRUNTEST
@@ -46,6 +46,13 @@ ssdptest_skydome_CFLAGS = -DRUNTEST $(HDF5_CPPFLAGS)
 ssdptest_skydome_LDFLAGS = $(HDF5_LIBS) $(HDF5_LDFLAGS)
 ssdptest_skydome_LDADD = libh5io.la
 
+ssdptest_parser_SOURCES = ssdptest_parser.c \
+	$(top_builddir)/src/ssdp_ast.c \
+	$(top_builddir)/src/ssdp_parse_driver.c \
+	$(top_builddir)/src/ssdp_parser.tab.c \
+	$(top_builddir)/src/ssdp_lexer.yy.c
+ssdptest_parser_CFLAGS = -DRUNTEST
+
 noinst_LTLIBRARIES = libcoordinates.la libepsg.la libedt.la libhashmap.la libh5io.la
 libcoordinates_la_SOURCES = $(top_builddir)/src/coordinates.c
 libepsg_la_SOURCES = $(top_builddir)/src/epsg.c
@@ -53,4 +60,6 @@ libedt_la_SOURCES = $(top_builddir)/src/edt.c
 libh5io_la_SOURCES = $(top_builddir)/src/h5io.c
 libhashmap_la_SOURCES = $(top_builddir)/src/hashmap.c $(top_builddir)/src/murmurhash3.c
 
-TESTS=ssdptest_edt ssdptest_minfill ssdptest_epsg ssdptest_coords ssdptest_topogdal ssdptest_pngout ssdptest_h5io ssdptest_hashmap ssdptest_rtree ssdptest_sobolseq ssdptest_lcg ssdptest_skydome
+TESTS=ssdptest_edt ssdptest_minfill ssdptest_epsg ssdptest_coords ssdptest_topogdal ssdptest_pngout ssdptest_h5io ssdptest_hashmap ssdptest_rtree ssdptest_sobolseq ssdptest_lcg ssdptest_skydome ssdptest_parser test_parser_modes.sh test_parser_baseline_scripts.sh test_parser_diagnostics.sh test_parser_strict_mode.sh
+TESTS_ENVIRONMENT = top_builddir=$(top_builddir) srcdir=$(srcdir)
+EXTRA_DIST = ssdptest_parser.c test_parser_modes.sh test_parser_baseline_scripts.sh test_parser_diagnostics.sh test_parser_strict_mode.sh

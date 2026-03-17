@@ -12,6 +12,8 @@
 #include "variables.h"
 #include "parser.h"
 #include "parserutil.h"
+#include "ssdp_parse_driver.h"
+#include "ssdp_ast.h"
 
 
 #ifdef OPENMP
@@ -22,6 +24,8 @@
 
 int ParseLineNr=0;
 char *ParseFileStr=NULL;
+static const ssdp_cmd *CurrentCmd = NULL;
+static int ParseStrictMode = 0;
 
 /* core parsing routines */
 /* LookupComm finds takes a keyword and retuns a pointer to the corresponding parser routine */
@@ -40,20 +44,146 @@ ParserFun LookupComm(char *key)
 	return NULL;
 }
 
-/* ParseComm takes a line of input and finds the keyword at the beginning
- * then calls LookupComm to find the right parser, then calls this parser with the remainder of the line */
-int ParseComm(char *in)
+static int usage_has_key(const char *usage, const char *key)
+{
+	const char *p = usage;
+
+	while (*p) {
+		const char *ts, *te, *eq, *ks, *ke, *ss, *se;
+
+		while (*p && isspace((unsigned char)*p))
+			++p;
+		if (!*p)
+			break;
+
+		ts = p;
+		while (*p && !isspace((unsigned char)*p))
+			++p;
+		te = p;
+		if (ts == te)
+			continue;
+
+		ks = ts;
+		ke = te;
+		if (*ks == '[')
+			++ks;
+		if (ke > ks && *(ke - 1) == ']')
+			--ke;
+		if (ke <= ks)
+			continue;
+
+		eq = NULL;
+		for (ss = ks; ss < ke; ++ss) {
+			if (*ss == '=') {
+				eq = ss;
+				break;
+			}
+		}
+		if (NULL == eq)
+			continue;
+
+		ss = ks;
+		while (ss < eq) {
+			se = ss;
+			while (se < eq && *se != '/')
+				++se;
+			if ((size_t)(se - ss) == strlen(key) &&
+				0 == strncmp(ss, key, (size_t)(se - ss)))
+				return 1;
+			ss = (se < eq) ? (se + 1) : eq;
+		}
+	}
+
+	return 0;
+}
+
+static const char *lookup_usage(const char *key)
+{
+	int i = 0;
+	while (KeyTable[i].key && Usage[i]) {
+		if (0 == strcmp(KeyTable[i].key, key))
+			return Usage[i];
+		++i;
+	}
+	return NULL;
+}
+
+static void warn_strict_args(const ssdp_cmd *cmd)
+{
+	const char *usage;
+	size_t i, j;
+
+	if (!ParseStrictMode || NULL == cmd)
+		return;
+
+	usage = lookup_usage(cmd->name);
+	if (NULL == usage)
+		return;
+
+	for (i = 0; i < cmd->argc; ++i) {
+		if (!cmd->args[i].has_key)
+			continue;
+		for (j = 0; j < i; ++j) {
+			if (!cmd->args[j].has_key)
+				continue;
+			if (0 == strcmp(cmd->args[i].key, cmd->args[j].key)) {
+				Warning("Warning: duplicate argument %s in command %s\n",
+						cmd->args[i].key, cmd->name);
+				break;
+			}
+		}
+		if (!usage_has_key(usage, cmd->args[i].key))
+			Warning("Warning: unknown argument %s in command %s\n",
+					cmd->args[i].key, cmd->name);
+	}
+}
+
+static int DispatchByKeyword(const char *key, char *arg)
+{
+	ParserFun fun;
+
+	fun=LookupComm((char*) key);
+	if (fun)
+		fun(arg);
+	else
+		Warning("Command %s not defined\n", key);
+	return 0;
+}
+
+static int DispatchFromAST(const ssdp_cmd *cmd, void *dispatch_user)
+{
+	char *arg;
+	(void) dispatch_user;
+
+	if (0 == strcmp(cmd->name, "exit"))
+		return 1;
+
+	warn_strict_args(cmd);
+
+	arg = ssdp_cmd_render_legacy_args(cmd);
+	if (NULL == arg) {
+		Warning("Error: failed to render arguments for %s\n", cmd->name);
+		return 0;
+	}
+
+	CurrentCmd = cmd;
+	DispatchByKeyword(cmd->name, arg);
+	CurrentCmd = NULL;
+	free(arg);
+	return 0;
+}
+
+static int ParseCommLegacy(char *in)
 {
 	char *key;
 	char *arg;
 	int go=1;
-	ParserFun fun;
 	/* skip space chars */
 	if (*in=='#')
 		return 0;
 	while (*in && go)
 	{
-		if (!isspace(*in))
+		if (!isspace((unsigned char)*in))
 		{
 			go=0;
 		}
@@ -62,22 +192,56 @@ int ParseComm(char *in)
 	}
 	if (!(*in))
 		return 0;
-		
+
 	key=malloc((strlen(in)+1)*sizeof(char));
+	if (NULL == key)
+		return 0;
 	arg=GetWord(in, key);
 	if (strncmp(key, "exit", 5)==0)
 	{
 		free(key);
 		return 1;
 	}
-		
-	fun=LookupComm(key);
-	if (fun)
-		fun(arg);
-	else
-		Warning("Command %s not defined\n", key);	
+
+	DispatchByKeyword(key, arg);
 	free(key);
 	return 0;
+}
+
+int ParseComm(char *in)
+{
+	ssdp_parse_ctx ctx;
+	const char *mode;
+	const char *strict;
+	const char *p;
+	int ret;
+
+	mode = getenv("SSDP_PARSER");
+	if (mode && 0 == strcmp(mode, "legacy"))
+		return ParseCommLegacy(in);
+
+	strict = getenv("SSDP_PARSER_STRICT");
+	ParseStrictMode = (strict && strict[0] && 0 != strcmp(strict, "0"));
+
+	if (ParseStrictMode) {
+		p = in;
+		while (*p && isspace((unsigned char)*p))
+			++p;
+		if (*p == '#')
+			return 0;
+	}
+
+	memset(&ctx, 0, sizeof(ctx));
+	ctx.filename = ParseFileStr;
+	ctx.line = ParseLineNr;
+	ctx.compat_mode = SSDP_PARSE_COMPAT_LEGACY;
+	ctx.strict_mode = ParseStrictMode;
+	ctx.dispatch = DispatchFromAST;
+
+	ret = ssdp_parse_and_dispatch_line(&ctx, in);
+	if (ret < 0)
+		return 0;
+	return ret;
 }
 
 /* string manimulation routines (mostly about getting the right chunk out of a string) */
@@ -133,9 +297,20 @@ char * GetWord(const char *in, char *word)
 
 int GetOption(const char *in, const char *opt, char *word)
 {
+	const char *val;
 	char *start;
 	char *opti;
 	int len;
+
+	if (CurrentCmd) {
+		if (!ssdp_cmd_get(CurrentCmd, opt, &val)) {
+			*word = '\0';
+			return 0;
+		}
+		memcpy(word, val, strlen(val) + 1);
+		return 1;
+	}
+
 	len=(strlen(opt)+2);
 	opti=malloc(len*sizeof(char));
 	snprintf(opti,len,"%s=",opt);
@@ -356,9 +531,20 @@ void Help(char *in)
 
 int GetNumOption(const char *in, const char *opt, int i, char *word)
 {
+	const char *val;
 	char *start;
 	char *opti;
 	int len, k;
+
+	if (CurrentCmd) {
+		if (!ssdp_cmd_getn(CurrentCmd, opt, i, &val)) {
+			*word = '\0';
+			return 0;
+		}
+		memcpy(word, val, strlen(val) + 1);
+		return 1;
+	}
+
 	len=1;
 	if (i<0)
 		len++;

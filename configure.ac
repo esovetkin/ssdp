@@ -10,6 +10,8 @@ LT_INIT([])
 AC_PROG_SED()
 AC_PROG_AWK()
 AC_PROG_EGREP()
+AC_PROG_YACC
+AM_PROG_LEX
 AC_ENABLE_SHARED
 AC_ENABLE_SHARED([])
 LT_INIT([win32-dll])
@@ -76,6 +78,15 @@ esac],[gendaylit=false])
 AS_IF([test "x$gendaylit" == "xtrue"], [
   AC_DEFINE([GENDAYLIT], [], [Use the gendaylit Perez model flavor])
 ])
+
+AC_CHECK_PROGS([BISON], [bison], [no])
+AS_IF([test "x$BISON" = "xno"],
+      [AC_MSG_ERROR([bison is required to build parser sources])])
+
+AC_CHECK_PROGS([FLEX], [flex], [no])
+AS_IF([test "x$FLEX" = "xno"],
+      [AC_MSG_ERROR([flex is required to build lexer sources])])
+
 AC_SUBST(LIBVERSION, [ssdp_libversion])
 AC_DEFINE([LIBSSDPVERSION], ["[ssdp_libversion]"], [libssdp version string])
 AC_CONFIG_FILES([

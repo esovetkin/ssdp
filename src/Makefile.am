@@ -29,7 +29,7 @@ nodist_libssdp_la_SOURCES = errorflags.h errormessages.h libssdp_structs.h
 
 
 bin_PROGRAMS = ssdp
-ssdp_SOURCES = lio.c variables.c parser.c configparser.c arrayparser.c topoparser.c simparser.c readlineshell.c util.c epsg.c coordinates.c pngout.c h5io.c hashmap.c murmurhash3.c rtree.c sobolseq.c lcg.c ssdp.c lio.h variables.h parser.h parserutil.h readlineshell.h util.h winunistd.h epsg.h coordinates.h gen_parserflags.sh gen_errorflags.sh collect_datastructs.sh gen_ssdpdoc.sh
+ssdp_SOURCES = lio.c variables.c parser.c configparser.c arrayparser.c topoparser.c simparser.c readlineshell.c util.c epsg.c coordinates.c pngout.c h5io.c hashmap.c murmurhash3.c rtree.c sobolseq.c lcg.c ssdp.c ssdp_ast.c ssdp_parse_driver.c ssdp_parser.tab.c ssdp_lexer.yy.c lio.h variables.h parser.h parserutil.h readlineshell.h util.h winunistd.h epsg.h coordinates.h ssdp_ast.h ssdp_parse_driver.h gen_parserflags.sh gen_errorflags.sh collect_datastructs.sh gen_ssdpdoc.sh
 if OPENMP
 ssdp_LDFLAGS= -lreadline -fopenmp -lm -lpng $(LAPACK_LIBS) $(BLAS_LIBS) $(FFTW_LIBS) $(HDF5_LIBS) $(GDAL_LDFLAGS) $(GDAL_DEP_LDFLAGS) $(HDF5_LDFLAGS)
 else
@@ -39,11 +39,17 @@ ssdp_CFLAGS = $(AM_CFLAGS) $(GDAL_CFLAGS) $(HDF5_CPPFLAGS) -DOPENMP -fopenmp -D'
 ssdp_LDADD = libssdp.la
 man1_MANS = ssdp.man
 # scripts in extra dist
-EXTRA_DIST = gen_errorflags.sh collect_datastructs.sh gen_parserflags.sh freespa/freespa.c freespa/freespa.h freespa/freespa_tables.h freespa/freespa_dt_table.h filterimage/filter.c filterimage/floatimage.c filterimage/filter.h filterimage/floatimage.h
+EXTRA_DIST = gen_errorflags.sh collect_datastructs.sh gen_parserflags.sh freespa/freespa.c freespa/freespa.h freespa/freespa_tables.h freespa/freespa_dt_table.h filterimage/filter.c filterimage/floatimage.c filterimage/filter.h filterimage/floatimage.h ssdp_parser.y ssdp_lexer.l
 
-BUILT_SOURCES = errorflags.h errormessages.h libssdp_structs.h parsedef.h ssdp.man
+BUILT_SOURCES = errorflags.h errormessages.h libssdp_structs.h parsedef.h ssdp.man ssdp_parser.tab.c ssdp_parser.tab.h ssdp_lexer.yy.c
 
-MOSTLYCLEANFILES = parsedef.h errorflags.h errormessages.h libssdp_structs.h ssdp.man
+MOSTLYCLEANFILES = parsedef.h errorflags.h errormessages.h libssdp_structs.h ssdp.man ssdp_parser.tab.c ssdp_parser.tab.h ssdp_lexer.yy.c
+ssdp_parser.tab.c ssdp_parser.tab.h: ssdp_parser.y
+	$(BISON) -d -o ssdp_parser.tab.c $(srcdir)/ssdp_parser.y
+
+ssdp_lexer.yy.c: ssdp_lexer.l ssdp_parser.tab.h
+	$(FLEX) -o ssdp_lexer.yy.c $(srcdir)/ssdp_lexer.l
+
 parsedef.h: gen_parserflags.sh parser.c configparser.c arrayparser.c topoparser.c simparser.c
 	${SHELL} ${srcdir}/gen_parserflags.sh ${srcdir} parser.c configparser.c arrayparser.c topoparser.c simparser.c
 # errorflags and errormessages are created with the same script
@@ -58,4 +64,3 @@ libssdp_structs.h: collect_datastructs.sh vector.h sky_dome.h delaunay.h trace.h
 	${SHELL} ${srcdir}/collect_datastructs.sh ${srcdir} vector.h  sky_dome.h delaunay.h trace.h ground.h project.h libssdp.c
 ssdp.man: gen_ssdpdoc.sh parser.c configparser.c arrayparser.c topoparser.c simparser.c
 	${SHELL} ${srcdir}/gen_ssdpdoc.sh ${srcdir} parser.c configparser.c arrayparser.c topoparser.c simparser.c
-
